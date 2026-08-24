@@ -1,0 +1,4 @@
+- is it a tourism only country or a regular place with tourism included?
+- NO holiday making countries
+- NO countries which show only tourist activities
+- 

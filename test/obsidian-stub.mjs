@@ -1,0 +1,102 @@
+/**
+ * Node-side stand-in for the `obsidian` module, so the write path (mutate.ts)
+ * can be tested against an in-memory vault. Only the surface Mutator touches.
+ */
+
+export class TFile {
+	constructor(path, vault) {
+		this.path = path;
+		this.vault = vault;
+		this.extension = path.split(".").pop();
+		this.parent = { path: path.split("/").slice(0, -1).join("/") };
+	}
+}
+
+export class TFolder {
+	constructor(path) {
+		this.path = path;
+		this.children = [];
+	}
+}
+
+export class MarkdownView {}
+export class Notice {}
+export class Menu {}
+export class Modal {}
+export class Setting {}
+export class PluginSettingTab {}
+export class Plugin {}
+export class ItemView {}
+export class WorkspaceLeaf {}
+export function setIcon() {}
+export function normalizePath(p) {
+	return p.replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/|\/$/g, "");
+}
+export const Platform = { isMobile: false };
+
+/**
+ * An in-memory vault. `files` maps path -> content.
+ *
+ * `openEditors` decides which branch Mutator takes: a path listed there is
+ * treated as open in an editor (Editor API path), otherwise it goes through
+ * Vault.process. Both are implemented so the two branches can be tested
+ * against identical expectations.
+ */
+export function makeApp(files, openEditors = []) {
+	const store = new Map(Object.entries(files));
+
+	const editorFor = (path) => {
+		const lines = () => store.get(path).split("\n");
+		return {
+			lineCount: () => lines().length,
+			lastLine: () => lines().length - 1,
+			getLine: (n) => lines()[n],
+			setLine: (n, text) => {
+				const l = lines();
+				l[n] = text;
+				store.set(path, l.join("\n"));
+			},
+			replaceRange: (replacement, from, to) => {
+				const l = lines();
+				if (!to) {
+					// Insertion at from.
+					const head = l.slice(0, from.line);
+					const tail = l.slice(from.line);
+					const inserted = replacement.replace(/\n$/, "").split("\n");
+					const merged =
+						replacement.startsWith("\n") && from.line >= l.length
+							? [...l, ...replacement.replace(/^\n/, "").split("\n")]
+							: [...head, ...inserted, ...tail];
+					store.set(path, merged.join("\n"));
+					return;
+				}
+				// Deletion of [from.line, to.line).
+				const l2 = lines();
+				l2.splice(from.line, to.line - from.line);
+				store.set(path, l2.join("\n"));
+			},
+		};
+	};
+
+	return {
+		__store: store,
+		vault: {
+			getAbstractFileByPath: (p) => (store.has(p) ? new TFile(p) : null),
+			cachedRead: async (f) => store.get(f.path),
+			read: async (f) => store.get(f.path),
+			process: async (f, fn) => {
+				const next = fn(store.get(f.path));
+				store.set(f.path, next);
+				return next;
+			},
+		},
+		workspace: {
+			getLeavesOfType: (type) =>
+				type !== "markdown"
+					? []
+					: openEditors.map((path) => ({
+							view: { file: { path }, editor: editorFor(path) },
+						})),
+		},
+	};
+}

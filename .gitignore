@@ -1,0 +1,10 @@
+node_modules/
+main.js
+main.js.map
+harness/bundle.js
+harness/shot-*.png
+test/model.mjs
+.DS_Store
+data.json
+_to_delete/
+test/build/

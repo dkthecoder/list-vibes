@@ -1,0 +1,3 @@
+- [ ] First task 📅 2026-09-01
+- [x] Second task ✅ 2026-01-01
+- [ ] Third
