@@ -1,6 +1,7 @@
 import { App, MarkdownView, Notice, TFile } from "obsidian";
 import { parseLine } from "./parse";
 import { setFrontmatterKey } from "./frontmatter";
+import { nextOccurrence } from "./recurrence";
 import {
 	newTaskLine,
 	setField,
@@ -348,7 +349,24 @@ export class Mutator {
 				next = setField(reparsed, "done", null, this.dialect());
 			}
 		}
+
+		/*
+		 * A repeating task leaves the next one behind.
+		 *
+		 * The new line goes in *before* the completed one, which is what Obsidian
+		 * Tasks does and what reading order wants: the thing still to do sits
+		 * above the record of the thing already done.
+		 *
+		 * Inserting first and replacing second would shift the line the replace is
+		 * about to target, so the order here is load-bearing: complete the task,
+		 * then insert above it.
+		 */
+		const repeated = becomingDone ? this.repeatLine(task) : null;
+
 		await this.replaceLine(task.filePath, task.line, task.raw, next);
+		if (repeated) {
+			await this.insertLines(task.filePath, task.line, [repeated]);
+		}
 	}
 
 	/** Set an explicit status, e.g. from a context menu. */
@@ -392,10 +410,106 @@ export class Mutator {
 		await this.setField(task, "myDay", task.meta.myDay ? null : "true");
 	}
 
+	/**
+	 * The line for the next instance of a repeating task, or null if there is
+	 * not one to make.
+	 *
+	 * Everything the task carries travels except the things that belong to *this*
+	 * occurrence: it starts undone, with no completion date, and with its dates
+	 * advanced. The created date is refreshed too, since the new instance is new.
+	 */
+	private repeatLine(task: Task): string | null {
+		if (!task.meta.repeat) return null;
+
+		const dates = nextOccurrence(
+			task.meta.repeat,
+			{ due: task.meta.due, scheduled: task.meta.scheduled },
+			today()
+		);
+		if (!dates) return null;
+
+		const meta: Partial<TaskMeta> = { ...task.meta, ...dates, done: undefined };
+		if (this.addCreatedDate()) meta.created = today();
+		else delete meta.created;
+
+		return newTaskLine(task.title, {
+			indent: task.indent,
+			bullet: task.bullet,
+			meta,
+			dialect: this.dialect(),
+		});
+	}
+
 	/** The star in the reference UI maps to high priority. */
 	async toggleImportant(task: Task): Promise<void> {
 		const isHigh = task.meta.priority === "high" || task.meta.priority === "highest";
 		await this.setField(task, "priority", isHigh ? null : "high");
+	}
+
+	/**
+	 * Give a task its own note.
+	 *
+	 * The escape hatch the one-file-per-task designs make compulsory. The line
+	 * stays where it is and becomes a link — `- [ ] [[Title]] 📅 2026-09-01` —
+	 * so the list still shows it, still sorts it, still ticks it off. Only the
+	 * 5% of tasks that grow a life of their own pay for a file.
+	 *
+	 * Metadata deliberately stays on the line rather than moving into the note's
+	 * frontmatter. The line is what the list reads, what Obsidian Tasks reads,
+	 * and what survives this plugin being uninstalled; moving the due date into a
+	 * file would make the task invisible to all three.
+	 *
+	 * Returns the new note's path, or null if nothing was written.
+	 */
+	async promote(task: Task, folder: string): Promise<string | null> {
+		const file = this.fileFor(task.filePath);
+		if (!file) return null;
+
+		// Already a link? Promoting twice would nest one inside another.
+		if (/\[\[[^\]]+\]\]/.test(task.title)) {
+			new Notice("That task is already a note.");
+			return null;
+		}
+
+		const name = fileSafe(task.title);
+		if (!name) {
+			new Notice("That task's name cannot be used as a filename.");
+			return null;
+		}
+
+		const dir = folder.replace(/\/+$/, "");
+		if (dir && !this.app.vault.getAbstractFileByPath(dir)) {
+			await this.app.vault.createFolder(dir).catch(() => undefined);
+		}
+
+		// Never overwrite. A collision means a different task with the same name,
+		// and quietly merging the two would lose one of them.
+		let path = dir ? `${dir}/${name}.md` : `${name}.md`;
+		let n = 1;
+		while (this.app.vault.getAbstractFileByPath(path)) {
+			n += 1;
+			path = dir ? `${dir}/${name} ${n}.md` : `${name} ${n}.md`;
+		}
+
+		const body = [
+			"---",
+			`created: ${today()}`,
+			`source: "[[${file.basename}]]"`,
+			"---",
+			"",
+			`# ${task.title}`,
+			"",
+			task.note ?? "",
+			"",
+		].join("\n");
+
+		await this.app.vault.create(path, body);
+
+		// The link uses the display title, so renaming the note later is
+		// Obsidian's problem to solve rather than ours.
+		const linked = setTitle(task, `[[${title(path)}|${task.title}]]`);
+		const ok = await this.replaceLine(task.filePath, task.line, task.raw, linked);
+		return ok ? path : null;
 	}
 
 	/** Delete a task, its note, and everything nested under it. */
@@ -524,4 +638,24 @@ export class Mutator {
 			return lines.join("\n");
 		});
 	}
+}
+
+/**
+ * A filename that macOS, Windows and Obsidian will all accept.
+ *
+ * Shared with renameList's own cleaning: the same characters are illegal
+ * wherever a name becomes a path.
+ */
+export function fileSafe(name: string): string {
+	return name
+		.replace(/\[\[|\]\]/g, "")
+		.replace(/[\\/:*?"<>|#^]/g, "")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, 120);
+}
+
+/** The display name of a path: no folders, no extension. */
+function title(path: string): string {
+	return (path.split("/").pop() ?? path).replace(/\.md$/i, "");
 }

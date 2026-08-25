@@ -12,7 +12,7 @@ import {
 } from "obsidian";
 import { DEFAULT_SETTINGS, ListsSettingTab, ListsSettings } from "./settings";
 import { ListStore, todayISO } from "./model/store";
-import { TaskList, normalizeViewMode } from "./model/types";
+import { Task, TaskList, normalizeViewMode } from "./model/types";
 import { Mutator } from "./model/mutate";
 import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
@@ -73,6 +73,22 @@ export default class ListsPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+	}
+
+	/**
+	 * Give a task its own note, then open it.
+	 *
+	 * Opening it is the point: promoting a task is something you do *because* you
+	 * want to write in it, so landing in the empty note is the next step rather
+	 * than an extra one.
+	 */
+	async promote(task: Task): Promise<void> {
+		const path = await this.mutator.promote(task, this.settings.notesFolder);
+		if (!path) return;
+		const file = this.app.vault.getAbstractFileByPath(path);
+		if (file instanceof TFile) {
+			await this.app.workspace.getLeaf("tab").openFile(file);
+		}
 	}
 
 	/** Reparse everything and repaint, e.g. after a folder change. */

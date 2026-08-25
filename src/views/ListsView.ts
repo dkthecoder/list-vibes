@@ -414,6 +414,10 @@ export class ListsView extends ItemView {
 				void this.plugin.mutator.setListConfig(path, "color", color);
 			},
 
+			promote: (task: Task) => {
+				void this.plugin.promote(task);
+			},
+
 			setIcon: (path: string, icon: string | null) => {
 				// Frontmatter, not the filename: renaming a file to change its icon
 				// would rewrite every link pointing at it.

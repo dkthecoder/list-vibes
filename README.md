@@ -150,6 +150,43 @@ parser and a view over `TaskList[]` rebuilt from disk whenever a file changes.
 The trade is real and worth stating: **Bases can't drive this.** We render our
 own view instead.
 
+## Repeating tasks
+
+Tick a `🔁 every week` task and the next one is left behind, above the completed
+record of this one. Everything travels except what belonged to this occurrence:
+it starts undone, without a completion date, with its dates advanced.
+
+`every day`, `every 3 days`, `every other week`, `every month`, `every monday`,
+`weekly` — and `when done` on the end of any of them. That last one is the
+distinction that matters: **rent due every month** means the first of the month
+whether or not you paid late, while **water the plants every 3 days when done**
+means three days after you last watered them. A rule we do not recognise
+advances nothing rather than guessing, because a task quietly repeating on the
+wrong schedule is worse than one that visibly does not repeat at all.
+
+A task with both a due and a scheduled date keeps the gap between them.
+
+Month arithmetic clamps: 31 January plus a month is 28 February, not 3 March.
+Getting that wrong makes a monthly task creep forward through the calendar a few
+days at a time, which is why it is tested rather than assumed.
+
+## Giving a task its own note
+
+The escape hatch that one-file-per-task designs make compulsory. From the detail
+panel, a task can become a note: the line stays where it is and turns into a
+link — `- [ ] [[Plan the trip|Plan the trip]] 📅 2026-09-01` — so the list still
+shows it, still sorts it, still ticks it off.
+
+**The metadata stays on the line.** Moving a due date into the note's
+frontmatter would hide it from the list, from Obsidian Tasks, and from anything
+that reads the file after this plugin is gone. The note is for the writing; the
+line remains the task.
+
+Promoted notes go to their own folder, configurable, kept out of the lists
+folder so they are not themselves read as lists. Names are cleaned for the
+filesystem without touching the displayed title, and a collision never
+overwrites — a second "Same" becomes "Same 2".
+
 ## Icons
 
 A list can carry an emoji beside its name. It is stored in the list's
@@ -410,7 +447,7 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 257 tests: parsing, sorting, frontmatter, view state, writes
+npm test         # 294 tests: parsing, sorting, frontmatter, view state, writes
 npm run test:ui  # drives drags, renames, titles and mobile typing in a browser
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```

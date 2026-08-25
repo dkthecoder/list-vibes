@@ -664,3 +664,149 @@ describe("rename list", () => {
 		assert.equal(await s.mutator.renameList("lists/Gone.md", "X"), null);
 	});
 });
+
+/* ------------------------------------------------------------------ *
+ * Repeating tasks
+ * ------------------------------------------------------------------ */
+
+describe("repeat", () => {
+	const REPEATING = [
+		"- [ ] Water the plants 🔁 every 3 days 📅 2026-03-01",
+		"- [ ] Something else",
+		"",
+	].join("\n");
+
+	test("completing a repeating task leaves the next one behind", async () => {
+		const s = setup(REPEATING);
+		await s.mutator.toggle(s.root(0));
+
+		const tasks = s.parse().tasks;
+		assert.equal(tasks.length, 3, "expected the next instance plus both originals");
+
+		// The new one comes first: what is still to do sits above the record of
+		// what is done.
+		assert.equal(tasks[0].title, "Water the plants");
+		assert.equal(tasks[0].status, "todo");
+		assert.equal(tasks[0].meta.due, "2026-03-04", "the due date did not advance");
+		assert.equal(tasks[0].meta.repeat, "every 3 days", "the rule did not travel");
+		assert.equal(tasks[0].meta.done, undefined, "the new one is not already done");
+
+		assert.equal(tasks[1].status, "done", "the original was not completed");
+	});
+
+	test("un-completing does not spawn anything", async () => {
+		const s = setup(REPEATING);
+		await s.mutator.toggle(s.root(0));
+		const after = s.parse().tasks.length;
+		// Tick the completed one back off.
+		await s.mutator.toggle(s.parse().tasks[1]);
+		assert.equal(s.parse().tasks.length, after, "un-completing added a task");
+	});
+
+	test("a task with no repeat rule spawns nothing", async () => {
+		const s = setup(REPEATING);
+		await s.mutator.toggle(s.root(1));
+		assert.equal(s.parse().tasks.length, 2, "a plain task spawned a repeat");
+	});
+
+	test("an unrecognised rule spawns nothing rather than guessing", async () => {
+		const s = setup("- [ ] Odd 🔁 every blue moon 📅 2026-03-01\n");
+		await s.mutator.toggle(s.root(0));
+		assert.equal(s.parse().tasks.length, 1);
+		assert.equal(s.parse().tasks[0].status, "done");
+	});
+
+	test("the repeated task keeps its other metadata", async () => {
+		const s = setup("- [ ] Chores 🔁 every week 📅 2026-03-01 ⏫ ☀️\n");
+		await s.mutator.toggle(s.root(0));
+		const next = s.parse().tasks[0];
+		assert.equal(next.meta.priority, "high", "priority did not travel");
+		assert.equal(next.meta.myDay, true, "My Day did not travel");
+		assert.equal(next.meta.due, "2026-03-08");
+	});
+
+	test("indentation and bullet style are preserved", async () => {
+		// A repeating step lives under its parent and has to stay there.
+		const s = setup(
+			["- [ ] Parent", "\t- [ ] Step 🔁 every day 📅 2026-03-01", ""].join("\n")
+		);
+		const step = s.parse().tasks[0].children[0];
+		await s.mutator.toggle(step);
+		const lines = s.lines();
+		assert.ok(lines[1].startsWith("\t- [ ]"), `lost its indent: ${JSON.stringify(lines[1])}`);
+		assert.ok(lines[2].startsWith("\t- [x]"), `original moved: ${JSON.stringify(lines[2])}`);
+	});
+});
+
+/* ------------------------------------------------------------------ *
+ * Promotion to a note
+ * ------------------------------------------------------------------ */
+
+describe("promote", () => {
+	const LIST = [
+		"- [ ] Plan the trip 📅 2026-09-01 ⏫",
+		"\tSome notes about the trip.",
+		"- [ ] Other",
+		"",
+	].join("\n");
+
+	test("the line becomes a link and the note is created", async () => {
+		const s = setup(LIST);
+		const path = await s.mutator.promote(s.root(0), "tasks");
+
+		assert.equal(path, "tasks/Plan the trip.md");
+		assert.ok(s.app.__store.has(path), "the note was not created");
+
+		const line = s.lines()[0];
+		assert.ok(line.includes("[[Plan the trip|Plan the trip]]"), line);
+	});
+
+	test("the metadata stays on the line, not in the note", async () => {
+		// The line is what the list reads, what Obsidian Tasks reads, and what
+		// survives this plugin being uninstalled.
+		const s = setup(LIST);
+		await s.mutator.promote(s.root(0), "tasks");
+		const t = s.parse().tasks[0];
+		assert.equal(t.meta.due, "2026-09-01", "the due date left the line");
+		assert.equal(t.meta.priority, "high", "the priority left the line");
+		assert.equal(t.status, "todo");
+	});
+
+	test("the task's note becomes the body", async () => {
+		const s = setup(LIST);
+		const path = await s.mutator.promote(s.root(0), "tasks");
+		assert.ok(
+			s.app.__store.get(path).includes("Some notes about the trip."),
+			"the note body was lost"
+		);
+	});
+
+	test("a second task with the same name does not overwrite the first", async () => {
+		const s = setup(["- [ ] Same", "- [ ] Same", ""].join("\n"));
+		const a = await s.mutator.promote(s.parse().tasks[0], "tasks");
+		const b = await s.mutator.promote(s.parse().tasks[1], "tasks");
+		assert.notEqual(a, b, "the second promotion reused the first note");
+		assert.ok(s.app.__store.has(a));
+		assert.ok(s.app.__store.has(b));
+	});
+
+	test("promoting an already-promoted task is refused", async () => {
+		const s = setup("- [ ] [[Somewhere|A task]]\n");
+		assert.equal(await s.mutator.promote(s.root(0), "tasks"), null);
+	});
+
+	test("a name that cannot be a filename is refused, not mangled into nothing", async () => {
+		const s = setup('- [ ] ///:*?\n');
+		const before = s.read();
+		assert.equal(await s.mutator.promote(s.root(0), "tasks"), null);
+		assert.equal(s.read(), before, "the line was changed anyway");
+	});
+
+	test("illegal characters are stripped rather than failing", async () => {
+		const s = setup('- [ ] Plan: the "big" trip?\n');
+		const path = await s.mutator.promote(s.root(0), "tasks");
+		assert.equal(path, "tasks/Plan the big trip.md");
+		// The displayed title is untouched — only the filename is cleaned.
+		assert.ok(s.lines()[0].includes('|Plan: the "big" trip?]]'), s.lines()[0]);
+	});
+});

@@ -284,7 +284,21 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 			? `Created ${formatDate(task.meta.created)}`
 			: `In ${task.filePath.split("/").pop()?.replace(/\.md$/, "")}`,
 	});
-	const trash = foot.createDiv({ cls: "lv-detail-delete" });
+	/*
+	 * Give this task its own note.
+	 *
+	 * Hidden once it already has one — the line becomes a link, and promoting a
+	 * link would nest one inside another.
+	 */
+	const isNote = /\[\[[^\]]+\]\]/.test(task.title);
+	if (!isNote) {
+		const promote = foot.createDiv({ cls: "clickable-icon lv-detail-promote" });
+		setIcon(promote, "file-plus");
+		promote.setAttribute("aria-label", "Give this task its own note");
+		promote.addEventListener("click", () => ctx.promote(task));
+	}
+
+	const trash = foot.createDiv({ cls: "clickable-icon lv-detail-delete" });
 	setIcon(trash, "trash-2");
 	trash.setAttribute("aria-label", "Delete task");
 	trash.addEventListener("click", () => {

@@ -213,8 +213,11 @@
 .lv-header-title {
 	flex: 1 1 auto;
 	min-width: 0;
-	font-size: var(--font-ui-medium);
-	font-weight: var(--font-semibold);
+	/* Larger than core's own view-header title, deliberately: this is the name of
+	   the thing you are working in, and in a sidebar or a hidden-header tab it is
+	   the only place that name appears. */
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-bold);
 	color: var(--text-normal);
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1747,11 +1750,11 @@ body.is-phone .workspace-split.mod-root .lv-header-title {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-width: var(--size-4-6);
-	height: var(--size-4-6);
+	min-width: var(--size-4-8);
+	height: var(--size-4-8);
 	border-radius: var(--radius-s);
 	cursor: var(--cursor);
-	font-size: var(--font-ui-medium);
+	font-size: var(--font-ui-large);
 	line-height: 1;
 }
 
@@ -1828,4 +1831,9 @@ body.is-phone .workspace-split.mod-root .lv-header-title {
 .lv-icon-choice.is-on {
 	background: var(--background-modifier-active-hover);
 	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+/* Promoted-note button sits beside the delete one in the detail footer. */
+.lv-detail-promote {
+	margin-inline-start: auto;
 }

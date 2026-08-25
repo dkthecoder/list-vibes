@@ -151,6 +151,9 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		setIcon: (p: string, i: string | null) => {
 			calls.push(["setIcon", p, i]);
 		},
+		promote: (t: Task) => {
+			calls.push(["promote", t.title]);
+		},
 		renameList: (p: string, n: string) => {
 			calls.push(["renameList", p, n]);
 		},

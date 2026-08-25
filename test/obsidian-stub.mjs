@@ -89,10 +89,27 @@ export function makeApp(files, openEditors = []) {
 		};
 	};
 
+	const folders = new Set();
+
 	return {
 		__store: store,
 		vault: {
-			getAbstractFileByPath: (p) => (store.has(p) ? new TFile(p) : null),
+			/*
+			 * Folders exist here only as a set of names. The real vault has
+			 * TFolder objects, but nothing the Mutator does with a folder needs
+			 * more than "is it there" and "make it" — and pretending otherwise
+			 * would be inventing behaviour to test against.
+			 */
+			getAbstractFileByPath: (p) =>
+				store.has(p) ? new TFile(p) : folders.has(p) ? { path: p } : null,
+			createFolder: async (p) => {
+				folders.add(p);
+			},
+			create: async (p, data) => {
+				if (store.has(p)) throw new Error(`already exists: ${p}`);
+				store.set(p, data);
+				return new TFile(p);
+			},
 			cachedRead: async (f) => store.get(f.path),
 			read: async (f) => store.get(f.path),
 			process: async (f, fn) => {

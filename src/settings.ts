@@ -35,6 +35,12 @@ export interface ListsSettings {
 	openOnStartup: boolean;
 	/** Place it first in the sidebar's tab strip the first time it is created. */
 	sidebarFirst: boolean;
+	/**
+	 * Folder that promoted tasks become notes in. Empty means the vault root.
+	 * Kept apart from the lists folder so promoted notes are not themselves
+	 * mistaken for lists.
+	 */
+	notesFolder: string;
 	/** From the sidebar, open a picked list as a workspace tab. */
 	openListsInTab: boolean;
 	/**
@@ -65,6 +71,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	viewByList: {},
 	openOnStartup: true,
 	sidebarFirst: false,
+	notesFolder: "tasks",
 	openListsInTab: true,
 	pinDetail: false,
 };
@@ -234,6 +241,21 @@ export class ListsSettingTab extends PluginSettingTab {
 						this.plugin.settings.defaultView = v as ViewMode;
 						await this.plugin.saveSettings();
 						this.plugin.refreshViews();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Promoted tasks folder")
+			.setDesc(
+				"Where a task goes when you give it its own note. Keep it out of the lists folder, or the note becomes a list of its own. Leave empty for the vault root."
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder("tasks")
+					.setValue(this.plugin.settings.notesFolder)
+					.onChange(async (v) => {
+						this.plugin.settings.notesFolder = v.trim();
+						await this.plugin.saveSettings();
 					})
 			);
 
