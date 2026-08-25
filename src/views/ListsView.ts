@@ -31,6 +31,16 @@ export const VIEW_TYPE_LISTS = "list-vibes-view";
  */
 const WIDE_BREAKPOINT = 620;
 
+/**
+ * Below this, the detail panel always overlays even when pinned.
+ *
+ * A pinned panel is a third column, and three columns in less than this leaves
+ * the task list too narrow to read — which is the same reason the panel became
+ * an overlay in the first place. The pin is a preference about how to use space
+ * you have, not a promise to make space you do not.
+ */
+const PIN_BREAKPOINT = 900;
+
 
 export class ListsView extends ItemView {
 	private plugin: ListsPlugin;
@@ -52,6 +62,7 @@ export class ListsView extends ItemView {
 	private overlayEl: HTMLElement | null = null;
 	/** Layout shape of the last paint. A change here forces a full rebuild. */
 	private lastShape = "";
+	private wasPinned = false;
 	/** Guards the setViewState round trip from re-entering itself. */
 	private persisting = false;
 
@@ -102,6 +113,14 @@ export class ListsView extends ItemView {
 	 */
 	private listOnly(): boolean {
 		return this.plugin.settings.openListsInTab && this.inMainWorkspace();
+	}
+
+	/** True when the detail panel should be a column rather than an overlay. */
+	private detailPinned(): boolean {
+		return (
+			this.plugin.settings.pinDetail &&
+			this.contentEl.clientWidth >= PIN_BREAKPOINT
+		);
 	}
 
 	/**
@@ -183,6 +202,18 @@ export class ListsView extends ItemView {
 		);
 
 		this.render();
+
+		/*
+		 * Name the tab, once.
+		 *
+		 * Obsidian reads getDisplayText() while the view is being constructed,
+		 * and that answer depends on where the leaf ended up — which is not
+		 * reliably known that early, because `leaf.getRoot()` only becomes the
+		 * root split once the leaf is actually attached. Read too soon, a tab
+		 * gets the sidebar's generic name and keeps it. By onOpen the placement
+		 * is settled, so this asks Obsidian to read it again.
+		 */
+		if (this.inMainWorkspace()) void this.persistState();
 	}
 
 	async onClose(): Promise<void> {
@@ -215,7 +246,13 @@ export class ListsView extends ItemView {
 
 	onResize(): void {
 		const wide = this.contentEl.clientWidth >= WIDE_BREAKPOINT;
-		if (wide !== this.wide) this.render();
+		// The pin breakpoint matters too: crossing it turns a pinned column into
+		// an overlay and back, which is a change of shape rather than of content.
+		const pinned = this.detailPinned();
+		if (wide !== this.wide || pinned !== this.wasPinned) {
+			this.wasPinned = pinned;
+			this.render();
+		}
 	}
 
 	/** Jump straight to a selection, e.g. from a command. */
@@ -255,7 +292,12 @@ export class ListsView extends ItemView {
 			state: this.state,
 			wide: this.wide,
 			listOnly: this.listOnly(),
-			chromeTitle: this.inMainWorkspace(),
+			detailPinned: this.detailPinned(),
+			setDetailPinned: (pinned: boolean) => {
+				this.plugin.settings.pinDetail = pinned;
+				void this.plugin.saveSettings();
+				this.plugin.refreshViews();
+			},
 			showPicker: () => void this.plugin.activateView(),
 			render: (scope?: RenderScope) => this.render(scope ?? "all"),
 			save: () => this.plugin.saveSettings(),
@@ -426,8 +468,11 @@ export class ListsView extends ItemView {
 	 */
 	private shape(): string {
 		if (this.pickerOnly()) return "picker";
-		if (this.listOnly()) return `list|${this.state.selectedTask ? "detail" : "nodetail"}`;
+		const pinned = this.detailPinned() && this.state.selectedTask ? "pin" : "float";
+		if (this.listOnly())
+			return `list|${this.state.selectedTask ? "detail" : "nodetail"}|${pinned}`;
 		return [
+			pinned,
 			this.wide ? "wide" : "narrow",
 			this.wide ? "both" : this.state.pane,
 			this.state.selectedTask ? "detail" : "nodetail",
@@ -529,7 +574,14 @@ export class ListsView extends ItemView {
 
 		/* --- overlay layer: the detail panel, always floating --- */
 		const showDetail = !this.pickerOnly() && !!this.state.selectedTask;
-		if (showDetail) {
+		if (showDetail && this.detailPinned()) {
+			// A column: no backdrop, no transform, and the task list simply
+			// gets narrower rather than being covered.
+			const panel = shell.createDiv({ cls: "lv-overlay is-pinned is-open" });
+			this.overlayEl = panel;
+			renderDetailPane(panel, ctx);
+			this.detailWasOpen = false;
+		} else if (showDetail) {
 			const backdrop = shell.createDiv({ cls: "lv-backdrop" });
 			backdrop.addEventListener("click", () => this.closeDetail());
 

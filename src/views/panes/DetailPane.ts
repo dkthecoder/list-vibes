@@ -26,7 +26,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	/* ---------------- header ---------------- */
 	const bar = pane.createDiv({ cls: "lv-detail-bar" });
-	const close = bar.createDiv({ cls: "lv-back" });
+	const close = bar.createDiv({ cls: "clickable-icon lv-back" });
 	setIcon(close, "x");
 	close.setAttribute("aria-label", "Close");
 	close.addEventListener("click", () => ctx.selectTask(null));
@@ -34,6 +34,24 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 		cls: "lv-detail-bar-title",
 		text: task.filePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
 	});
+
+	/*
+	 * Pin the panel open as a column instead of letting it slide over.
+	 *
+	 * The button is here rather than only in settings because it is a decision
+	 * about the thing in front of you, and it is the sort of thing people change
+	 * more than once — pinned while working through a list, unpinned when the
+	 * list itself is what matters.
+	 *
+	 * It is hidden in a pane too narrow to hold a third column, where the panel
+	 * overlays regardless: offering a control that visibly does nothing is worse
+	 * than not offering it.
+	 */
+	const pin = bar.createDiv({ cls: "clickable-icon lv-detail-pin" });
+	pin.toggleClass("is-active", ctx.detailPinned);
+	setIcon(pin, ctx.detailPinned ? "pin-off" : "pin");
+	pin.setAttribute("aria-label", ctx.detailPinned ? "Unpin panel" : "Pin panel open");
+	pin.addEventListener("click", () => ctx.setDetailPinned(!ctx.detailPinned));
 
 	const scroll = pane.createDiv({ cls: "lv-scroll" });
 

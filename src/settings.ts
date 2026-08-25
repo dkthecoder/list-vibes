@@ -37,6 +37,11 @@ export interface ListsSettings {
 	sidebarFirst: boolean;
 	/** From the sidebar, open a picked list as a workspace tab. */
 	openListsInTab: boolean;
+	/**
+	 * Keep the task detail panel as a fixed column rather than an overlay.
+	 * Only honoured where there is room for it; a narrow pane always overlays.
+	 */
+	pinDetail: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
 	/** Per-list layout override, keyed by file path. */
@@ -61,6 +66,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	openOnStartup: true,
 	sidebarFirst: false,
 	openListsInTab: true,
+	pinDetail: false,
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -140,6 +146,19 @@ export class ListsSettingTab extends PluginSettingTab {
 				t.setValue(this.plugin.settings.openListsInTab).onChange(async (v) => {
 					this.plugin.settings.openListsInTab = v;
 					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Pin the detail panel")
+			.setDesc(
+				"Keep the task detail panel open as a fixed column beside the list, instead of sliding it over. Only applies where there is room — below about 900px the panel always overlays, because a third column would leave the list too narrow to read. There is a pin button on the panel itself."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.pinDetail).onChange(async (v) => {
+					this.plugin.settings.pinDetail = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
 				})
 			);
 

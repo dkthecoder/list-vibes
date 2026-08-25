@@ -28,6 +28,11 @@
 	   modals. */
 	--checkbox-size: var(--font-ui-medium);
 
+	/* Both fixed widths in the layout, in em so they scale with the user's base
+	   font size rather than pinning while the text around them grows. */
+	--lv-nav-width: 15em;
+	--lv-detail-width: 22.5em;
+
 	/* How much room the mobile navbar needs. Self-declared with a safe default
 	   so every calc() below stays valid on desktop and tablet, where Obsidian
 	   never defines the variable it is built from. */
@@ -54,7 +59,10 @@
 }
 
 .lv-root.is-wide .lv-nav {
-	flex: 0 0 240px;
+	/* em, not px: this follows the base font size set in Obsidian's appearance
+	   settings, so at a larger text size the column grows with its contents
+	   instead of squeezing them. */
+	flex: 0 0 var(--lv-nav-width);
 	border-right: var(--border-width) solid var(--divider-color);
 }
 
@@ -138,9 +146,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 20px;
-	height: 20px;
-	flex: 0 0 20px;
+	width: var(--icon-l, 20px);
+	height: var(--icon-l, 20px);
+	flex: 0 0 var(--size-4-5);
 	color: var(--text-muted);
 	font-size: var(--font-ui-medium);
 }
@@ -171,7 +179,7 @@
 
 .lv-nav-foot {
 	flex: 0 0 auto;
-	padding: 6px var(--lv-gutter);
+	padding: var(--size-2-3) var(--lv-gutter);
 	padding-bottom: calc(var(--size-2-3) + var(--lv-navbar-clearance));
 	border-top: var(--border-width) solid var(--divider-color);
 }
@@ -316,7 +324,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 4px;
+	gap: var(--size-4-1);
 	margin-top: 3px;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
@@ -338,9 +346,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
-	flex: 0 0 28px;
+	width: var(--size-4-8);
+	height: var(--size-4-8);
+	flex: 0 0 var(--size-4-8);
 	color: var(--text-faint);
 	cursor: var(--cursor);
 	border-radius: var(--lv-radius);
@@ -376,16 +384,16 @@
 /* ---------------- completed section ---------------- */
 
 .lv-completed {
-	margin-top: 10px;
+	margin-top: var(--size-4-2);
 	padding: 0 var(--lv-gutter);
 }
 
 .lv-completed-head {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	min-height: 36px;
-	padding: 0 8px;
+	gap: var(--size-2-3);
+	min-height: var(--size-4-9);
+	padding: 0 var(--size-4-2);
 	border-radius: var(--lv-radius);
 	cursor: var(--cursor);
 	color: var(--text-muted);
@@ -405,8 +413,8 @@
 }
 
 .lv-completed-chevron .svg-icon {
-	width: 16px;
-	height: 16px;
+	width: var(--icon-s, 16px);
+	height: var(--icon-s, 16px);
 }
 
 .lv-completed-count {
@@ -415,7 +423,7 @@
 }
 
 .lv-completed-body {
-	padding-top: 4px;
+	padding-top: var(--size-4-1);
 }
 
 /* ---------------- add box ---------------- */
@@ -424,10 +432,10 @@
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	margin: 8px var(--lv-gutter);
+	gap: var(--size-4-2);
+	margin: var(--size-4-2) var(--lv-gutter);
 	margin-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
-	padding: 0 12px;
+	padding: 0 var(--size-4-3);
 	min-height: var(--lv-row-min);
 	background: var(--background-secondary);
 	border-radius: var(--lv-radius);
@@ -466,8 +474,8 @@
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
-	gap: 4px;
-	padding: 10px var(--lv-gutter);
+	gap: var(--size-4-1);
+	padding: var(--size-4-2) var(--lv-gutter);
 	padding-top: calc(var(--size-4-2) + var(--safe-area-inset-top, 0px));
 	border-bottom: var(--border-width) solid var(--divider-color);
 }
@@ -481,8 +489,8 @@
 }
 
 .lv-card {
-	margin: 8px var(--lv-gutter);
-	padding: 4px;
+	margin: var(--size-4-2) var(--lv-gutter);
+	padding: var(--size-4-1);
 	background: var(--background-primary);
 	border-radius: var(--lv-radius);
 }
@@ -490,8 +498,8 @@
 .lv-detail-title {
 	display: flex;
 	align-items: flex-start;
-	gap: 10px;
-	padding: 12px;
+	gap: var(--size-4-2);
+	padding: var(--size-4-3);
 }
 
 .lv-detail-title-text {
@@ -520,9 +528,9 @@
 .lv-step {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	min-height: 40px;
-	padding: 0 8px;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-10);
+	padding: 0 var(--size-4-2);
 	border-radius: var(--lv-radius-s);
 }
 
@@ -547,9 +555,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
-	flex: 0 0 28px;
+	width: var(--size-4-8);
+	height: var(--size-4-8);
+	flex: 0 0 var(--size-4-8);
 	color: var(--text-faint);
 	cursor: var(--cursor);
 	border-radius: var(--lv-radius-s);
@@ -573,7 +581,7 @@
 	border: none;
 	box-shadow: none;
 	padding: 0;
-	height: 40px;
+	height: var(--size-4-10);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }
@@ -592,9 +600,9 @@
 .lv-action {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: var(--size-4-3);
 	min-height: var(--lv-row-min);
-	padding: 0 12px;
+	padding: 0 var(--size-4-3);
 	border-radius: var(--lv-radius-s);
 	cursor: var(--cursor);
 	color: var(--text-muted);
@@ -627,7 +635,7 @@
 .lv-action-icon {
 	display: flex;
 	align-items: center;
-	flex: 0 0 20px;
+	flex: 0 0 var(--size-4-5);
 }
 
 .lv-action-text {
@@ -651,9 +659,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
-	flex: 0 0 28px;
+	width: var(--size-4-8);
+	height: var(--size-4-8);
+	flex: 0 0 var(--size-4-8);
 	color: var(--text-faint);
 	border-radius: var(--lv-radius-s);
 }
@@ -667,12 +675,12 @@
 
 .lv-note-input {
 	width: 100%;
-	min-height: 72px;
+	min-height: var(--size-4-18, 72px);
 	resize: vertical;
 	background: transparent;
 	border: none;
 	box-shadow: none;
-	padding: 10px 12px;
+	padding: var(--size-4-2) var(--size-4-3);
 	font-size: var(--font-ui-small);
 	font-family: inherit;
 	color: var(--text-normal);
@@ -690,8 +698,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 8px;
-	padding: 8px var(--lv-gutter);
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--lv-gutter);
 	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	border-top: var(--border-width) solid var(--divider-color);
 }
@@ -705,9 +713,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
-	flex: 0 0 32px;
+	width: var(--size-4-8);
+	height: var(--size-4-8);
+	flex: 0 0 var(--size-4-8);
 	color: var(--text-muted);
 	cursor: var(--cursor);
 	border-radius: var(--lv-radius);
@@ -725,19 +733,19 @@
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
-	padding: 48px 24px;
+	gap: var(--size-2-3);
+	padding: var(--size-4-12) var(--size-4-6);
 	text-align: center;
 }
 
 .lv-empty-icon {
 	color: var(--text-faint);
-	margin-bottom: 4px;
+	margin-bottom: var(--size-4-1);
 }
 
 .lv-empty-icon .svg-icon {
-	width: 32px;
-	height: 32px;
+	width: var(--size-4-8);
+	height: var(--size-4-8);
 }
 
 .lv-empty-title {
@@ -753,24 +761,23 @@
 }
 
 .lv-empty-nav {
-	padding: 16px 10px;
+	padding: var(--size-4-4) var(--size-4-2);
 }
 
 .lv-empty-nav .lv-empty-title {
-	margin-bottom: 4px;
+	margin-bottom: var(--size-4-1);
 }
 
 /* ---------------- modals ---------------- */
 
 .lv-modal-input {
 	width: 100%;
-	margin-bottom: 12px;
+	margin-bottom: var(--size-4-3);
 }
 
 /* ---------------- mobile ---------------- */
 
 .is-mobile .lv-root {
-	--lv-row-height: 48px;
 }
 
 .is-mobile .lv-task-title,
@@ -779,7 +786,7 @@
 }
 
 .lv-header-icon {
-	margin-right: 8px;
+	margin-right: var(--size-4-2);
 }
 
 
@@ -814,7 +821,7 @@
 	max-height: 100%;
 	z-index: 11;
 	display: flex;
-	width: min(360px, 100%);
+	width: min(var(--lv-detail-width), 100%);
 	max-width: 100%;
 	/* Obsidian ships a shadow token whose value is already correct in both a
 	   light and a dark theme. Mixing our own from --color-base-100 looked right
@@ -843,7 +850,7 @@
  * and it doubles as an obvious tap target for dismissing it.
  */
 .lv-root.is-narrow .lv-overlay {
-	width: calc(100% - 44px);
+	width: calc(100% - var(--size-4-11, 44px));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -861,28 +868,28 @@
 	flex-direction: column;
 	align-items: stretch;
 	gap: 0;
-	padding: 0 12px;
+	padding: 0 var(--size-4-3);
 	transition: background 150ms ease;
 }
 
 .lv-add-top {
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: var(--size-4-2);
 	min-height: var(--lv-row-min);
 }
 
 .lv-add.is-expanded {
-	padding-bottom: 8px;
+	padding-bottom: var(--size-4-2);
 	background: var(--background-primary);
 	box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .lv-add-note {
 	width: 100%;
-	margin: 0 0 8px 30px;
+	margin: 0 0 var(--size-4-2) 30px;
 	padding: 0;
-	min-height: 44px;
+	min-height: var(--size-4-11, 44px);
 	resize: none;
 	background: transparent;
 	border: none;
@@ -900,8 +907,8 @@
 .lv-add-actions {
 	display: flex;
 	justify-content: flex-end;
-	gap: 8px;
-	padding-bottom: 4px;
+	gap: var(--size-4-2);
+	padding-bottom: var(--size-4-1);
 }
 
 .lv-add-actions button {
@@ -923,9 +930,9 @@
    ------------------------------------------------------------------ */
 
 .lv-star.is-sm {
-	width: 24px;
-	height: 24px;
-	flex: 0 0 24px;
+	width: var(--size-4-6);
+	height: var(--size-4-6);
+	flex: 0 0 var(--size-4-6);
 }
 
 .lv-rating {
@@ -940,16 +947,16 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 22px;
-	height: 28px;
+	width: var(--size-4-5);
+	height: var(--size-4-8);
 	color: var(--text-faint);
 	cursor: var(--cursor);
 	border-radius: var(--lv-radius-s);
 }
 
 .lv-rating-star .svg-icon {
-	width: 15px;
-	height: 15px;
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 .lv-rating-star:focus-visible {
@@ -972,24 +979,24 @@
 }
 
 .lv-rating.is-sm .lv-rating-star {
-	width: 18px;
-	height: 22px;
+	width: var(--icon-m, 18px);
+	height: var(--size-4-5);
 }
 
 .lv-rating.is-sm .lv-rating-star .svg-icon {
-	width: 13px;
-	height: 13px;
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 /* Touch targets stay honest on mobile even though the stars sit close. */
 .is-mobile .lv-rating-star {
-	width: 28px;
-	height: 40px;
+	width: var(--size-4-8);
+	height: var(--size-4-10);
 }
 
 .is-mobile .lv-rating-star .svg-icon {
-	width: 18px;
-	height: 18px;
+	width: var(--icon-m, var(--icon-m, 18px));
+	height: var(--icon-m, var(--icon-m, 18px));
 }
 
 /* The detail panel gives the rating more room than a list row. */
@@ -1035,8 +1042,8 @@
 	content: "";
 	position: absolute;
 	left: 2px;
-	top: 8px;
-	bottom: 8px;
+	top: var(--size-4-2);
+	bottom: var(--size-4-2);
 	width: 3px;
 	border-radius: 2px;
 	background: var(--lv-accent);
@@ -1062,9 +1069,9 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 26px;
-	height: 26px;
-	flex: 0 0 26px;
+	width: var(--size-4-6);
+	height: var(--size-4-6);
+	flex: 0 0 var(--size-4-6);
 	margin-left: 2px;
 	border-radius: var(--lv-radius-s);
 	color: var(--text-faint);
@@ -1072,8 +1079,8 @@
 }
 
 .lv-nav-more .svg-icon {
-	width: 15px;
-	height: 15px;
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 .lv-nav-row:hover .lv-nav-more,
@@ -1137,24 +1144,24 @@
 }
 
 .lv-action-chevron .svg-icon {
-	width: 15px;
-	height: 15px;
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 .lv-action-options {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
-	padding: 4px 12px 12px 44px;
+	gap: var(--size-2-3);
+	padding: var(--size-4-1) var(--size-4-3) var(--size-4-3) var(--size-4-11, 44px);
 }
 
 .lv-chip {
 	font-family: inherit;
 	font-size: var(--font-ui-smaller);
-	padding: 6px 12px;
-	min-height: 32px;
+	padding: var(--size-2-3) var(--size-4-3);
+	min-height: var(--size-4-8);
 	border: none;
-	border-radius: 16px;
+	border-radius: var(--radius-l);
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 	cursor: var(--cursor);
@@ -1171,8 +1178,8 @@
 }
 
 .is-mobile .lv-chip {
-	min-height: 40px;
-	padding: 8px 14px;
+	min-height: var(--size-4-10);
+	padding: var(--size-4-2) 14px;
 }
 
 /* ------------------------------------------------------------------
@@ -1182,8 +1189,8 @@
 .lv-swatches {
 	display: grid;
 	grid-template-columns: repeat(5, 1fr);
-	gap: 10px;
-	padding: 8px 0 16px;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) 0 var(--size-4-4);
 }
 
 .lv-swatch {
@@ -1223,8 +1230,8 @@
 }
 
 .lv-swatch .svg-icon {
-	width: 18px;
-	height: 18px;
+	width: var(--icon-m, var(--icon-m, 18px));
+	height: var(--icon-m, var(--icon-m, 18px));
 }
 
 /* ------------------------------------------------------------------
@@ -1236,10 +1243,11 @@
 
 .lv-postit {
 	column-count: 2;
-	column-gap: 10px;
+	column-gap: var(--size-4-2);
 	padding: 0 var(--lv-gutter);
 }
 
+/* A layout threshold rather than a spacing step, so this one stays in px. */
 @media (max-width: 560px) {
 	.lv-postit {
 		column-count: 1;
@@ -1253,8 +1261,8 @@
 .lv-card-task {
 	break-inside: avoid;
 	display: block;
-	margin: 0 0 10px;
-	padding: 12px;
+	margin: 0 0 var(--size-4-2);
+	padding: var(--size-4-3);
 	border-radius: var(--lv-radius);
 	background: var(--background-secondary);
 	border: var(--border-width) solid var(--divider-color);
@@ -1274,7 +1282,7 @@
 .lv-card-head {
 	display: flex;
 	align-items: flex-start;
-	gap: 8px;
+	gap: var(--size-4-2);
 }
 
 .lv-card-title {
@@ -1293,7 +1301,7 @@
 }
 
 .lv-card-note {
-	margin: 8px 0 0 32px;
+	margin: var(--size-4-2) 0 0 var(--size-4-8);
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	line-height: 1.4;
@@ -1302,14 +1310,14 @@
 }
 
 .lv-card-steps {
-	margin: 8px 0 0 26px;
+	margin: var(--size-4-2) 0 0 var(--size-4-6);
 }
 
 .lv-card-step {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	min-height: 24px;
+	gap: var(--size-2-3);
+	min-height: var(--size-4-6);
 }
 
 .lv-card-step-label {
@@ -1326,16 +1334,16 @@
 .lv-card-meta {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 4px;
-	margin: 10px 0 0 32px;
+	gap: var(--size-4-1);
+	margin: var(--size-4-2) 0 0 var(--size-4-8);
 }
 
 .lv-card-chip {
 	display: flex;
 	align-items: center;
-	gap: 4px;
-	padding: 2px 8px;
-	border-radius: 10px;
+	gap: var(--size-4-1);
+	padding: 2px var(--size-4-2);
+	border-radius: var(--radius-m);
 	background: var(--background-modifier-hover);
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
@@ -1347,8 +1355,8 @@
 }
 
 .lv-card-chip-icon .svg-icon {
-	width: 12px;
-	height: 12px;
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 .lv-card-chip.is-today {
@@ -1362,7 +1370,7 @@
 .lv-swatches-hint {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
-	padding-bottom: 4px;
+	padding-bottom: var(--size-4-1);
 }
 
 /* ------------------------------------------------------------------
@@ -1422,7 +1430,7 @@ body.lv-is-dragging .lv-step:hover {
 	/* The label sits inside a padded row, so the field is pulled back by its
 	   own padding to stay aligned with the text it replaced. */
 	margin: 0 -4px;
-	padding: 1px 4px;
+	padding: 1px var(--size-4-1);
 	border-radius: var(--lv-radius-s);
 	background: var(--background-primary);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
@@ -1559,8 +1567,8 @@ body.is-phone .lv-nav-scroll {
 }
 
 .lv-add-chip-icon .svg-icon {
-	width: var(--icon-xs, 14px);
-	height: var(--icon-xs, 14px);
+	width: var(--icon-xs, var(--icon-xs, 14px));
+	height: var(--icon-xs, var(--icon-xs, 14px));
 }
 
 .lv-add-chip-clear {
@@ -1574,8 +1582,8 @@ body.is-phone .lv-nav-scroll {
 }
 
 .lv-add-chip-clear .svg-icon {
-	width: 12px;
-	height: 12px;
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 .lv-add-picker {
@@ -1583,4 +1591,88 @@ body.is-phone .lv-nav-scroll {
 	flex-wrap: wrap;
 	gap: var(--size-2-2);
 	padding: var(--size-2-2) 0 0;
+}
+
+/* ------------------------------------------------------------------
+   Whose title is it
+
+   Obsidian draws the view's title in `.view-header` — but only
+   sometimes. It is hidden in a sidebar, hidden in the mobile drawer,
+   shown in a main-area tab, always shown on a phone, and hidden again
+   on desktop when the user turns off "show tab title bar".
+
+   So the pane always builds a title and this decides whether it shows.
+   Getting that decision wrong in either direction is visible: too
+   eager and the phone shows two stacked titles, too shy and the list
+   has no name anywhere.
+   ------------------------------------------------------------------ */
+
+/* Shown by default — the sidebar and drawer cases, and any main-area
+   tab whose header the user has hidden. */
+.lv-header-title {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+/* Hidden only where Obsidian is genuinely drawing one: a main-area tab
+   with the title bar on, and every main-area tab on a phone. */
+body.show-view-header .workspace-split.mod-root .lv-header-title,
+body.is-phone .workspace-split.mod-root .lv-header-title {
+	display: none;
+}
+
+/* With no title to take up the slack, the buttons still belong at the
+   trailing edge. */
+.lv-header-title:not(:last-child) ~ .lv-header-actions,
+.lv-header > .lv-header-actions:first-child {
+	margin-inline-start: auto;
+}
+
+.lv-header-actions {
+	margin-inline-start: auto;
+}
+
+/* ------------------------------------------------------------------
+   Pinned detail panel
+
+   The same panel, held open as a column instead of sliding over. It
+   keeps its own element and its own contents; only the positioning
+   changes, so pinning and unpinning is not a different panel.
+   ------------------------------------------------------------------ */
+
+.lv-overlay.is-pinned {
+	position: relative;
+	inset: auto;
+	z-index: auto;
+	flex: 0 0 var(--lv-detail-width);
+	max-width: 50%;
+	transform: none;
+	transition: none;
+	/* A column sits beside the list rather than above it, so it needs a divider
+	   rather than a drop shadow. */
+	box-shadow: none;
+	border-left: var(--border-width) solid var(--divider-color);
+}
+
+/* Pinned, the list keeps its own width and simply gets less of it. */
+.lv-root.is-wide .lv-overlay.is-pinned + .lv-tasks,
+.lv-root.is-wide .lv-tasks:has(+ .lv-overlay.is-pinned) {
+	min-width: 0;
+}
+
+.lv-detail-pin {
+	margin-inline-start: auto;
+}
+
+/* Below the pin breakpoint the panel always overlays, so a pin button would
+   toggle a setting with no visible effect. */
+.lv-overlay:not(.is-pinned) .lv-detail-pin {
+	display: none;
+}
+
+@media (min-width: 900px) {
+	.lv-overlay:not(.is-pinned) .lv-detail-pin {
+		display: flex;
+	}
 }

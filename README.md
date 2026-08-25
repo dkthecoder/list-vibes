@@ -10,7 +10,13 @@ Pick a list, work in it, open a task when you need more than a checkbox.
 
 - **Lists → a list.** Side by side when there is room, one at a time with a back
   arrow when there is not.
-- **The detail panel is never a column.** It slides in from the right over the
+- **The detail panel slides over, or pins beside.** By default it slides in from
+  the right over the task list, with a dimmed backdrop. Pin it — from the button
+  on the panel or from settings — and it becomes a fixed column instead, with the
+  list simply getting narrower rather than being covered. Below about 900px it
+  overlays regardless, and the pin button is hidden there: a third column that
+  narrow leaves the list unreadable, which is why the overlay exists at all.
+- **As an overlay it is never a column.** It slides in from the right over the
   task list, with a dimmed backdrop. Escape, the close button, or a tap outside
   dismisses it. One behaviour at every width, from phone to wide main pane. It is
   never full width — a strip of the list always stays visible behind it, because
@@ -143,6 +149,36 @@ parser and a view over `TaskList[]` rebuilt from disk whenever a file changes.
 
 The trade is real and worth stating: **Bases can't drive this.** We render our
 own view instead.
+
+## Sizing
+
+Nothing in the plugin invents a size. Spacing comes from Obsidian's `--size-*`
+scale, radii from `--radius-*`, icons from `--icon-*`, type from `--font-ui-*`,
+and rows from `--nav-item-*`. The two fixed widths in the layout — the list
+column and the detail panel — are in `em`, so they follow the base font size in
+Obsidian's appearance settings instead of pinning while the text around them
+grows. Change your font size or zoom and the whole thing scales with the rest of
+the app, because it is reading the same numbers.
+
+The one deliberate exception is the card-wall breakpoint, which is a layout
+threshold rather than a spacing step.
+
+## Where the title comes from
+
+Obsidian draws the view's title in `.view-header`, but only in some placements:
+hidden in a sidebar, hidden in the mobile drawer, shown in a main-area tab,
+always shown on a phone — and hidden again on desktop if you turn off "show tab
+title bar".
+
+So the pane always builds a title and a stylesheet decides whether it shows.
+Deciding it in TypeScript got that last case wrong and left the list unnamed,
+because a setting can change while the view is open. `npm run test:ui` checks all
+five placements.
+
+The tab's own name is refreshed once the leaf is attached. `getDisplayText()`
+depends on where the leaf ended up, Obsidian reads it during construction, and
+`leaf.getRoot()` is not reliably the root split that early — read too soon, a tab
+takes the sidebar's generic name and keeps it.
 
 ## Looking like Obsidian
 

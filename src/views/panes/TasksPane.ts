@@ -65,7 +65,18 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		);
 	}
 
-	if (!ctx.chromeTitle) {
+	{
+		/*
+		 * The title is always built, and CSS decides whether it shows.
+		 *
+		 * Whether Obsidian is drawing a title of its own is not something this
+		 * code can know: `.view-header` is hidden in a sidebar, shown in a
+		 * main-area tab, always shown on a phone — and hidden again on desktop
+		 * if the user has turned "show tab title bar" off, which is a setting
+		 * that can change while the view is open. Deciding here got that last
+		 * case wrong and left the list unnamed. A stylesheet can express the
+		 * whole condition, and re-evaluates it for free.
+		 */
 		const titleWrap = header.createDiv({ cls: "lv-header-title" });
 		if (isSmart) {
 			const v = SMART_VIEWS.find((s) => s.id === sel.view);
@@ -85,10 +96,6 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		} else {
 			titleWrap.createSpan({ text: "List" });
 		}
-	} else {
-		// Obsidian draws the title; this keeps the buttons pushed to the trailing
-		// edge where they would otherwise bunch up against the back arrow.
-		header.createDiv({ cls: "lv-header-spacer" });
 	}
 
 	const buttons = header.createDiv({

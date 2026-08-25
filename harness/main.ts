@@ -78,6 +78,7 @@ const state: ViewState = {
 
 let sortKey: SortKey = "custom";
 let viewMode: ViewMode = "list";
+let pinned = false;
 
 const noop = async () => undefined;
 /* Record what a drag actually asked for, so the browser test can assert on it
@@ -108,7 +109,8 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		state,
 		wide,
 		listOnly: false,
-		chromeTitle: false,
+		detailPinned: pinned,
+		setDetailPinned: () => undefined,
 		showPicker: () => undefined,
 		render: () => paint(),
 		save: noop,
@@ -173,7 +175,10 @@ function renderInto(
 		renderTasksPane(shell, ctx);
 	}
 
-	if (withOverlay) {
+	if (withOverlay && pinned) {
+		const panel = shell.createDiv({ cls: "lv-overlay is-pinned is-open" });
+		renderDetailPane(panel, ctx);
+	} else if (withOverlay) {
 		const backdrop = shell.createDiv({ cls: "lv-backdrop is-open" });
 		const overlay = shell.createDiv({ cls: "lv-overlay is-open" });
 		renderDetailPane(overlay, ctx);
@@ -209,6 +214,11 @@ function paint(): void {
 	state.selectedTask = null;
 	renderInto(document.getElementById("drag") as HTMLElement, true, "tasks", false);
 	state.selectedTask = dragSel;
+
+	// The detail panel pinned open as a column rather than sliding over.
+	pinned = true;
+	renderInto(document.getElementById("pinned") as HTMLElement, true, "tasks", true);
+	pinned = false;
 
 	// The detail panel with an action row expanded inline.
 	state.openAction = "due";

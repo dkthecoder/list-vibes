@@ -44,18 +44,12 @@ export interface ViewContext {
 	wide: boolean;
 	/** True when this pane is a list on its own, with the picker in the sidebar. */
 	listOnly: boolean;
-	/**
-	 * True when Obsidian is already rendering the view's title in its own
-	 * header, so this pane must not render one of its own.
-	 *
-	 * `.view-header` is shown for a main-area tab on every platform, and on a
-	 * phone it is always shown. Rendering our own title underneath produced two
-	 * stacked titles on mobile. In a sidebar `.view-header` is hidden, so there
-	 * the pane does need its own.
-	 */
-	chromeTitle: boolean;
 	/** Bring the sidebar picker into view. Only meaningful when `listOnly`. */
 	showPicker: () => void;
+	/** True when the detail panel is a fixed column rather than an overlay. */
+	detailPinned: boolean;
+	/** Pin or unpin the detail panel. */
+	setDetailPinned: (pinned: boolean) => void;
 	/** Repaint everything. */
 	/**
 	 * Repaint. Name the narrowest scope that covers what changed — "detail" for
