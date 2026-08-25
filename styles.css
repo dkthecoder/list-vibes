@@ -28,8 +28,17 @@
 	   modals. */
 	--checkbox-size: var(--font-ui-medium);
 
-	/* Both fixed widths in the layout, in em so they scale with the user's base
-	   font size rather than pinning while the text around them grows. */
+	/*
+	 * Both fixed widths in the layout, in em rather than px so a column grows
+	 * with the text inside it instead of squeezing it.
+	 *
+	 * What they follow is the *UI* type scale, which is the right thing but not
+	 * quite what it sounds like: on a phone Obsidian derives `--font-ui-*` from
+	 * the reading font size, so these scale with the appearance setting; on
+	 * desktop `--font-ui-*` are fixed and the chrome deliberately does not grow
+	 * with the reading font. Following the token means matching Obsidian in both
+	 * cases, which is more useful than scaling everywhere.
+	 */
 	--lv-nav-width: 15em;
 	--lv-detail-width: 22.5em;
 
@@ -61,9 +70,7 @@
 }
 
 .lv-root.is-wide .lv-nav {
-	/* em, not px: this follows the base font size set in Obsidian's appearance
-	   settings, so at a larger text size the column grows with its contents
-	   instead of squeezing them. */
+	/* em, not px — see --lv-nav-width for what that actually tracks. */
 	flex: 0 0 var(--lv-nav-width);
 	border-right: var(--border-width) solid var(--divider-color);
 }
@@ -292,6 +299,12 @@
 	margin: 0;
 	margin-top: 2px;
 	cursor: var(--cursor);
+	/* An appearance:none checkbox otherwise keeps the browser's default black
+	   `color`. Core paints its tick with a mask and never reads it, but themes
+	   do — Minimal's alternate markers for [/], [-] and [!] are currentColor
+	   masks — so inheriting means a theme that sets no colour of its own still
+	   gets the user's text colour rather than a hardcoded black. */
+	color: inherit;
 }
 
 .lv-check-sm {

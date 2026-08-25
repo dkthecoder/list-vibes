@@ -220,13 +220,31 @@ focus stays put afterwards, so a second step can be typed straight away.
 
 ## Sizing
 
-Nothing in the plugin invents a size. Spacing comes from Obsidian's `--size-*`
-scale, radii from `--radius-*`, icons from `--icon-*`, type from `--font-ui-*`,
-and rows from `--nav-item-*`. The two fixed widths in the layout — the list
-column and the detail panel — are in `em`, so they follow the base font size in
-Obsidian's appearance settings instead of pinning while the text around them
-grows. Change your font size or zoom and the whole thing scales with the rest of
-the app, because it is reading the same numbers.
+Nothing in the plugin invents a size or a colour. Spacing comes from Obsidian's
+`--size-*` scale, radii from `--radius-*`, icons from `--icon-*`, type from
+`--font-ui-*`, rows from `--nav-item-*`, and every colour from the theme's own
+palette. The two fixed widths — the list column and the detail panel — are in
+`em`, so a column grows with the text inside it rather than squeezing it.
+
+**One correction to an earlier version of this file**, which claimed those
+widths follow the base font size in appearance settings. They follow the *UI*
+type scale, and the two are not the same thing: on a phone Obsidian derives
+`--font-ui-*` from the reading font size, so they do scale with that setting; on
+desktop `--font-ui-*` are fixed at 12/13/15/20px and the chrome deliberately
+does **not** grow with the reading font. Following the token means matching
+Obsidian in both cases, which is the actually useful behaviour — but it is worth
+saying accurately rather than claiming more than it does.
+
+Zoom is separate and does scale everything, on both platforms, because zoom
+scales pixels too.
+
+`npm run test:ui` proves the linkage rather than asserting it: it changes the
+tokens the way a theme or a settings change would and checks the plugin moved —
+font, type scale, spacing, radii, accent, text and background colours. The last
+check is a sweep: every colour token is set to a recognisable value and every
+painted colour in the view is tested against it, so a single hardcoded colour
+anywhere fails the run. It found two when it was written — a stale white in the
+harness, and a checkbox left on the browser's default black.
 
 The one deliberate exception is the card-wall breakpoint, which is a layout
 threshold rather than a spacing step.
