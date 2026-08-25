@@ -150,6 +150,37 @@ parser and a view over `TaskList[]` rebuilt from disk whenever a file changes.
 The trade is real and worth stating: **Bases can't drive this.** We render our
 own view instead.
 
+## Icons
+
+A list can carry an emoji beside its name. It is stored in the list's
+frontmatter as `icon:`, **not** in its filename — changing a filename rewrites
+every link pointing at it, and an emoji in a path travels badly between sync
+clients and filesystems. An emoji at the *start* of a filename is still read as
+a fallback, since plenty of vaults are named that way, but new ones are never
+written there.
+
+The picker is a plain text field on purpose. Obsidian has no public emoji
+picker, and rather than ship a hardcoded grid pretending to be one, the field
+lets the operating system's own picker do the work — the emoji key on a phone
+keyboard, Ctrl+Cmd+Space on macOS, Win+. on Windows. Always current, nothing to
+maintain. The row of suggestions beneath is a shortcut, not the mechanism.
+
+Only the first glyph is kept, counted as a person would count it: "👍🏽" is four
+code units and "🇬🇧" is two code points, and half of either is a replacement
+box in the middle of the picker.
+
+## Adding things
+
+Both add fields have a `+` and it commits, which it did not use to — it was a
+plus with nothing wired to it, so Enter was the only way. On a desktop that is a
+dead control; on a phone it is the feature missing, because a soft keyboard's
+return key is often "Next" rather than a submit. The fields now also declare
+`enterkeyhint="done"`, so the key says what it does.
+
+Pressing `+` does not steal focus from the field — a pointer going down on a
+button blurs it first, which on a phone starts dismissing the keyboard — and
+focus stays put afterwards, so a second step can be typed straight away.
+
 ## Sizing
 
 Nothing in the plugin invents a size. Spacing comes from Obsidian's `--size-*`
@@ -379,7 +410,7 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 248 tests: parsing, sorting, frontmatter, view state, writes
+npm test         # 257 tests: parsing, sorting, frontmatter, view state, writes
 npm run test:ui  # drives drags, renames, titles and mobile typing in a browser
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```

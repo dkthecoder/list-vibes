@@ -11,6 +11,7 @@ import { renderTaskRow } from "../../ui/TaskRow";
 import { renderTaskCard } from "../../ui/TaskCard";
 import { makeDragSortable } from "../../ui/dragSort";
 import { editName, makeEditableName } from "../../ui/editableName";
+import { renderAddButton, submitOnEnter } from "../../ui/addButton";
 import { formatDate, todayISO } from "../../model/store";
 import {
 	SORT_OPTIONS,
@@ -82,8 +83,30 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			const v = SMART_VIEWS.find((s) => s.id === sel.view);
 			titleWrap.createSpan({ text: v?.label ?? "Tasks" });
 		} else if (list) {
-			if (list.config.icon)
-				titleWrap.createSpan({ cls: "lv-header-icon", text: list.config.icon });
+			// The icon is a button whether or not there is one yet, so a list
+			// without an icon still offers somewhere to set one.
+			const iconEl = titleWrap.createSpan({
+				cls: "lv-header-icon",
+				text: list.config.icon ?? "",
+			});
+			iconEl.toggleClass("is-empty", !list.config.icon);
+			iconEl.setAttribute("role", "button");
+			iconEl.setAttribute("tabindex", "0");
+			iconEl.setAttribute(
+				"aria-label",
+				list.config.icon ? "Change icon" : "Add an icon"
+			);
+			if (!list.config.icon) setIcon(iconEl, "smile-plus");
+			iconEl.addEventListener("click", (e) => {
+				e.stopPropagation();
+				void pickIcon(ctx, list);
+			});
+			iconEl.addEventListener("keydown", (e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					void pickIcon(ctx, list);
+				}
+			});
 
 			// The name IS the filename, so editing it here renames the file. Same
 			// implementation as the picker rows, which are armed on demand instead.
@@ -161,7 +184,13 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			);
 			menu.addItem((i) =>
 				i
-					.setTitle("Change colour")
+					.setTitle("Change icon")
+						.setIcon("smile")
+						.onClick(() => void pickIcon(ctx, list))
+				);
+				menu.addItem((i) =>
+					i
+						.setTitle("Change colour")
 					.setIcon("palette")
 					.onClick(() => void pickColor(ctx, list))
 			);
@@ -391,19 +420,24 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	box.toggleClass("is-expanded", expanded);
 
 	const top = box.createDiv({ cls: "lv-add-top" });
-	const icon = top.createDiv({ cls: "lv-add-icon" });
-	setIcon(icon, "plus");
 
 	const title = top.createEl("input", {
 		type: "text",
 		cls: "lv-add-input",
 		attr: { placeholder: "Add a task", "aria-label": "Task name" },
 	});
+	submitOnEnter(title);
 
 	let description: HTMLTextAreaElement | null = null;
 
-	const commit = async (keepOpen: boolean) => {
-		const value = title.value.trim();
+	/**
+	 * `override` is the value the + button already took off the field. It clears
+	 * the field before calling back — so that a second tap cannot submit the
+	 * same text twice — which means the value has to travel rather than be read
+	 * again from an input that is now empty.
+	 */
+	const commit = async (keepOpen: boolean, override?: string) => {
+		const value = (override ?? title.value).trim();
 		if (!value) return;
 		const note = description?.value.trim();
 
@@ -445,6 +479,17 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	 * inserting at a stale offset — which is why typed characters came out in
 	 * reverse. The input now survives, so the composition does too.
 	 */
+	// Built after `commit` exists and moved to the front, so the DOM order reads
+	// "+ then field" while the code reads in dependency order.
+	top.prepend(
+		renderAddButton(top, {
+			cls: "lv-add-icon",
+			label: "Add task",
+			field: () => title,
+			onCommit: (v) => void commit(true, v),
+		})
+	);
+
 	const expand = () => {
 		if (ctx.state.composing) return;
 		ctx.state.composing = true;
@@ -709,4 +754,13 @@ function addDays(n: number): string {
 	d.setDate(d.getDate() + n);
 	const p = (v: number) => String(v).padStart(2, "0");
 	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+async function pickIcon(ctx: ViewContext, list: TaskList): Promise<void> {
+	const { IconModal } = await import("../../ui/IconModal");
+	new IconModal(ctx.app, {
+		listName: list.name,
+		current: list.config.icon,
+		onPick: (icon) => ctx.setIcon(list.path, icon),
+	}).open();
 }

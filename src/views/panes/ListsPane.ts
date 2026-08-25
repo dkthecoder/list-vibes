@@ -258,6 +258,13 @@ function showListMenu(
 
 	menu.addItem((i) =>
 		i
+			.setTitle("Change icon")
+			.setIcon("smile")
+			.onClick(() => void pickIcon(ctx, list))
+	);
+
+	menu.addItem((i) =>
+		i
 			.setTitle("Change colour")
 			.setIcon("palette")
 			.onClick(() => void pickColor(ctx, list))
@@ -315,3 +322,12 @@ async function renameList(ctx: ViewContext, list: TaskList): Promise<void> {
 }
 
 export type { Selection };
+
+async function pickIcon(ctx: ViewContext, list: TaskList): Promise<void> {
+	const { IconModal } = await import("../../ui/IconModal");
+	new IconModal(ctx.app, {
+		listName: list.name,
+		current: list.config.icon,
+		onPick: (icon) => ctx.setIcon(list.path, icon),
+	}).open();
+}

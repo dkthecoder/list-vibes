@@ -414,6 +414,12 @@ export class ListsView extends ItemView {
 				void this.plugin.mutator.setListConfig(path, "color", color);
 			},
 
+			setIcon: (path: string, icon: string | null) => {
+				// Frontmatter, not the filename: renaming a file to change its icon
+				// would rewrite every link pointing at it.
+				void this.plugin.mutator.setListConfig(path, "icon", icon);
+			},
+
 			renameList: (path: string, name: string) => {
 				void this.plugin.mutator.renameList(path, name).then((next) => {
 					if (!next) return;
@@ -453,11 +459,16 @@ export class ListsView extends ItemView {
 	private typing(): boolean {
 		const el = document.activeElement;
 		if (!el || !this.contentEl.contains(el)) return false;
-		return (
-			el instanceof HTMLInputElement ||
-			el instanceof HTMLTextAreaElement ||
-			(el as HTMLElement).isContentEditable
-		);
+
+		if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+			// An empty field has no composition to break and nothing to lose, and
+			// this is exactly the state a field is left in right after it commits.
+			// Without it, adding a step would hold back the very repaint that
+			// shows the step — so it would look like nothing had happened until
+			// you tapped away.
+			return el.value.length > 0;
+		}
+		return (el as HTMLElement).isContentEditable;
 	}
 
 	/**
@@ -574,6 +585,10 @@ export class ListsView extends ItemView {
 	 */
 	private repaintPanes(scope: RenderScope): void {
 		const ctx = this.buildContext();
+		// A scoped repaint replaces panes wholesale too, so it has to put the
+		// caret back — otherwise committing a step drops focus and the next one
+		// cannot be typed without tapping the field again.
+		const focus = this.captureFocus();
 
 		if (scope !== "detail") {
 			if (this.navEl) {
@@ -590,6 +605,39 @@ export class ListsView extends ItemView {
 		if (this.overlayEl && this.state.selectedTask) {
 			this.overlayEl.empty();
 			renderDetailPane(this.overlayEl, ctx);
+		}
+
+		this.restoreFocus(focus);
+	}
+
+	/**
+	 * Remember which field had the caret, so a repaint can hand it back.
+	 *
+	 * Identified by its own class rather than by node, because the node is about
+	 * to be destroyed. That means the *first* element with that class wins, which
+	 * is right here — each of these fields is unique within a pane.
+	 */
+	private captureFocus(): { cls: string; caret: number | null; value: string | null } | null {
+		const el = document.activeElement as HTMLElement | null;
+		if (!el || !this.contentEl.contains(el)) return null;
+		const cls = Array.from(el.classList).find((c) => c.startsWith("lv-"));
+		if (!cls) return null;
+		const field =
+			el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el : null;
+		return { cls, caret: field ? field.selectionStart : null, value: field ? field.value : null };
+	}
+
+	private restoreFocus(saved: ReturnType<ListsView["captureFocus"]>): void {
+		if (!saved) return;
+		const el = this.contentEl.querySelector<HTMLElement>(`.${saved.cls}`);
+		if (!el) return;
+		el.focus();
+		if (
+			(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
+			saved.value !== null
+		) {
+			el.value = saved.value;
+			if (saved.caret !== null) el.setSelectionRange(saved.caret, saved.caret);
 		}
 	}
 

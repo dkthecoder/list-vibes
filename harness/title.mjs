@@ -30,7 +30,8 @@ const r = await p.evaluate(() => {
     return d;
   };
   return {
-    // desktop main tab, title bar on -> Obsidian draws it, ours must hide
+    // desktop main tab, title bar on -> both show; ours carries the icon and
+    // the inline rename, and being absent is worse than being doubled
     mainTabHeaderOn: shown("show-view-header", "workspace-split mod-root"),
     // desktop main tab, title bar off -> nobody draws it unless we do
     mainTabHeaderOff: shown("", "workspace-split mod-root"),
@@ -42,7 +43,7 @@ const r = await p.evaluate(() => {
     phoneDrawer: shown("show-view-header is-phone is-mobile", "workspace-drawer"),
   };
 });
-const want = { mainTabHeaderOn: "none", mainTabHeaderOff: "flex", sidebar: "flex",
+const want = { mainTabHeaderOn: "flex", mainTabHeaderOff: "flex", sidebar: "flex",
                phoneMainTab: "none", phoneDrawer: "flex" };
 let bad = 0;
 for (const [k, v] of Object.entries(want)) {

@@ -5,6 +5,7 @@ import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
 import { makeDragSortable } from "../../ui/dragSort";
 import { renderCheckbox } from "../../ui/checkbox";
+import { renderAddButton, submitOnEnter } from "../../ui/addButton";
 import { renderImportance } from "../../ui/Importance";
 
 const REPEATS = [
@@ -133,9 +134,17 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 		}
 
 		const add = steps.createDiv({ cls: "lv-step lv-step-add" });
-		const plus = add.createDiv({ cls: "lv-check lv-check-sm" });
-		setIcon(plus, "plus");
-		const input = add.createEl("input", {
+		const addStep = (v: string) => void ctx.mutator.addStep(task, v);
+
+		let input: HTMLInputElement | null = null;
+		renderAddButton(add, {
+			cls: "lv-step-plus",
+			label: "Add step",
+			field: () => input,
+			onCommit: addStep,
+		});
+
+		input = add.createEl("input", {
 			type: "text",
 			cls: "lv-step-input",
 			attr: {
@@ -143,13 +152,14 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 				"aria-label": "Add a step",
 			},
 		});
+		submitOnEnter(input);
 		input.addEventListener("keydown", (e) => {
 			if (e.key !== "Enter") return;
 			e.preventDefault();
-			const v = input.value.trim();
+			const v = input!.value.trim();
 			if (!v) return;
-			input.value = "";
-			void ctx.mutator.addStep(task, v);
+			input!.value = "";
+			addStep(v);
 		});
 	}
 

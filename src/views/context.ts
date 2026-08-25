@@ -81,6 +81,7 @@ export interface ViewContext {
 
 	/** Colour is a property of the list, so it lives in its frontmatter. */
 	setColor: (path: string, color: ListColor | null) => void;
+	setIcon: (path: string, icon: string | null) => void;
 
 	/** The list's name is its filename, so this renames the file. */
 	renameList: (path: string, name: string) => void;

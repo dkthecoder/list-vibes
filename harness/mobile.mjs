@@ -142,6 +142,55 @@ check(
 	`padding-bottom=${gapDown}px`
 );
 
+/* ------------------------------------------------------------------
+   3. The + must commit, not just sit there
+
+   A soft keyboard's return key is often "Next" rather than a submit, so
+   on a phone the + is the only reliable way to add something — and it
+   was a div with no handler on it at all.
+   ------------------------------------------------------------------ */
+
+const PLUS = `${PANE} .lv-add-icon`;
+check("the + is a real button", await page.$eval(PLUS, (e) => e.getAttribute("role") === "button"));
+
+await page.evaluate(() => (window.lvCalls.length = 0));
+await page.click(INPUT);
+await page.$eval(INPUT, (e) => (e.value = ""));
+await page.type(INPUT, "Feed the cat", { delay: 20 });
+await page.click(PLUS);
+await page.waitForTimeout(120);
+let added = await page.evaluate(() => window.lvCalls);
+check(
+	"tapping + adds the task",
+	added.some((c) => c[0] === "addTask"),
+	JSON.stringify(added.map((c) => c[0]))
+);
+check(
+	"with the typed title",
+	added.find((c) => c[0] === "addTask")?.[2] === "Feed the cat",
+	JSON.stringify(added.find((c) => c[0] === "addTask")?.[2])
+);
+check("the field is cleared", (await page.$eval(INPUT, (e) => e.value)) === "");
+check(
+	"and keeps focus, so the next one can be typed straight away",
+	await page.$eval(INPUT, (e) => e === document.activeElement)
+);
+
+await page.evaluate(() => (window.lvCalls.length = 0));
+await page.click(PLUS);
+await page.waitForTimeout(80);
+added = await page.evaluate(() => window.lvCalls);
+check(
+	"tapping + with nothing typed adds nothing",
+	!added.some((c) => c[0] === "addTask"),
+	JSON.stringify(added.map((c) => c[0]))
+);
+
+check(
+	"the return key is labelled as a submit, not Next",
+	(await page.$eval(INPUT, (e) => e.getAttribute("enterkeyhint"))) === "done"
+);
+
 void rootBefore;
 void addBefore;
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
