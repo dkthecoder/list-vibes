@@ -23,7 +23,7 @@ export class InputModal extends Modal {
 
 		const input = contentEl.createEl("input", {
 			type: this.opts.type,
-			cls: "lists-modal-input",
+			cls: "lv-modal-input",
 		});
 		input.value = this.value;
 		input.addEventListener("change", () => (this.value = input.value));

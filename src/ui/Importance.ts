@@ -37,7 +37,7 @@ function renderStar(
 	opts: { size?: "sm" | "md" }
 ): HTMLElement {
 	const on = isStarred(task);
-	const el = parent.createDiv({ cls: "lists-star" });
+	const el = parent.createDiv({ cls: "lv-star" });
 	if (opts.size === "sm") el.addClass("is-sm");
 	el.toggleClass("is-on", on);
 	el.setAttribute("role", "button");
@@ -71,7 +71,7 @@ function renderRating(
 	opts: { size?: "sm" | "md" }
 ): HTMLElement {
 	const value = starsOf(task);
-	const wrap = parent.createDiv({ cls: "lists-rating" });
+	const wrap = parent.createDiv({ cls: "lv-rating" });
 	if (opts.size === "sm") wrap.addClass("is-sm");
 	wrap.setAttribute("role", "radiogroup");
 	wrap.setAttribute("aria-label", "Importance, 1 to 5 stars");
@@ -80,14 +80,14 @@ function renderRating(
 	let preview = 0;
 	const paint = () => {
 		const shown = preview || value;
-		wrap.findAll(".lists-rating-star").forEach((s, i) => {
+		wrap.findAll(".lv-rating-star").forEach((s, i) => {
 			s.toggleClass("is-on", i < shown);
 			s.toggleClass("is-preview", preview > 0 && i < preview);
 		});
 	};
 
 	for (let i = 1; i <= 5; i++) {
-		const star = wrap.createDiv({ cls: "lists-rating-star" });
+		const star = wrap.createDiv({ cls: "lv-rating-star" });
 		star.setAttribute("role", "radio");
 		star.setAttribute("tabindex", i === Math.max(value, 1) ? "0" : "-1");
 		star.setAttribute("aria-checked", String(i === value));

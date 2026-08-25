@@ -4,12 +4,12 @@ import { isComplete } from "../../model/types";
 
 /** Left pane: smart views, then one row per list file in the folder. */
 export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
-	const pane = parent.createDiv({ cls: "lists-pane lists-nav" });
+	const pane = parent.createDiv({ cls: "lv-pane lv-nav" });
 
-	const scroll = pane.createDiv({ cls: "lists-nav-scroll" });
+	const scroll = pane.createDiv({ cls: "lv-nav-scroll" });
 
 	/* --- smart views --- */
-	const smart = scroll.createDiv({ cls: "lists-nav-group" });
+	const smart = scroll.createDiv({ cls: "lv-nav-group" });
 	for (const v of SMART_VIEWS) {
 		const count = ctx.store.countSmartView(v.id);
 		row(smart, {
@@ -17,26 +17,26 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			label: v.label,
 			count,
 			selected: sameSelection(ctx.state.selection, { kind: "smart", view: v.id }),
-			cls: `lists-smart-${v.id}`,
+			cls: `lv-smart-${v.id}`,
 			onClick: () => ctx.select({ kind: "smart", view: v.id }),
 			onNewTab: () => ctx.openInNewTab({ kind: "smart", view: v.id }),
 		});
 	}
 
-	scroll.createDiv({ cls: "lists-nav-divider" });
+	scroll.createDiv({ cls: "lv-nav-divider" });
 
 	/* --- lists --- */
 	const lists = ctx.store.getLists();
-	const group = scroll.createDiv({ cls: "lists-nav-group" });
+	const group = scroll.createDiv({ cls: "lv-nav-group" });
 
 	if (!lists.length) {
-		const empty = group.createDiv({ cls: "lists-empty-nav" });
+		const empty = group.createDiv({ cls: "lv-empty-nav" });
 		empty.createDiv({
-			cls: "lists-empty-title",
+			cls: "lv-empty-title",
 			text: `No lists in "${ctx.store.getFolder()}"`,
 		});
 		empty.createDiv({
-			cls: "lists-empty-body",
+			cls: "lv-empty-body",
 			text: "Create a list to get started, or point the plugin at an existing folder in settings.",
 		});
 	}
@@ -56,11 +56,11 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 	}
 
 	/* --- new list --- */
-	const foot = pane.createDiv({ cls: "lists-nav-foot" });
-	const add = foot.createDiv({ cls: "lists-nav-row lists-new" });
-	const addIcon = add.createDiv({ cls: "lists-nav-icon" });
+	const foot = pane.createDiv({ cls: "lv-nav-foot" });
+	const add = foot.createDiv({ cls: "lv-nav-row lv-new" });
+	const addIcon = add.createDiv({ cls: "lv-nav-icon" });
 	setIcon(addIcon, "plus");
-	add.createDiv({ cls: "lists-nav-label", text: "New list" });
+	add.createDiv({ cls: "lv-nav-label", text: "New list" });
 	add.setAttribute("tabindex", "0");
 	const create = () => void newList(ctx);
 	add.addEventListener("click", create);
@@ -83,18 +83,18 @@ interface RowOpts {
 }
 
 function row(parent: HTMLElement, o: RowOpts): void {
-	const el = parent.createDiv({ cls: "lists-nav-row" });
+	const el = parent.createDiv({ cls: "lv-nav-row" });
 	if (o.cls) el.addClass(o.cls);
 	el.toggleClass("is-selected", o.selected);
 	el.setAttribute("tabindex", "0");
 	el.setAttribute("role", "button");
 
-	const icon = el.createDiv({ cls: "lists-nav-icon" });
+	const icon = el.createDiv({ cls: "lv-nav-icon" });
 	if (o.emoji) icon.setText(o.emoji);
 	else if (o.icon) setIcon(icon, o.icon);
 
-	el.createDiv({ cls: "lists-nav-label", text: o.label });
-	if (o.count > 0) el.createDiv({ cls: "lists-nav-count", text: String(o.count) });
+	el.createDiv({ cls: "lv-nav-label", text: o.label });
+	if (o.count > 0) el.createDiv({ cls: "lv-nav-count", text: String(o.count) });
 
 	el.addEventListener("click", (e) => {
 		if (o.onNewTab && (e.metaKey || e.ctrlKey)) {

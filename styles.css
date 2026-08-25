@@ -3,16 +3,16 @@
    follows the user's theme in both light and dark. No hardcoded colours.
    ------------------------------------------------------------------ */
 
-.lists-root {
-	--lists-row-height: 44px; /* touch target floor */
-	--lists-gutter: 12px;
-	--lists-radius: 8px;
+.lv-root {
+	--lv-row-height: 44px; /* touch target floor */
+	--lv-gutter: 12px;
+	--lv-radius: 8px;
 	padding: 0;
 	height: 100%;
 	overflow: hidden;
 }
 
-.lists-shell {
+.lv-shell {
 	display: flex;
 	position: relative;
 	height: 100%;
@@ -20,30 +20,30 @@
 	overflow: hidden;
 }
 
-.lists-root.is-wide .lists-nav {
+.lv-root.is-wide .lv-nav {
 	flex: 0 0 240px;
 	border-right: 1px solid var(--background-modifier-border);
 }
 
-.lists-root.is-wide .lists-tasks {
+.lv-root.is-wide .lv-tasks {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.lists-root.is-narrow .lists-pane {
+.lv-root.is-narrow .lv-pane {
 	flex: 1 1 100%;
 	min-width: 0;
 }
 
-.lists-pane {
+.lv-pane {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
 	background: var(--background-primary);
 }
 
-.lists-scroll,
-.lists-nav-scroll {
+.lv-scroll,
+.lv-nav-scroll {
 	flex: 1 1 auto;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -53,44 +53,44 @@
 
 /* ---------------- nav pane ---------------- */
 
-.lists-nav-group {
-	padding: 4px var(--lists-gutter);
+.lv-nav-group {
+	padding: 4px var(--lv-gutter);
 }
 
-.lists-nav-divider {
+.lv-nav-divider {
 	height: 1px;
 	background: var(--background-modifier-border);
-	margin: 6px var(--lists-gutter);
+	margin: 6px var(--lv-gutter);
 }
 
-.lists-nav-row {
+.lv-nav-row {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	min-height: var(--lists-row-height);
+	min-height: var(--lv-row-height);
 	padding: 0 10px;
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 	cursor: pointer;
 	color: var(--text-normal);
 	-webkit-touch-callout: none;
 	user-select: none;
 }
 
-.lists-nav-row:hover {
+.lv-nav-row:hover {
 	background: var(--background-modifier-hover);
 }
 
-.lists-nav-row:focus-visible {
+.lv-nav-row:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
 
-.lists-nav-row.is-selected {
+.lv-nav-row.is-selected {
 	background: var(--background-modifier-active-hover, var(--background-secondary));
 	font-weight: var(--font-medium);
 }
 
-.lists-nav-icon {
+.lv-nav-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -101,17 +101,17 @@
 	font-size: var(--font-ui-medium);
 }
 
-.lists-nav-row.is-selected .lists-nav-icon,
-.lists-smart-myday .lists-nav-icon {
+.lv-nav-row.is-selected .lv-nav-icon,
+.lv-smart-myday .lv-nav-icon {
 	color: var(--interactive-accent);
 }
 
-.lists-nav-icon .svg-icon {
+.lv-nav-icon .svg-icon {
 	width: 18px;
 	height: 18px;
 }
 
-.lists-nav-label {
+.lv-nav-label {
 	flex: 1 1 auto;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -119,7 +119,7 @@
 	font-size: var(--font-ui-small);
 }
 
-.lists-nav-count {
+.lv-nav-count {
 	flex: 0 0 auto;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
@@ -127,31 +127,31 @@
 	padding-left: 6px;
 }
 
-.lists-nav-foot {
+.lv-nav-foot {
 	flex: 0 0 auto;
-	padding: 6px var(--lists-gutter);
+	padding: 6px var(--lv-gutter);
 	padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-.lists-new .lists-nav-icon,
-.lists-new .lists-nav-label {
+.lv-new .lv-nav-icon,
+.lv-new .lv-nav-label {
 	color: var(--interactive-accent);
 }
 
 /* ---------------- header ---------------- */
 
-.lists-header {
+.lv-header {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 10px var(--lists-gutter);
+	padding: 10px var(--lv-gutter);
 	padding-top: calc(10px + env(safe-area-inset-top, 0px));
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.lists-header-title {
+.lv-header-title {
 	flex: 1 1 auto;
 	font-size: var(--font-ui-large);
 	font-weight: var(--font-bold);
@@ -161,33 +161,33 @@
 	white-space: nowrap;
 }
 
-.lists-back,
-.lists-header-action {
+.lv-back,
+.lv-header-action {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 32px;
 	height: 32px;
 	flex: 0 0 32px;
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 	color: var(--text-muted);
 	cursor: pointer;
 }
 
-.lists-back:hover,
-.lists-header-action:hover {
+.lv-back:hover,
+.lv-header-action:hover {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
-.lists-header-action.is-active {
+.lv-header-action.is-active {
 	color: var(--interactive-accent);
 }
 
 /* ---------------- task rows ---------------- */
 
-.lists-section {
-	padding: 12px var(--lists-gutter) 4px;
+.lv-section {
+	padding: 12px var(--lv-gutter) 4px;
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
 	text-transform: uppercase;
@@ -195,33 +195,33 @@
 	color: var(--text-faint);
 }
 
-.lists-group {
-	padding: 0 var(--lists-gutter);
+.lv-group {
+	padding: 0 var(--lv-gutter);
 }
 
-.lists-task {
+.lv-task {
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
-	min-height: var(--lists-row-height);
+	min-height: var(--lv-row-height);
 	padding: 8px 10px;
 	margin-bottom: 2px;
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 	background: var(--background-secondary);
 	cursor: pointer;
 	-webkit-touch-callout: none;
 	user-select: none;
 }
 
-.lists-task:hover {
+.lv-task:hover {
 	background: var(--background-modifier-hover);
 }
 
-.lists-task.is-selected {
+.lv-task.is-selected {
 	box-shadow: inset 0 0 0 2px var(--interactive-accent);
 }
 
-.lists-check {
+.lv-check {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -234,48 +234,48 @@
 	border-radius: 50%;
 }
 
-.lists-check:hover {
+.lv-check:hover {
 	color: var(--interactive-accent);
 }
 
-.lists-check:focus-visible {
+.lv-check:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
 
-.lists-task.is-complete .lists-check {
+.lv-task.is-complete .lv-check {
 	color: var(--interactive-accent);
 }
 
-.lists-check-sm {
+.lv-check-sm {
 	width: 20px;
 	height: 20px;
 	flex: 0 0 20px;
 }
 
-.lists-check-sm .svg-icon {
+.lv-check-sm .svg-icon {
 	width: 16px;
 	height: 16px;
 }
 
-.lists-task-body {
+.lv-task-body {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.lists-task-title {
+.lv-task-title {
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 	line-height: 1.35;
 	overflow-wrap: anywhere;
 }
 
-.lists-task.is-complete .lists-task-title {
+.lv-task.is-complete .lv-task-title {
 	color: var(--text-muted);
 	text-decoration: line-through;
 }
 
-.lists-task-meta {
+.lv-task-meta {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -285,19 +285,19 @@
 	color: var(--text-muted);
 }
 
-.lists-task-meta .is-today {
+.lv-task-meta .is-today {
 	color: var(--interactive-accent);
 }
 
-.lists-task-meta .is-overdue {
+.lv-task-meta .is-overdue {
 	color: var(--text-error);
 }
 
-.lists-sep {
+.lv-sep {
 	color: var(--text-faint);
 }
 
-.lists-star {
+.lv-star {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -306,50 +306,50 @@
 	flex: 0 0 28px;
 	color: var(--text-faint);
 	cursor: pointer;
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 }
 
-.lists-star:hover {
+.lv-star:hover {
 	color: var(--text-muted);
 	background: var(--background-modifier-hover);
 }
 
-.lists-star.is-on {
+.lv-star.is-on {
 	color: var(--interactive-accent);
 }
 
-.lists-star.is-on .svg-icon {
+.lv-star.is-on .svg-icon {
 	fill: currentColor;
 }
 
-.lists-tag {
+.lv-tag {
 	color: var(--text-accent);
 	font-size: 0.9em;
 }
 
-.lists-link {
+.lv-link {
 	color: var(--text-accent);
 	text-decoration: none;
 }
 
-.lists-link:hover {
+.lv-link:hover {
 	text-decoration: underline;
 }
 
 /* ---------------- completed section ---------------- */
 
-.lists-completed {
+.lv-completed {
 	margin-top: 10px;
-	padding: 0 var(--lists-gutter);
+	padding: 0 var(--lv-gutter);
 }
 
-.lists-completed-head {
+.lv-completed-head {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 	min-height: 36px;
 	padding: 0 8px;
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 	cursor: pointer;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
@@ -358,84 +358,84 @@
 	user-select: none;
 }
 
-.lists-completed-head:hover {
+.lv-completed-head:hover {
 	background: var(--background-modifier-hover);
 }
 
-.lists-completed-chevron {
+.lv-completed-chevron {
 	display: flex;
 	align-items: center;
 }
 
-.lists-completed-chevron .svg-icon {
+.lv-completed-chevron .svg-icon {
 	width: 16px;
 	height: 16px;
 }
 
-.lists-completed-count {
+.lv-completed-count {
 	color: var(--text-faint);
 	font-variant-numeric: tabular-nums;
 }
 
-.lists-completed-body {
+.lv-completed-body {
 	padding-top: 4px;
 }
 
 /* ---------------- add box ---------------- */
 
-.lists-add {
+.lv-add {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	margin: 8px var(--lists-gutter);
+	margin: 8px var(--lv-gutter);
 	margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 	padding: 0 12px;
-	min-height: var(--lists-row-height);
+	min-height: var(--lv-row-height);
 	background: var(--background-secondary);
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 }
 
-.lists-add-icon {
+.lv-add-icon {
 	display: flex;
 	align-items: center;
 	color: var(--interactive-accent);
 }
 
-.lists-add-input {
+.lv-add-input {
 	flex: 1 1 auto;
 	min-width: 0;
 	background: transparent;
 	border: none;
 	box-shadow: none;
 	padding: 0;
-	height: var(--lists-row-height);
+	height: var(--lv-row-height);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }
 
-.lists-add-input:focus {
+.lv-add-input:focus {
 	box-shadow: none;
 	outline: none;
 }
 
 /* ---------------- detail pane ---------------- */
 
-.lists-detail {
+.lv-detail {
 	background: var(--background-secondary);
 }
 
-.lists-detail-bar {
+.lv-detail-bar {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	padding: 10px var(--lists-gutter);
+	padding: 10px var(--lv-gutter);
 	padding-top: calc(10px + env(safe-area-inset-top, 0px));
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.lists-detail-bar-title {
+.lv-detail-bar-title {
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
 	overflow: hidden;
@@ -443,21 +443,21 @@
 	white-space: nowrap;
 }
 
-.lists-card {
-	margin: 8px var(--lists-gutter);
+.lv-card {
+	margin: 8px var(--lv-gutter);
 	padding: 4px;
 	background: var(--background-primary);
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 }
 
-.lists-detail-title {
+.lv-detail-title {
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
 	padding: 12px;
 }
 
-.lists-detail-title-text {
+.lv-detail-title-text {
 	flex: 1 1 auto;
 	min-width: 0;
 	font-size: var(--font-ui-medium);
@@ -468,19 +468,19 @@
 	outline: none;
 }
 
-.lists-detail-title-text.is-complete {
+.lv-detail-title-text.is-complete {
 	color: var(--text-muted);
 	text-decoration: line-through;
 }
 
-.lists-detail-title-text:focus {
+.lv-detail-title-text:focus {
 	border-radius: 4px;
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
 /* steps */
 
-.lists-step {
+.lv-step {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -489,11 +489,11 @@
 	border-radius: 6px;
 }
 
-.lists-step:hover {
+.lv-step:hover {
 	background: var(--background-modifier-hover);
 }
 
-.lists-step-label {
+.lv-step-label {
 	flex: 1 1 auto;
 	min-width: 0;
 	font-size: var(--font-ui-small);
@@ -501,12 +501,12 @@
 	overflow-wrap: anywhere;
 }
 
-.lists-step.is-complete .lists-step-label {
+.lv-step.is-complete .lv-step-label {
 	color: var(--text-muted);
 	text-decoration: line-through;
 }
 
-.lists-step-remove {
+.lv-step-remove {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -519,17 +519,17 @@
 	opacity: 0;
 }
 
-.lists-step:hover .lists-step-remove,
-.lists-step-remove:focus-visible {
+.lv-step:hover .lv-step-remove,
+.lv-step-remove:focus-visible {
 	opacity: 1;
 }
 
-.lists-step-remove:hover {
+.lv-step-remove:hover {
 	color: var(--text-error);
 	background: var(--background-modifier-hover);
 }
 
-.lists-step-input {
+.lv-step-input {
 	flex: 1 1 auto;
 	min-width: 0;
 	background: transparent;
@@ -541,22 +541,22 @@
 	color: var(--text-normal);
 }
 
-.lists-step-input:focus {
+.lv-step-input:focus {
 	box-shadow: none;
 	outline: none;
 }
 
-.lists-step-add .lists-check {
+.lv-step-add .lv-check {
 	color: var(--interactive-accent);
 }
 
 /* actions */
 
-.lists-action {
+.lv-action {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	min-height: var(--lists-row-height);
+	min-height: var(--lv-row-height);
 	padding: 0 12px;
 	border-radius: 6px;
 	cursor: pointer;
@@ -565,52 +565,52 @@
 	user-select: none;
 }
 
-.lists-action + .lists-action {
+.lv-action + .lv-action {
 	border-top: 1px solid var(--background-modifier-border);
 	border-radius: 0;
 }
 
-.lists-action:hover {
+.lv-action:hover {
 	background: var(--background-modifier-hover);
 }
 
-.lists-action:focus-visible {
+.lv-action:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
 
-.lists-action.is-active {
+.lv-action.is-active {
 	color: var(--interactive-accent);
 }
 
-.lists-action.is-danger {
+.lv-action.is-danger {
 	color: var(--text-error);
 }
 
-.lists-action-icon {
+.lv-action-icon {
 	display: flex;
 	align-items: center;
 	flex: 0 0 20px;
 }
 
-.lists-action-text {
+.lv-action-text {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.lists-action-label {
+.lv-action-label {
 	font-size: var(--font-ui-small);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.lists-action-sub {
+.lv-action-sub {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);
 }
 
-.lists-action-clear {
+.lv-action-clear {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -621,14 +621,14 @@
 	border-radius: 4px;
 }
 
-.lists-action-clear:hover {
+.lv-action-clear:hover {
 	color: var(--text-normal);
 	background: var(--background-modifier-hover);
 }
 
 /* note */
 
-.lists-note-input {
+.lv-note-input {
 	width: 100%;
 	min-height: 72px;
 	resize: vertical;
@@ -641,30 +641,30 @@
 	color: var(--text-normal);
 }
 
-.lists-note-input:focus {
+.lv-note-input:focus {
 	box-shadow: none;
 	outline: none;
 }
 
 /* footer */
 
-.lists-detail-foot {
+.lv-detail-foot {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
-	padding: 8px var(--lists-gutter);
+	padding: 8px var(--lv-gutter);
 	padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-.lists-detail-created {
+.lv-detail-created {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);
 }
 
-.lists-detail-delete {
+.lv-detail-delete {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -673,17 +673,17 @@
 	flex: 0 0 32px;
 	color: var(--text-muted);
 	cursor: pointer;
-	border-radius: var(--lists-radius);
+	border-radius: var(--lv-radius);
 }
 
-.lists-detail-delete:hover {
+.lv-detail-delete:hover {
 	color: var(--text-error);
 	background: var(--background-modifier-hover);
 }
 
 /* ---------------- empty states ---------------- */
 
-.lists-empty {
+.lv-empty {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -693,55 +693,55 @@
 	text-align: center;
 }
 
-.lists-empty-icon {
+.lv-empty-icon {
 	color: var(--text-faint);
 	margin-bottom: 4px;
 }
 
-.lists-empty-icon .svg-icon {
+.lv-empty-icon .svg-icon {
 	width: 32px;
 	height: 32px;
 }
 
-.lists-empty-title {
+.lv-empty-title {
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-semibold);
 	color: var(--text-muted);
 }
 
-.lists-empty-body {
+.lv-empty-body {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-faint);
 	max-width: 32ch;
 }
 
-.lists-empty-nav {
+.lv-empty-nav {
 	padding: 16px 10px;
 }
 
-.lists-empty-nav .lists-empty-title {
+.lv-empty-nav .lv-empty-title {
 	margin-bottom: 4px;
 }
 
 /* ---------------- modals ---------------- */
 
-.lists-modal-input {
+.lv-modal-input {
 	width: 100%;
 	margin-bottom: 12px;
 }
 
 /* ---------------- mobile ---------------- */
 
-.is-mobile .lists-root {
-	--lists-row-height: 48px;
+.is-mobile .lv-root {
+	--lv-row-height: 48px;
 }
 
-.is-mobile .lists-task-title,
-.is-mobile .lists-nav-label {
+.is-mobile .lv-task-title,
+.is-mobile .lv-nav-label {
 	font-size: var(--font-ui-medium);
 }
 
-.lists-header-icon {
+.lv-header-icon {
 	margin-right: 8px;
 }
 
@@ -754,7 +754,7 @@
    one layout to maintain.
    ------------------------------------------------------------------ */
 
-.lists-backdrop {
+.lv-backdrop {
 	position: absolute;
 	inset: 0;
 	z-index: 10;
@@ -763,11 +763,11 @@
 	transition: opacity 180ms ease;
 }
 
-.lists-backdrop.is-open {
+.lv-backdrop.is-open {
 	opacity: 1;
 }
 
-.lists-overlay {
+.lv-overlay {
 	position: absolute;
 	top: 0;
 	right: 0;
@@ -782,24 +782,24 @@
 	will-change: transform;
 }
 
-.lists-overlay.is-open {
+.lv-overlay.is-open {
 	transform: translateX(0);
 }
 
-.lists-overlay .lists-detail {
+.lv-overlay .lv-detail {
 	flex: 1 1 auto;
 	min-width: 0;
 	border-left: 1px solid var(--background-modifier-border);
 }
 
 /* On a phone the panel takes the full width, so it reads as a screen. */
-.lists-root.is-narrow .lists-overlay {
+.lv-root.is-narrow .lv-overlay {
 	width: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.lists-overlay,
-	.lists-backdrop {
+	.lv-overlay,
+	.lv-backdrop {
 		transition: none;
 	}
 }
@@ -808,7 +808,7 @@
    Add box, expanded
    ------------------------------------------------------------------ */
 
-.lists-add {
+.lv-add {
 	flex-direction: column;
 	align-items: stretch;
 	gap: 0;
@@ -816,20 +816,20 @@
 	transition: background 150ms ease;
 }
 
-.lists-add-top {
+.lv-add-top {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	min-height: var(--lists-row-height);
+	min-height: var(--lv-row-height);
 }
 
-.lists-add.is-expanded {
+.lv-add.is-expanded {
 	padding-bottom: 8px;
 	background: var(--background-primary);
 	box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
-.lists-add-note {
+.lv-add-note {
 	width: 100%;
 	margin: 0 0 8px 30px;
 	padding: 0;
@@ -843,29 +843,29 @@
 	color: var(--text-normal);
 }
 
-.lists-add-note:focus {
+.lv-add-note:focus {
 	box-shadow: none;
 	outline: none;
 }
 
-.lists-add-actions {
+.lv-add-actions {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	padding-bottom: 4px;
 }
 
-.lists-add-actions button {
+.lv-add-actions button {
 	font-size: var(--font-ui-smaller);
 }
 
-.lists-add-cancel {
+.lv-add-cancel {
 	background: transparent;
 	box-shadow: none;
 	color: var(--text-muted);
 }
 
-.lists-add-cancel:hover {
+.lv-add-cancel:hover {
 	background: var(--background-modifier-hover);
 }
 
@@ -873,13 +873,13 @@
    Importance: single star and 1-5 rating
    ------------------------------------------------------------------ */
 
-.lists-star.is-sm {
+.lv-star.is-sm {
 	width: 24px;
 	height: 24px;
 	flex: 0 0 24px;
 }
 
-.lists-rating {
+.lv-rating {
 	display: flex;
 	align-items: center;
 	gap: 1px;
@@ -887,7 +887,7 @@
 	padding: 2px;
 }
 
-.lists-rating-star {
+.lv-rating-star {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -898,52 +898,52 @@
 	border-radius: 3px;
 }
 
-.lists-rating-star .svg-icon {
+.lv-rating-star .svg-icon {
 	width: 15px;
 	height: 15px;
 }
 
-.lists-rating-star:focus-visible {
+.lv-rating-star:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
 
-.lists-rating-star.is-on {
+.lv-rating-star.is-on {
 	color: var(--interactive-accent);
 }
 
-.lists-rating-star.is-on .svg-icon {
+.lv-rating-star.is-on .svg-icon {
 	fill: currentColor;
 }
 
 /* Hover preview reads as a lighter fill than a committed rating. */
-.lists-rating-star.is-preview {
+.lv-rating-star.is-preview {
 	color: var(--interactive-accent);
 	opacity: 0.55;
 }
 
-.lists-rating.is-sm .lists-rating-star {
+.lv-rating.is-sm .lv-rating-star {
 	width: 18px;
 	height: 22px;
 }
 
-.lists-rating.is-sm .lists-rating-star .svg-icon {
+.lv-rating.is-sm .lv-rating-star .svg-icon {
 	width: 13px;
 	height: 13px;
 }
 
 /* Touch targets stay honest on mobile even though the stars sit close. */
-.is-mobile .lists-rating-star {
+.is-mobile .lv-rating-star {
 	width: 28px;
 	height: 40px;
 }
 
-.is-mobile .lists-rating-star .svg-icon {
+.is-mobile .lv-rating-star .svg-icon {
 	width: 18px;
 	height: 18px;
 }
 
 /* The detail panel gives the rating more room than a list row. */
-.lists-detail-title .lists-rating {
+.lv-detail-title .lv-rating {
 	align-self: flex-start;
 }

@@ -15,7 +15,7 @@ export function renderTaskRow(
 	ctx: ViewContext,
 	opts: { showList?: boolean } = {}
 ): HTMLElement {
-	const row = parent.createDiv({ cls: "lists-task" });
+	const row = parent.createDiv({ cls: "lv-task" });
 	row.toggleClass("is-complete", isComplete(task));
 	if (
 		ctx.state.selectedTask?.filePath === task.filePath &&
@@ -25,7 +25,7 @@ export function renderTaskRow(
 	}
 
 	/* --- checkbox --- */
-	const box = row.createDiv({ cls: "lists-check" });
+	const box = row.createDiv({ cls: "lv-check" });
 	box.setAttribute("role", "checkbox");
 	box.setAttribute("aria-checked", String(isComplete(task)));
 	box.setAttribute("aria-label", isComplete(task) ? "Mark not done" : "Mark done");
@@ -42,8 +42,8 @@ export function renderTaskRow(
 	});
 
 	/* --- body --- */
-	const body = row.createDiv({ cls: "lists-task-body" });
-	const titleEl = body.createDiv({ cls: "lists-task-title" });
+	const body = row.createDiv({ cls: "lv-task-body" });
+	const titleEl = body.createDiv({ cls: "lv-task-title" });
 	renderInline(titleEl, task.title, ctx);
 
 	const bits: { text: string; cls?: string }[] = [];
@@ -73,9 +73,9 @@ export function renderTaskRow(
 	if (task.note) bits.push({ text: "Note" });
 
 	if (bits.length) {
-		const meta = body.createDiv({ cls: "lists-task-meta" });
+		const meta = body.createDiv({ cls: "lv-task-meta" });
 		bits.forEach((b, i) => {
-			if (i > 0) meta.createSpan({ cls: "lists-sep", text: "·" });
+			if (i > 0) meta.createSpan({ cls: "lv-sep", text: "·" });
 			const span = meta.createSpan({ text: b.text });
 			if (b.cls) span.addClass(b.cls);
 		});

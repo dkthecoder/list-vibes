@@ -1,5 +1,5 @@
 {
-	"name": "obsidian-lists",
+	"name": "list-vibes",
 	"version": "0.1.0",
 	"description": "A Microsoft To Do-style task UI over a plain folder of markdown files.",
 	"type": "module",
@@ -9,7 +9,8 @@
 		"test": "node test/build-model.mjs && node --test test/*.test.mjs",
 		"lint": "eslint src",
 		"harness": "node harness/build.mjs",
-		"shot": "node harness/build.mjs && node harness/shot.mjs"
+		"shot": "node harness/build.mjs && node harness/shot.mjs",
+		"dev:vault": "node scripts/dev-vault.mjs"
 	},
 	"keywords": [],
 	"author": "dkthecoder",
@@ -25,6 +26,6 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/dkthecoder/obsidian-lists"
+		"url": "https://github.com/dkthecoder/list-vibes"
 	}
 }

@@ -25,7 +25,7 @@ export default class ListsPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_LISTS, (leaf) => new ListsView(leaf, this));
 
-		this.addRibbonIcon("list-todo", "Lists", () => void this.activateView());
+		this.addRibbonIcon("list-todo", "List Vibes", () => void this.activateView());
 
 		this.addSettingTab(new ListsSettingTab(this.app, this));
 		this.registerCommands();
@@ -110,7 +110,7 @@ export default class ListsPlugin extends Plugin {
 	private registerCommands(): void {
 		this.addCommand({
 			id: "open",
-			name: "Open lists",
+			name: "Open List Vibes",
 			callback: () => void this.activateView(),
 		});
 

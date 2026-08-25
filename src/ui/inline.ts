@@ -78,11 +78,11 @@ export function renderInline(el: HTMLElement, text: string, ctx: ViewContext): v
 				el.createEl("del", { text: p.v });
 				break;
 			case "tag":
-				el.createSpan({ cls: "lists-tag", text: p.v });
+				el.createSpan({ cls: "lv-tag", text: p.v });
 				break;
 			case "link": {
 				const a = el.createEl("a", {
-					cls: "external-link lists-link",
+					cls: "external-link lv-link",
 					text: p.label,
 					href: p.href,
 				});
@@ -91,7 +91,7 @@ export function renderInline(el: HTMLElement, text: string, ctx: ViewContext): v
 				break;
 			}
 			case "wiki": {
-				const a = el.createEl("a", { cls: "internal-link lists-link", text: p.label });
+				const a = el.createEl("a", { cls: "internal-link lv-link", text: p.label });
 				a.addEventListener("click", (e) => {
 					e.preventDefault();
 					e.stopPropagation();

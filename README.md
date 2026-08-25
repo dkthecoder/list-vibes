@@ -1,4 +1,4 @@
-# Lists
+# List Vibes
 
 An Obsidian plugin that turns a folder of markdown files into to-do lists.
 
@@ -189,14 +189,38 @@ against fixture data with a mocked `obsidian` module. It renders the desktop
 layout in both importance modes, the expanded add box, the detail overlay, and
 the three phone panes, in light and dark, without needing an Obsidian install. `node harness/shot.mjs` screenshots it.
 
-### Testing in Obsidian
+### Running it in Obsidian
 
-Copy `main.js`, `manifest.json` and `styles.css` into
-`<vault>/.obsidian/plugins/lists/`, then enable the plugin in
-Settings → Community plugins.
+One-off install into a vault:
 
-For mobile, `app.emulateMobile(true)` in the desktop console renders the real
-`WorkspaceMobileDrawer`, which exercises the same code path the phone uses.
+```bash
+./install.sh "/path/to/your/vault"
+```
+
+Then in Obsidian: Settings → Community plugins → enable **List Vibes**. On a
+fresh vault you have to turn off Restricted mode first.
+
+For an actual dev loop, build straight into the vault instead:
+
+```bash
+npm run dev:vault -- "/path/to/your/vault"
+```
+
+esbuild watches `src/` and writes `main.js`, `manifest.json` and `styles.css`
+into `<vault>/.obsidian/plugins/list-vibes/` on every save. Only those three
+files land in the vault; the repo stays outside it so `node_modules` is never
+somewhere Obsidian would try to index.
+
+It also drops a `.hotreload` marker in the plugin folder. Install the
+**Hot Reload** community plugin (pjeby/hot-reload) and Obsidian will pick up
+each rebuild without a restart. Without it, toggle the plugin off and on in
+settings after a change.
+
+For mobile, `app.emulateMobile(true)` in the desktop console (Ctrl/Cmd+Shift+I)
+renders the real `WorkspaceMobileDrawer`, which exercises the same code path the
+phone uses. To get it onto an actual phone you need the built files inside the
+vault's `.obsidian/plugins/list-vibes/` and that folder syncing to the device —
+note that Obsidian Sync excludes plugin files unless you explicitly enable it.
 
 ## Licence
 

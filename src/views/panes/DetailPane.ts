@@ -15,7 +15,7 @@ const REPEATS = [
 
 /** Right pane: the expanded task — steps, dates, note. */
 export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
-	const pane = parent.createDiv({ cls: "lists-pane lists-detail" });
+	const pane = parent.createDiv({ cls: "lv-pane lv-detail" });
 	const ref = ctx.state.selectedTask;
 	const task = ref ? ctx.store.findTask(ref.filePath, ref.line) : undefined;
 
@@ -23,29 +23,29 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	if (!task) return;
 
 	/* ---------------- header ---------------- */
-	const bar = pane.createDiv({ cls: "lists-detail-bar" });
-	const close = bar.createDiv({ cls: "lists-back" });
+	const bar = pane.createDiv({ cls: "lv-detail-bar" });
+	const close = bar.createDiv({ cls: "lv-back" });
 	setIcon(close, "x");
 	close.setAttribute("aria-label", "Close");
 	close.addEventListener("click", () => ctx.selectTask(null));
 	bar.createDiv({
-		cls: "lists-detail-bar-title",
+		cls: "lv-detail-bar-title",
 		text: task.filePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
 	});
 
-	const scroll = pane.createDiv({ cls: "lists-scroll" });
+	const scroll = pane.createDiv({ cls: "lv-scroll" });
 
 	/* ---------------- title card ---------------- */
-	const card = scroll.createDiv({ cls: "lists-card lists-detail-title" });
+	const card = scroll.createDiv({ cls: "lv-card lv-detail-title" });
 
-	const box = card.createDiv({ cls: "lists-check" });
+	const box = card.createDiv({ cls: "lv-check" });
 	setIcon(box, isComplete(task) ? "check-circle-2" : "circle");
 	box.setAttribute("role", "checkbox");
 	box.setAttribute("aria-checked", String(isComplete(task)));
 	box.setAttribute("aria-label", isComplete(task) ? "Mark not done" : "Mark done");
 	box.addEventListener("click", () => void ctx.mutator.toggle(task));
 
-	const titleEl = card.createDiv({ cls: "lists-detail-title-text" });
+	const titleEl = card.createDiv({ cls: "lv-detail-title-text" });
 	titleEl.toggleClass("is-complete", isComplete(task));
 	titleEl.setAttribute("contenteditable", "plaintext-only");
 	titleEl.setAttribute("role", "textbox");
@@ -72,33 +72,33 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	/* ---------------- steps ---------------- */
 	if (ctx.settings.enableSubtasks) {
-		const steps = scroll.createDiv({ cls: "lists-card lists-steps" });
+		const steps = scroll.createDiv({ cls: "lv-card lv-steps" });
 
 		for (const child of task.children) {
-			const row = steps.createDiv({ cls: "lists-step" });
+			const row = steps.createDiv({ cls: "lv-step" });
 			row.toggleClass("is-complete", isComplete(child));
 
-			const cb = row.createDiv({ cls: "lists-check lists-check-sm" });
+			const cb = row.createDiv({ cls: "lv-check lv-check-sm" });
 			setIcon(cb, isComplete(child) ? "check-circle-2" : "circle");
 			cb.setAttribute("role", "checkbox");
 			cb.setAttribute("aria-checked", String(isComplete(child)));
 			cb.addEventListener("click", () => void ctx.mutator.toggle(child));
 
-			const label = row.createDiv({ cls: "lists-step-label" });
+			const label = row.createDiv({ cls: "lv-step-label" });
 			renderInline(label, child.title, ctx);
 
-			const del = row.createDiv({ cls: "lists-step-remove" });
+			const del = row.createDiv({ cls: "lv-step-remove" });
 			setIcon(del, "x");
 			del.setAttribute("aria-label", "Remove step");
 			del.addEventListener("click", () => void ctx.mutator.remove(child));
 		}
 
-		const add = steps.createDiv({ cls: "lists-step lists-step-add" });
-		const plus = add.createDiv({ cls: "lists-check lists-check-sm" });
+		const add = steps.createDiv({ cls: "lv-step lv-step-add" });
+		const plus = add.createDiv({ cls: "lv-check lv-check-sm" });
 		setIcon(plus, "plus");
 		const input = add.createEl("input", {
 			type: "text",
-			cls: "lists-step-input",
+			cls: "lv-step-input",
 			attr: {
 				placeholder: task.children.length ? "Next step" : "Add step",
 				"aria-label": "Add a step",
@@ -115,7 +115,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	}
 
 	/* ---------------- actions ---------------- */
-	const actions = scroll.createDiv({ cls: "lists-card lists-actions" });
+	const actions = scroll.createDiv({ cls: "lv-card lv-actions" });
 
 	action(actions, {
 		icon: "sun",
@@ -162,9 +162,9 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	});
 
 	/* ---------------- note ---------------- */
-	const noteCard = scroll.createDiv({ cls: "lists-card lists-note" });
+	const noteCard = scroll.createDiv({ cls: "lv-card lv-note" });
 	const note = noteCard.createEl("textarea", {
-		cls: "lists-note-input",
+		cls: "lv-note-input",
 		attr: { placeholder: "Add note", rows: "3", "aria-label": "Task note" },
 	});
 	note.value = task.note ?? "";
@@ -180,14 +180,14 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	});
 
 	/* ---------------- footer ---------------- */
-	const foot = pane.createDiv({ cls: "lists-detail-foot" });
+	const foot = pane.createDiv({ cls: "lv-detail-foot" });
 	foot.createSpan({
-		cls: "lists-detail-created",
+		cls: "lv-detail-created",
 		text: task.meta.created
 			? `Created ${formatDate(task.meta.created)}`
 			: `In ${task.filePath.split("/").pop()?.replace(/\.md$/, "")}`,
 	});
-	const trash = foot.createDiv({ cls: "lists-detail-delete" });
+	const trash = foot.createDiv({ cls: "lv-detail-delete" });
 	setIcon(trash, "trash-2");
 	trash.setAttribute("aria-label", "Delete task");
 	trash.addEventListener("click", () => {
@@ -209,21 +209,21 @@ interface ActionOpts {
 }
 
 function action(parent: HTMLElement, o: ActionOpts): void {
-	const row = parent.createDiv({ cls: "lists-action" });
+	const row = parent.createDiv({ cls: "lv-action" });
 	row.toggleClass("is-active", !!o.active);
 	row.toggleClass("is-danger", !!o.danger);
 	row.setAttribute("tabindex", "0");
 	row.setAttribute("role", "button");
 
-	const icon = row.createDiv({ cls: "lists-action-icon" });
+	const icon = row.createDiv({ cls: "lv-action-icon" });
 	setIcon(icon, o.icon);
 
-	const text = row.createDiv({ cls: "lists-action-text" });
-	text.createDiv({ cls: "lists-action-label", text: o.label });
-	if (o.sub) text.createDiv({ cls: "lists-action-sub", text: o.sub });
+	const text = row.createDiv({ cls: "lv-action-text" });
+	text.createDiv({ cls: "lv-action-label", text: o.label });
+	if (o.sub) text.createDiv({ cls: "lv-action-sub", text: o.sub });
 
 	row.addEventListener("click", (e) => {
-		if ((e.target as HTMLElement).closest(".lists-action-clear")) return;
+		if ((e.target as HTMLElement).closest(".lv-action-clear")) return;
 		o.onClick(e);
 	});
 	row.addEventListener("keydown", (e) => {
@@ -234,7 +234,7 @@ function action(parent: HTMLElement, o: ActionOpts): void {
 	});
 
 	if (o.onClear) {
-		const clear = row.createDiv({ cls: "lists-action-clear" });
+		const clear = row.createDiv({ cls: "lv-action-clear" });
 		setIcon(clear, "x");
 		clear.setAttribute("aria-label", `Clear ${o.label}`);
 		clear.addEventListener("click", (e) => {

@@ -1,9 +1,9 @@
 {
-	"id": "lists",
-	"name": "Lists",
+	"id": "list-vibes",
+	"name": "List Vibes",
 	"version": "0.1.0",
 	"minAppVersion": "1.13.0",
-	"description": "Turn a folder of markdown files into to-do lists with a task list, a completed section, and a detail panel for steps and dates.",
+	"description": "Turn a folder of markdown files into to-do lists, with a task list, a completed section, and a detail panel for steps and dates.",
 	"author": "dkthecoder",
 	"isDesktopOnly": false,
 	"authorUrl": "https://github.com/dkthecoder"

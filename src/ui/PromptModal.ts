@@ -26,7 +26,7 @@ export class PromptModal extends Modal {
 			t.setValue(this.value)
 				.setPlaceholder(this.opts.placeholder ?? "")
 				.onChange((v) => (this.value = v));
-			t.inputEl.addClass("lists-prompt-input");
+			t.inputEl.addClass("lv-prompt-input");
 			t.inputEl.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") {
 					e.preventDefault();

@@ -8,7 +8,7 @@ import { Task } from "../model/types";
 import { SortKey } from "../model/sort";
 import { decodeSelection, encodeSelection, selectionTitle } from "./viewState";
 
-export const VIEW_TYPE_LISTS = "lists-view";
+export const VIEW_TYPE_LISTS = "list-vibes-view";
 
 /**
  * Above this width the list picker and the task list sit side by side.
@@ -57,7 +57,7 @@ export class ListsView extends ItemView {
 	 * drawer's tab list, not just a tooltip — so there it stays generic.
 	 */
 	getDisplayText(): string {
-		if (!this.inMainWorkspace()) return "Lists";
+		if (!this.inMainWorkspace()) return "List Vibes";
 		const sel = this.state.selection;
 		const name =
 			sel.kind === "list" ? this.plugin.store.getList(sel.path)?.name : undefined;
@@ -72,11 +72,11 @@ export class ListsView extends ItemView {
 		// Navigable only as a workspace tab, so it joins back/forward history
 		// there. It must stay false in a sidebar: a navigable sidebar leaf is a
 		// valid target for opening files, and clicking a note in the explorer
-		// would replace the Lists pane with that note. Placement is only known
+		// would replace the List Vibes pane with that note. Placement is only known
 		// once the leaf is attached, so this cannot be set in the constructor.
 		this.navigation = this.inMainWorkspace();
 
-		this.contentEl.addClass("lists-root");
+		this.contentEl.addClass("lv-root");
 		this.unsubscribe = this.plugin.store.onChange(() => this.render());
 
 		// Repaint on width change so the layout can switch between one and two
@@ -236,14 +236,14 @@ export class ListsView extends ItemView {
 		// jumps a long list back to the top.
 		const scrollTops: number[] = [];
 		this.contentEl
-			.findAll(".lists-scroll, .lists-nav-scroll")
+			.findAll(".lv-scroll, .lv-nav-scroll")
 			.forEach((el) => scrollTops.push(el.scrollTop));
 
 		// Keep focus and caret if the user was typing.
 		const active = document.activeElement as HTMLElement | null;
 		const focusCls =
 			active && this.contentEl.contains(active)
-				? Array.from(active.classList).find((c) => c.startsWith("lists-"))
+				? Array.from(active.classList).find((c) => c.startsWith("lv-"))
 				: undefined;
 		const caret =
 			active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
@@ -259,7 +259,7 @@ export class ListsView extends ItemView {
 		this.contentEl.toggleClass("is-narrow", !this.wide);
 
 		const ctx = this.buildContext();
-		const shell = this.contentEl.createDiv({ cls: "lists-shell" });
+		const shell = this.contentEl.createDiv({ cls: "lv-shell" });
 
 		/* --- base layer: browsing lists, then a list --- */
 		if (this.wide) {
@@ -274,10 +274,10 @@ export class ListsView extends ItemView {
 		/* --- overlay layer: the detail panel, always floating --- */
 		const showDetail = !!this.state.selectedTask;
 		if (showDetail) {
-			const backdrop = shell.createDiv({ cls: "lists-backdrop" });
+			const backdrop = shell.createDiv({ cls: "lv-backdrop" });
 			backdrop.addEventListener("click", () => this.closeDetail());
 
-			const overlay = shell.createDiv({ cls: "lists-overlay" });
+			const overlay = shell.createDiv({ cls: "lv-overlay" });
 			renderDetailPane(overlay, ctx);
 
 			if (this.detailWasOpen) {
@@ -295,7 +295,7 @@ export class ListsView extends ItemView {
 
 		/* --- restore scroll and focus --- */
 		this.contentEl
-			.findAll(".lists-scroll, .lists-nav-scroll")
+			.findAll(".lv-scroll, .lv-nav-scroll")
 			.forEach((el, i) => {
 				if (scrollTops[i]) el.scrollTop = scrollTops[i];
 			});

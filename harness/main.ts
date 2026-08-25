@@ -114,9 +114,9 @@ function renderInto(
 	pane: PaneName,
 	withOverlay: boolean
 ): void {
-	el.className = `lists-root ${wide ? "is-wide" : "is-narrow"}`;
+	el.className = `lv-root ${wide ? "is-wide" : "is-narrow"}`;
 	el.textContent = "";
-	const shell = el.createDiv({ cls: "lists-shell" });
+	const shell = el.createDiv({ cls: "lv-shell" });
 	const ctx = ctxFor(el, wide);
 
 	if (wide) {
@@ -129,8 +129,8 @@ function renderInto(
 	}
 
 	if (withOverlay) {
-		const backdrop = shell.createDiv({ cls: "lists-backdrop is-open" });
-		const overlay = shell.createDiv({ cls: "lists-overlay is-open" });
+		const backdrop = shell.createDiv({ cls: "lv-backdrop is-open" });
+		const overlay = shell.createDiv({ cls: "lv-overlay is-open" });
 		renderDetailPane(overlay, ctx);
 		void backdrop;
 	}

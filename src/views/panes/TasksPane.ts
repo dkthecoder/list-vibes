@@ -10,29 +10,29 @@ import { SORT_OPTIONS, partitionCompleted, sortTasks } from "../../model/sort";
  * collapsible section beneath and an add box at the bottom that expands upward.
  */
 export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
-	const pane = parent.createDiv({ cls: "lists-pane lists-tasks" });
+	const pane = parent.createDiv({ cls: "lv-pane lv-tasks" });
 	const sel = ctx.state.selection;
 
 	const isSmart = sel.kind === "smart";
 	const list = sel.kind === "list" ? ctx.store.getList(sel.path) : undefined;
 
 	/* ---------------- header ---------------- */
-	const header = pane.createDiv({ cls: "lists-header" });
+	const header = pane.createDiv({ cls: "lv-header" });
 
 	if (!ctx.wide) {
-		const back = header.createDiv({ cls: "lists-back" });
+		const back = header.createDiv({ cls: "lv-back" });
 		setIcon(back, "chevron-left");
 		back.setAttribute("aria-label", "Back to lists");
 		back.addEventListener("click", () => ctx.showPane("nav"));
 	}
 
-	const titleWrap = header.createDiv({ cls: "lists-header-title" });
+	const titleWrap = header.createDiv({ cls: "lv-header-title" });
 	if (isSmart) {
 		const v = SMART_VIEWS.find((s) => s.id === sel.view);
 		titleWrap.createSpan({ text: v?.label ?? "Tasks" });
 	} else {
 		if (list?.config.icon)
-			titleWrap.createSpan({ cls: "lists-header-icon", text: list.config.icon });
+			titleWrap.createSpan({ cls: "lv-header-icon", text: list.config.icon });
 		titleWrap.createSpan({ text: list?.name ?? "List" });
 	}
 
@@ -40,7 +40,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		const sortKey = ctx.sortKey();
 		const current = SORT_OPTIONS.find((o) => o.key === sortKey);
 
-		const sortBtn = header.createDiv({ cls: "lists-header-action" });
+		const sortBtn = header.createDiv({ cls: "lv-header-action" });
 		sortBtn.toggleClass("is-active", sortKey !== "custom");
 		setIcon(sortBtn, "arrow-up-down");
 		sortBtn.setAttribute("aria-label", `Sort: ${current?.label ?? "Custom order"}`);
@@ -58,7 +58,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			menu.showAtMouseEvent(e);
 		});
 
-		const more = header.createDiv({ cls: "lists-header-action" });
+		const more = header.createDiv({ cls: "lv-header-action" });
 		setIcon(more, "more-horizontal");
 		more.setAttribute("aria-label", "List options");
 		more.addEventListener("click", (e) => {
@@ -89,7 +89,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	}
 
 	/* ---------------- body ---------------- */
-	const scroll = pane.createDiv({ cls: "lists-scroll" });
+	const scroll = pane.createDiv({ cls: "lv-scroll" });
 
 	const raw: Task[] = isSmart
 		? ctx.store.getSmartView(sel.view)
@@ -99,15 +99,15 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const { open, done } = partitionCompleted(sortTasks(raw, sortKey));
 
 	if (!open.length && !done.length) {
-		const empty = scroll.createDiv({ cls: "lists-empty" });
-		const icon = empty.createDiv({ cls: "lists-empty-icon" });
+		const empty = scroll.createDiv({ cls: "lv-empty" });
+		const icon = empty.createDiv({ cls: "lv-empty-icon" });
 		setIcon(icon, isSmart ? "sun" : "check-check");
 		empty.createDiv({
-			cls: "lists-empty-title",
+			cls: "lv-empty-title",
 			text: isSmart ? "Nothing here yet" : "This list is empty",
 		});
 		empty.createDiv({
-			cls: "lists-empty-body",
+			cls: "lv-empty-body",
 			text: isSmart
 				? "Tasks you flag or schedule will show up here."
 				: "Add your first task below.",
@@ -123,16 +123,16 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		(list?.config.showCompleted ?? ctx.settings.showCompleted) !== "hidden";
 
 	if (done.length && showCompleted) {
-		const section = scroll.createDiv({ cls: "lists-completed" });
-		const head = section.createDiv({ cls: "lists-completed-head" });
+		const section = scroll.createDiv({ cls: "lv-completed" });
+		const head = section.createDiv({ cls: "lv-completed-head" });
 		head.setAttribute("tabindex", "0");
 		head.setAttribute("role", "button");
 		head.setAttribute("aria-expanded", String(ctx.state.completedOpen));
 
-		const chev = head.createDiv({ cls: "lists-completed-chevron" });
+		const chev = head.createDiv({ cls: "lv-completed-chevron" });
 		setIcon(chev, ctx.state.completedOpen ? "chevron-down" : "chevron-right");
-		head.createSpan({ cls: "lists-completed-label", text: "Completed" });
-		head.createSpan({ cls: "lists-completed-count", text: String(done.length) });
+		head.createSpan({ cls: "lv-completed-label", text: "Completed" });
+		head.createSpan({ cls: "lv-completed-count", text: String(done.length) });
 
 		const toggle = () => {
 			ctx.state.completedOpen = !ctx.state.completedOpen;
@@ -147,7 +147,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		});
 
 		if (ctx.state.completedOpen) {
-			const body = section.createDiv({ cls: "lists-completed-body" });
+			const body = section.createDiv({ cls: "lv-completed-body" });
 			for (const t of done) renderTaskRow(body, t, ctx, { showList: isSmart });
 		}
 	}
@@ -166,7 +166,7 @@ function renderTasks(
 	opts: { grouped: boolean; showList: boolean }
 ): void {
 	if (!opts.grouped) {
-		const group = scroll.createDiv({ cls: "lists-group" });
+		const group = scroll.createDiv({ cls: "lv-group" });
 		for (const t of tasks) renderTaskRow(group, t, ctx, { showList: opts.showList });
 		return;
 	}
@@ -177,8 +177,8 @@ function renderTasks(
 	for (const t of tasks) {
 		if (t.section !== current || !container) {
 			current = t.section;
-			if (t.section) scroll.createDiv({ cls: "lists-section", text: t.section });
-			container = scroll.createDiv({ cls: "lists-group" });
+			if (t.section) scroll.createDiv({ cls: "lv-section", text: t.section });
+			container = scroll.createDiv({ cls: "lv-group" });
 		}
 		renderTaskRow(container, t, ctx, { showList: opts.showList });
 	}
@@ -196,16 +196,16 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	const sel = ctx.state.selection;
 	const expanded = ctx.state.composing;
 
-	const box = pane.createDiv({ cls: "lists-add" });
+	const box = pane.createDiv({ cls: "lv-add" });
 	box.toggleClass("is-expanded", expanded);
 
-	const top = box.createDiv({ cls: "lists-add-top" });
-	const icon = top.createDiv({ cls: "lists-add-icon" });
+	const top = box.createDiv({ cls: "lv-add-top" });
+	const icon = top.createDiv({ cls: "lv-add-icon" });
 	setIcon(icon, "plus");
 
 	const title = top.createEl("input", {
 		type: "text",
-		cls: "lists-add-input",
+		cls: "lv-add-input",
 		attr: { placeholder: "Add a task", "aria-label": "Task name" },
 	});
 
@@ -265,7 +265,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 
 	/* --- expanded: description + actions --- */
 	description = box.createEl("textarea", {
-		cls: "lists-add-note",
+		cls: "lv-add-note",
 		attr: {
 			placeholder: "Add a description",
 			rows: "2",
@@ -285,10 +285,10 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		}
 	});
 
-	const actions = box.createDiv({ cls: "lists-add-actions" });
+	const actions = box.createDiv({ cls: "lv-add-actions" });
 
 	const cancel = actions.createEl("button", {
-		cls: "lists-add-cancel",
+		cls: "lv-add-cancel",
 		text: "Cancel",
 	});
 	cancel.addEventListener("click", () => {
