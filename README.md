@@ -7,6 +7,20 @@ text editor on any device and you see a checklist you can tick. Open it in
 Obsidian with this plugin and you get a task list, a collapsible completed
 section, and a detail panel with steps, due dates and reminders.
 
+## How it moves
+
+Pick a list, work in it, open a task when you need more than a checkbox.
+
+- **Lists → a list.** Side by side when there is room, one at a time with a back
+  arrow when there is not.
+- **The detail panel is never a column.** It slides in from the right over the
+  task list, with a dimmed backdrop. Escape, the close button, or a tap outside
+  dismisses it. One behaviour at every width, from phone to wide main pane.
+- **The add box expands upward.** Collapsed it is a single line — type a title,
+  press Enter, keep going. Click it and it opens into a title plus a description,
+  with Cancel and Add task. The description is written as an indented line
+  beneath the task, so it is the same field the detail panel edits.
+
 ## Why it works this way
 
 The obvious alternative is one file per task, which is what
@@ -60,6 +74,30 @@ showCompleted: collapsed
 | My Day | `☀️` | this plugin |
 | Reminder | `⏰ 11:00` | this plugin |
 
+## Importance and sorting
+
+Importance has two modes, set in settings:
+
+- **Star** — on or off, the Microsoft To Do behaviour.
+- **Rating** — 1 to 5 stars, where 5 is most important.
+
+Both write the same priority field. The five Obsidian Tasks glyphs map straight
+onto the rating (5★ `🔺`, 4★ `⏫`, 3★ `🔼`, 2★ `🔽`, 1★ `⏬`), so switching the
+setting never rewrites a file, and a task rated four stars shows as a filled star
+in star mode.
+
+Each list can be sorted independently: custom (the file's own order), importance,
+due date, date created newest or oldest, and alphabetical either way. **Sorting is
+view-only** — it is stored in plugin settings, never written to your markdown, so
+changing it cannot touch a byte of the file. Custom order is the only mode that
+shows the file's `##` headings as section dividers, since the others break that
+grouping by definition.
+
+There is deliberately no "last modified" sort for tasks. A markdown line has no
+modified timestamp — only the file does — so every task in a list would share one
+value. Date created is the honest version of that, and needs the creation-date
+setting switched on.
+
 Most of that is the Obsidian Tasks emoji dialect, so existing vaults parse with
 no migration and the files stay readable by the Tasks plugin, TaskForge and
 Finalist. **Dataview inline fields (`[due:: 2026-08-24]`) are always parsed too**;
@@ -100,33 +138,36 @@ treat dotfiles as hidden and several skip them by default.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 122 tests: parser round-trip + the write path
+npm test         # 151 tests: parser round-trip, sorting, and the write path
 ```
 
 ### Test coverage
 
-122 tests across two suites.
+151 tests across three suites.
 
 `test/roundtrip.test.mjs` (80) covers parsing and serialising. The load-bearing
 one reconstructs every fixture file through the edit path with nothing changed
 and asserts the bytes come back identical.
 
-`test/mutate.test.mjs` (42) covers the write path against an in-memory vault.
+`test/sort.test.mjs` (15) covers sorting and the star scale, including that
+sorting never mutates its input and never touches a raw line.
+
+`test/mutate.test.mjs` (56) covers the write path against an in-memory vault.
 Every behavioural test runs **twice** — once through the Editor API branch and
 once through `Vault.process` — because those are two separate implementations
 that must agree. It also covers the stale-parse guard, which is what stops a
 write landing on the wrong line.
 
-Coverage is 95% of lines and 86% of branches over `parse`, `serialize`, `types`
-and `mutate`. The UI layer has no unit tests; it is exercised by the harness,
+Coverage is 95% of lines and 86% of branches over `parse`, `serialize`, `types`,
+`sort` and `mutate`. The UI layer has no unit tests; it is exercised by the harness,
 which catches crashes rather than proving correctness.
 
 ### The harness
 
 `npm run harness` builds a standalone browser page that runs the real pane code
 against fixture data with a mocked `obsidian` module. It renders the desktop
-three-column layout and the three mobile panes side by side, in light and dark,
-without needing an Obsidian install. `node harness/shot.mjs` screenshots it.
+layout in both importance modes, the expanded add box, the detail overlay, and
+the three phone panes, in light and dark, without needing an Obsidian install. `node harness/shot.mjs` screenshots it.
 
 ### Testing in Obsidian
 

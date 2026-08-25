@@ -3,6 +3,7 @@ import { Task, isComplete } from "../model/types";
 import { formatDate, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
 import { renderInline } from "./inline";
+import { renderImportance } from "./Importance";
 
 /**
  * One task row: checkbox, title, a metadata subtitle, and the importance star.
@@ -80,22 +81,8 @@ export function renderTaskRow(
 		});
 	}
 
-	/* --- star --- */
-	const isHigh =
-		task.meta.priority === "high" || task.meta.priority === "highest";
-	const star = row.createDiv({ cls: "lists-star" });
-	star.toggleClass("is-on", isHigh);
-	star.setAttribute("aria-label", isHigh ? "Remove importance" : "Mark as important");
-	star.setAttribute("tabindex", "0");
-	setIcon(star, "star");
-	const flip = async (e: Event) => {
-		e.stopPropagation();
-		await ctx.mutator.toggleImportant(task);
-	};
-	star.addEventListener("click", flip);
-	star.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" || e.key === " ") void flip(e);
-	});
+	/* --- importance --- */
+	renderImportance(row, task, ctx);
 
 	/* --- selection --- */
 	row.addEventListener("click", () => {

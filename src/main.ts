@@ -46,9 +46,16 @@ export default class ListsPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	/** Reparse everything and repaint, e.g. after a settings change. */
+	/** Reparse everything and repaint, e.g. after a folder change. */
 	refresh(): void {
 		this.store.setFolder(this.settings.folder);
+	}
+
+	/** Repaint open views without rereading the vault. */
+	refreshViews(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS)) {
+			(leaf.view as ListsView).render();
+		}
 	}
 
 	/* ---------------------------------------------------------------- */

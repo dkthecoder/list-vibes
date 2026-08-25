@@ -68,8 +68,9 @@
 				overflow: hidden;
 				box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 			}
-			#desktop {
-				height: 560px;
+			#desktop,
+			#desktop2 {
+				height: 500px;
 			}
 			.phones {
 				display: flex;
@@ -81,6 +82,20 @@
 				height: 600px;
 				flex: 0 0 320px;
 			}
+			button {
+				font-family: inherit;
+				font-size: var(--font-ui-smaller);
+				padding: 6px 12px;
+				border: none;
+				border-radius: 6px;
+				background: var(--background-modifier-hover);
+				color: var(--text-normal);
+				cursor: pointer;
+			}
+			button.mod-cta {
+				background: var(--interactive-accent);
+				color: #fff;
+			}
 			.svg-icon {
 				width: 18px;
 				height: 18px;
@@ -88,8 +103,11 @@
 		</style>
 	</head>
 	<body>
-		<h2>Desktop — main pane, three columns</h2>
+		<h2>Desktop — detail sliding over the list</h2>
 		<div class="frame" id="desktop"></div>
+
+		<h2 style="margin-top: 28px">Desktop — 1–5 rating mode, sorted by importance, add box expanded</h2>
+		<div class="frame" id="desktop2"></div>
 
 		<div class="phones">
 			<div>
@@ -101,7 +119,7 @@
 				<div class="frame phone" id="m-tasks"></div>
 			</div>
 			<div>
-				<h2>Mobile — detail</h2>
+				<h2>Mobile — detail overlay</h2>
 				<div class="frame phone" id="m-detail"></div>
 			</div>
 		</div>

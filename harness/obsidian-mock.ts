@@ -91,6 +91,11 @@ const PATHS: Record<string, string> = {
 	"file-text": '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
 	pencil: '<path d="M4 20h4L20 8l-4-4L4 16z"/>',
 	clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+	"arrow-up-down": '<path d="m7 15 5 5 5-5"/><path d="M12 4v16"/><path d="m7 9 5-5 5 5"/>',
+	"arrow-down-narrow-wide": '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M11 4h4"/><path d="M11 8h7"/><path d="M11 12h10"/>',
+	"arrow-up-narrow-wide": '<path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M11 12h4"/><path d="M11 16h7"/><path d="M11 20h10"/>',
+	"arrow-down-a-z": '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="M15 4h5l-5 6h5"/><path d="M15 20v-4a2 2 0 1 1 4 0v4"/>',
+	"arrow-up-a-z": '<path d="m3 8 4-4 4 4"/><path d="M7 4v16"/><path d="M15 4h5l-5 6h5"/><path d="M15 20v-4a2 2 0 1 1 4 0v4"/>',
 };
 
 export function setIcon(el: HTMLElement, name: string): void {

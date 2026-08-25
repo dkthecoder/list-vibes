@@ -12,6 +12,7 @@ import { renderListsPane } from "../src/views/panes/ListsPane";
 import { renderTasksPane } from "../src/views/panes/TasksPane";
 import { renderDetailPane } from "../src/views/panes/DetailPane";
 import { todayISO } from "../src/model/store";
+import { SortKey, partitionCompleted, sortTasks } from "../src/model/sort";
 
 installDomHelpers();
 
@@ -64,17 +65,22 @@ const state: ViewState = {
 	selectedTask: { filePath: "lists/💼Work To-Dos.md", line: 7 },
 	pane: "tasks",
 	completedOpen: false,
+	composing: false,
 };
+
+let sortKey: SortKey = "custom";
 
 const noop = async () => undefined;
 const mutator = new Proxy({}, { get: () => noop }) as ViewContext["mutator"];
+
+let importanceMode: "star" | "stars5" = "star";
 
 function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 	return {
 		app: { workspace: { openLinkText: noop } } as unknown as ViewContext["app"],
 		store: store as unknown as ViewContext["store"],
 		mutator,
-		settings: { ...DEFAULT_SETTINGS },
+		settings: { ...DEFAULT_SETTINGS, importanceMode },
 		state,
 		wide,
 		render: () => paint(),
@@ -93,38 +99,64 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			state.pane = p;
 			paint();
 		},
+		sortKey: () => sortKey,
+		setSortKey: (k: SortKey) => {
+			sortKey = k;
+			paint();
+		},
 	};
 }
 
-function paint(): void {
-	// Desktop: all three panes.
-	const desk = document.getElementById("desktop") as HTMLElement;
-	desk.className = "lists-root is-wide";
-	desk.textContent = "";
-	const dshell = desk.createDiv({ cls: "lists-shell" });
-	const dctx = ctxFor(desk, true);
-	renderListsPane(dshell, dctx);
-	renderTasksPane(dshell, dctx);
-	renderDetailPane(dshell, dctx);
+/** Render the base layer plus, optionally, the detail overlay. */
+function renderInto(
+	el: HTMLElement,
+	wide: boolean,
+	pane: PaneName,
+	withOverlay: boolean
+): void {
+	el.className = `lists-root ${wide ? "is-wide" : "is-narrow"}`;
+	el.textContent = "";
+	const shell = el.createDiv({ cls: "lists-shell" });
+	const ctx = ctxFor(el, wide);
 
-	// Mobile: one pane at a time, three phones side by side.
-	for (const [id, pane] of [
-		["m-nav", "nav"],
-		["m-tasks", "tasks"],
-		["m-detail", "detail"],
-	] as [string, PaneName][]) {
-		const el = document.getElementById(id) as HTMLElement;
-		el.className = "lists-root is-narrow";
-		el.textContent = "";
-		const shell = el.createDiv({ cls: "lists-shell" });
-		const saved = state.pane;
-		state.pane = pane;
-		const c = ctxFor(el, false);
-		if (pane === "nav") renderListsPane(shell, c);
-		if (pane === "tasks") renderTasksPane(shell, c);
-		if (pane === "detail") renderDetailPane(shell, c);
-		state.pane = saved;
+	if (wide) {
+		renderListsPane(shell, ctx);
+		renderTasksPane(shell, ctx);
+	} else if (pane === "nav") {
+		renderListsPane(shell, ctx);
+	} else {
+		renderTasksPane(shell, ctx);
 	}
+
+	if (withOverlay) {
+		const backdrop = shell.createDiv({ cls: "lists-backdrop is-open" });
+		const overlay = shell.createDiv({ cls: "lists-overlay is-open" });
+		renderDetailPane(overlay, ctx);
+		void backdrop;
+	}
+}
+
+function paint(): void {
+	// Desktop, two columns, detail sliding over the task list.
+	renderInto(document.getElementById("desktop") as HTMLElement, true, "tasks", true);
+
+	// Desktop with no task selected: 1-5 rating mode and the add box expanded.
+	const wasComposing = state.composing;
+	const savedTask = state.selectedTask;
+	state.composing = true;
+	state.selectedTask = null;
+	importanceMode = "stars5";
+	sortKey = "importance";
+	renderInto(document.getElementById("desktop2") as HTMLElement, true, "tasks", false);
+	importanceMode = "star";
+	sortKey = "custom";
+	state.composing = wasComposing;
+	state.selectedTask = savedTask;
+
+	// Phone: lists, then a list, then the detail panel over it.
+	renderInto(document.getElementById("m-nav") as HTMLElement, false, "nav", false);
+	renderInto(document.getElementById("m-tasks") as HTMLElement, false, "tasks", false);
+	renderInto(document.getElementById("m-detail") as HTMLElement, false, "tasks", true);
 }
 
 paint();

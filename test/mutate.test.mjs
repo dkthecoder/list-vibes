@@ -348,3 +348,93 @@ test("a sequence of edits never corrupts the file structure", async () => {
 	assert.ok(s.read().startsWith("---\nicon: 💼\n---"));
 	assert.ok(s.read().includes("## Work"));
 });
+
+/* ------------------------------------------------------------------ *
+ * Notes — the indented prose beneath a task
+ * ------------------------------------------------------------------ */
+
+describe("notes", () => {
+	for (const open of [false, true]) {
+		const via = open ? "editor" : "process";
+
+		test(`sets a note on a task that had none (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.task(0), "Remember the pricing table.");
+			const t = s.parse().tasks[0];
+			assert.equal(t.note, "Remember the pricing table.");
+			// Inserted directly beneath its own task, not at the end.
+			assert.equal(s.lines()[7], "\tRemember the pricing table.");
+			assert.equal(s.parse().tasks.length, 3, "list structure changed");
+		});
+
+		test(`replaces an existing note in place (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.root(1), "Replaced text.");
+			const t = s.parse().tasks[1];
+			assert.equal(t.note, "Replaced text.");
+			assert.equal(t.children.length, 2, "steps were disturbed");
+			assert.equal(s.parse().tasks.length, 3);
+			assert.ok(!s.read().includes("A note under the parent"), "old note survived");
+		});
+
+		test(`clearing a note removes its lines (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			const before = s.lines().length;
+			await s.mutator.setNote(s.root(1), "");
+			const t = s.parse().tasks[1];
+			assert.equal(t.note, undefined);
+			assert.equal(t.children.length, 2, "steps were removed too");
+			assert.equal(s.lines().length, before - 1);
+		});
+
+		test(`a multi-line note round-trips (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.task(0), "First line.\nSecond line.");
+			assert.equal(s.parse().tasks[0].note, "First line.\nSecond line.");
+			assert.equal(s.parse().tasks.length, 3);
+		});
+
+		test(`setting the same note is a no-op (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			const before = s.read();
+			await s.mutator.setNote(s.root(1), "A note under the parent.");
+			assert.equal(s.read(), before);
+		});
+	}
+
+	test("a stale note write is abandoned", async () => {
+		const s = setup(SAMPLE);
+		const stale = s.task(0);
+		const rewritten = SAMPLE.replace("- [ ] First task", "- [ ] Changed");
+		s.app.__store.set(s.path, rewritten);
+		await s.mutator.setNote(stale, "Should not land");
+		assert.equal(s.read(), rewritten);
+	});
+
+	test("addTask can carry a description", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.addTask(s.path, "With a note", {}, { note: "The description." });
+		const added = s.parse().tasks.at(-1);
+		assert.equal(added.title, "With a note");
+		assert.equal(added.note, "The description.");
+	});
+
+	test("addTask with a blank description adds no extra line", async () => {
+		const s = setup(SAMPLE);
+		const before = s.lines().length;
+		await s.mutator.addTask(s.path, "No note", {}, { note: "   " });
+		assert.equal(s.lines().length, before + 1);
+		assert.equal(s.parse().tasks.at(-1).note, undefined);
+	});
+
+	test("indentation style follows the parent task", async () => {
+		// A space-indented file should not suddenly gain tabs.
+		const spaced = ["- [ ] Parent", "    - [ ] Step"].join("\n");
+		const s = setup(spaced);
+		await s.mutator.addStep(s.root(0), "Another step");
+		assert.ok(
+			s.lines()[2].startsWith("    "),
+			`expected spaces, got ${JSON.stringify(s.lines()[2])}`
+		);
+	});
+});

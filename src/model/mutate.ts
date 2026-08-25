@@ -144,6 +144,124 @@ export class Mutator {
 		return true;
 	}
 
+
+	/**
+	 * Atomically rewrite a contiguous run of lines. `expect` guards the anchor
+	 * line: if it no longer matches, the edit is abandoned rather than applied
+	 * somewhere it does not belong.
+	 */
+	private async spliceLines(
+		path: string,
+		anchor: number,
+		expect: string,
+		from: number,
+		count: number,
+		insert: string[]
+	): Promise<boolean> {
+		const apply = (lines: string[]): string[] | null => {
+			if (anchor >= lines.length || lines[anchor] !== expect) return null;
+			const next = [...lines];
+			next.splice(from, count, ...insert);
+			return next;
+		};
+
+		const editor = this.editorFor(path);
+		if (editor) {
+			const lines: string[] = [];
+			for (let i = 0; i < editor.lineCount(); i++) lines.push(editor.getLine(i));
+			const next = apply(lines);
+			if (!next) return false;
+			editor.transaction({
+				changes: [
+					{
+						from: { line: 0, ch: 0 },
+						to: { line: editor.lastLine(), ch: editor.getLine(editor.lastLine()).length },
+						text: next.join("\n"),
+					},
+				],
+			});
+			return true;
+		}
+
+		const file = this.fileFor(path);
+		if (!file) return false;
+		let ok = false;
+		await this.app.vault.process(file, (data) => {
+			const next = apply(data.split("\n"));
+			if (!next) return data;
+			ok = true;
+			return next.join("\n");
+		});
+		return ok;
+	}
+
+	/**
+	 * The indent one level deeper than a task, matching the file's own style.
+	 * A root task has no indent to copy, so its existing children are the only
+	 * evidence of whether this file uses tabs or spaces.
+	 */
+	private childIndent(task: Task): string {
+		const child = task.children[0];
+		if (child && child.indent.length > task.indent.length) return child.indent;
+		const unit = task.indent.includes(" ") ? "    " : "\t";
+		return task.indent + unit;
+	}
+
+	/**
+	 * Set or clear a task's note — the indented prose directly beneath it.
+	 * Existing note lines are replaced in place; a new note is inserted straight
+	 * after the task line, before any steps, so it reads next to its task.
+	 */
+	async setNote(task: Task, text: string): Promise<void> {
+		const clean = text.replace(/\r/g, "").trimEnd();
+		if (clean === (task.note ?? "")) return;
+
+		const indent = this.childIndent(task);
+		const insert = clean ? clean.split("\n").map((l) => indent + l.trim()) : [];
+
+		const existing = [...task.noteLines].sort((a, b) => a - b);
+		const contiguous =
+			existing.length > 0 &&
+			existing[existing.length - 1] - existing[0] === existing.length - 1;
+
+		if (existing.length && contiguous) {
+			await this.spliceLines(
+				task.filePath,
+				task.line,
+				task.raw,
+				existing[0],
+				existing.length,
+				insert
+			);
+			return;
+		}
+
+		if (existing.length) {
+			// Scattered note lines: drop them all, then reinsert as one block.
+			const file = this.fileFor(task.filePath);
+			if (!file) return;
+			await this.app.vault.process(file, (data) => {
+				const lines = data.split("\n");
+				if (lines[task.line] !== task.raw) return data;
+				for (const n of [...existing].reverse()) lines.splice(n, 1);
+				lines.splice(task.line + 1, 0, ...insert);
+				return lines.join("\n");
+			});
+			return;
+		}
+
+		if (insert.length) {
+			await this.spliceLines(
+				task.filePath,
+				task.line,
+				task.raw,
+				task.line + 1,
+				0,
+				insert
+			);
+		}
+	}
+
 	/* ---------------------------------------------------------------- *
 	 * Task operations
 	 * ---------------------------------------------------------------- */
@@ -226,7 +344,7 @@ export class Mutator {
 		listPath: string,
 		title: string,
 		meta: Partial<TaskMeta> = {},
-		opts: { after?: Task; indent?: string } = {}
+		opts: { after?: Task; indent?: string; note?: string } = {}
 	): Promise<void> {
 		const clean = title.replace(/[\r\n]+/g, " ").trim();
 		if (!clean) return;
@@ -249,17 +367,25 @@ export class Mutator {
 			const content = await this.app.vault.cachedRead(file);
 			at = content.split("\n").length;
 		}
-		await this.insertLines(listPath, at, [line]);
+		const indent = opts.indent ?? "";
+		const unit = indent.includes(" ") ? "    " : "\t";
+		const noteLines = opts.note?.trim()
+			? opts.note
+					.replace(/\r/g, "")
+					.trim()
+					.split("\n")
+					.map((l) => indent + unit + l.trim())
+			: [];
+
+		await this.insertLines(listPath, at, [line, ...noteLines]);
 	}
 
 	/** Add a nested step beneath a task. */
 	async addStep(parent: Task, title: string): Promise<void> {
 		const clean = title.replace(/[\r\n]+/g, " ").trim();
 		if (!clean) return;
-		// Match the parent's indent style rather than imposing one.
-		const unit = parent.indent.includes("\t") || parent.indent === "" ? "\t" : "    ";
 		const line = newTaskLine(clean, {
-			indent: parent.indent + unit,
+			indent: this.childIndent(parent),
 			dialect: this.dialect(),
 		});
 		const at = blockRange(parent).end;

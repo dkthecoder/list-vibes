@@ -1,15 +1,19 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Scope, WorkspaceLeaf } from "obsidian";
 import type ListsPlugin from "../main";
 import { PaneName, Selection, ViewContext, ViewState } from "./context";
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { Task } from "../model/types";
+import { SortKey } from "../model/sort";
 
 export const VIEW_TYPE_LISTS = "lists-view";
 
-/** Below this width the panes stack and navigate instead of sitting side by side. */
-const WIDE_BREAKPOINT = 700;
+/**
+ * Above this width the list picker and the task list sit side by side.
+ * The detail panel is never a column — it always slides over.
+ */
+const WIDE_BREAKPOINT = 620;
 
 export class ListsView extends ItemView {
 	private plugin: ListsPlugin;
@@ -18,6 +22,8 @@ export class ListsView extends ItemView {
 	private observer: ResizeObserver | null = null;
 	private wide = false;
 	private queued = false;
+	/** Whether the overlay was on screen last paint, so it only animates in once. */
+	private detailWasOpen = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ListsPlugin) {
 		super(leaf);
@@ -29,6 +35,7 @@ export class ListsView extends ItemView {
 			selectedTask: null,
 			pane: "nav",
 			completedOpen: plugin.settings.showCompleted === "expanded",
+			composing: false,
 		};
 	}
 
@@ -52,10 +59,18 @@ export class ListsView extends ItemView {
 		this.contentEl.addClass("lists-root");
 		this.unsubscribe = this.plugin.store.onChange(() => this.render());
 
-		// Repaint on width change so the layout can switch between one and three
+		// Repaint on width change so the layout can switch between one and two
 		// panes without the user reopening anything.
 		this.observer = new ResizeObserver(() => this.onResize());
 		this.observer.observe(this.contentEl);
+
+		// Escape closes the overlay before Obsidian gets the key.
+		this.scope = new Scope(this.app.scope);
+		this.scope.register([], "Escape", () => {
+			if (!this.state.selectedTask) return true;
+			this.closeDetail();
+			return false;
+		});
 
 		this.render();
 	}
@@ -80,6 +95,11 @@ export class ListsView extends ItemView {
 		this.render();
 	}
 
+	private closeDetail(): void {
+		this.state.selectedTask = null;
+		this.render();
+	}
+
 	private buildContext(): ViewContext {
 		return {
 			app: this.app,
@@ -90,24 +110,48 @@ export class ListsView extends ItemView {
 			wide: this.wide,
 			render: () => this.render(),
 			save: () => this.plugin.saveSettings(),
+
 			select: (sel: Selection) => {
 				this.state.selection = sel;
 				this.state.selectedTask = null;
+				this.state.composing = false;
 				if (sel.kind === "list") {
 					this.plugin.settings.lastList = sel.path;
 					void this.plugin.saveSettings();
 				}
-				if (!this.wide) this.state.pane = "tasks";
+				this.state.pane = "tasks";
 				this.render();
 			},
+
 			selectTask: (task: Task | null) => {
 				this.state.selectedTask = task
 					? { filePath: task.filePath, line: task.line }
 					: null;
 				this.render();
 			},
+
 			showPane: (pane: PaneName) => {
 				this.state.pane = pane;
+				this.render();
+			},
+
+			sortKey: () => {
+				const sel = this.state.selection;
+				if (sel.kind !== "list") return "custom";
+				return (
+					this.plugin.settings.sortByList[sel.path] ??
+					this.plugin.store.getList(sel.path)?.config.sort ??
+					this.plugin.settings.defaultSort
+				);
+			},
+
+			setSortKey: (key: SortKey) => {
+				const sel = this.state.selection;
+				if (sel.kind !== "list") return;
+				// Stored in settings, never written to the file — changing the sort
+				// must not touch a single byte of the user's markdown.
+				this.plugin.settings.sortByList[sel.path] = key;
+				void this.plugin.saveSettings();
 				this.render();
 			},
 		};
@@ -128,20 +172,25 @@ export class ListsView extends ItemView {
 
 		// Preserve scroll position across repaints, otherwise checking off a task
 		// jumps a long list back to the top.
-		const scrollTops = new Map<string, number>();
-		this.contentEl.findAll(".lists-scroll, .lists-nav-scroll").forEach((el, i) => {
-			scrollTops.set(String(i), el.scrollTop);
-		});
+		const scrollTops: number[] = [];
+		this.contentEl
+			.findAll(".lists-scroll, .lists-nav-scroll")
+			.forEach((el) => scrollTops.push(el.scrollTop));
 
-		// Keep focus on the add box if that is where the user was typing.
+		// Keep focus and caret if the user was typing.
 		const active = document.activeElement as HTMLElement | null;
-		const refocus =
+		const focusCls =
 			active && this.contentEl.contains(active)
-				? active.className.split(" ").find((c) => c.startsWith("lists-"))
+				? Array.from(active.classList).find((c) => c.startsWith("lists-"))
 				: undefined;
 		const caret =
-			active instanceof HTMLInputElement ? active.selectionStart : null;
-		const typed = active instanceof HTMLInputElement ? active.value : null;
+			active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+				? active.selectionStart
+				: null;
+		const typed =
+			active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+				? active.value
+				: null;
 
 		this.contentEl.empty();
 		this.contentEl.toggleClass("is-wide", this.wide);
@@ -149,36 +198,54 @@ export class ListsView extends ItemView {
 
 		const ctx = this.buildContext();
 		const shell = this.contentEl.createDiv({ cls: "lists-shell" });
-		shell.dataset.pane = this.state.pane;
 
+		/* --- base layer: browsing lists, then a list --- */
 		if (this.wide) {
 			renderListsPane(shell, ctx);
 			renderTasksPane(shell, ctx);
-			renderDetailPane(shell, ctx);
+		} else if (this.state.pane === "nav") {
+			renderListsPane(shell, ctx);
 		} else {
-			switch (this.state.pane) {
-				case "nav":
-					renderListsPane(shell, ctx);
-					break;
-				case "tasks":
-					renderTasksPane(shell, ctx);
-					break;
-				case "detail":
-					renderDetailPane(shell, ctx);
-					break;
-			}
+			renderTasksPane(shell, ctx);
 		}
 
-		this.contentEl.findAll(".lists-scroll, .lists-nav-scroll").forEach((el, i) => {
-			const t = scrollTops.get(String(i));
-			if (t) el.scrollTop = t;
-		});
+		/* --- overlay layer: the detail panel, always floating --- */
+		const showDetail = !!this.state.selectedTask;
+		if (showDetail) {
+			const backdrop = shell.createDiv({ cls: "lists-backdrop" });
+			backdrop.addEventListener("click", () => this.closeDetail());
 
-		if (refocus) {
-			const el = this.contentEl.querySelector<HTMLElement>(`.${refocus}`);
+			const overlay = shell.createDiv({ cls: "lists-overlay" });
+			renderDetailPane(overlay, ctx);
+
+			if (this.detailWasOpen) {
+				// Already on screen — show it in place, do not replay the animation.
+				overlay.addClass("is-open");
+				backdrop.addClass("is-open");
+			} else {
+				window.requestAnimationFrame(() => {
+					overlay.addClass("is-open");
+					backdrop.addClass("is-open");
+				});
+			}
+		}
+		this.detailWasOpen = showDetail;
+
+		/* --- restore scroll and focus --- */
+		this.contentEl
+			.findAll(".lists-scroll, .lists-nav-scroll")
+			.forEach((el, i) => {
+				if (scrollTops[i]) el.scrollTop = scrollTops[i];
+			});
+
+		if (focusCls) {
+			const el = this.contentEl.querySelector<HTMLElement>(`.${focusCls}`);
 			if (el) {
 				el.focus();
-				if (el instanceof HTMLInputElement && typed !== null) {
+				if (
+					(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
+					typed !== null
+				) {
 					el.value = typed;
 					if (caret !== null) el.setSelectionRange(caret, caret);
 				}

@@ -3,6 +3,7 @@ import { ListStore, SmartView } from "../model/store";
 import { Mutator } from "../model/mutate";
 import { ListsSettings } from "../settings";
 import { Task } from "../model/types";
+import { SortKey } from "../model/sort";
 
 export type Selection =
 	| { kind: "list"; path: string }
@@ -17,6 +18,8 @@ export interface ViewState {
 	selectedTask: { filePath: string; line: number } | null;
 	pane: PaneName;
 	completedOpen: boolean;
+	/** True while the add box is expanded into its title + description form. */
+	composing: boolean;
 }
 
 export interface ViewContext {
@@ -34,6 +37,9 @@ export interface ViewContext {
 	select: (sel: Selection) => void;
 	selectTask: (task: Task | null) => void;
 	showPane: (pane: PaneName) => void;
+	/** Sort for the current list: per-list choice, then frontmatter, then default. */
+	sortKey: () => SortKey;
+	setSortKey: (key: SortKey) => void;
 }
 
 export function sameSelection(a: Selection, b: Selection): boolean {

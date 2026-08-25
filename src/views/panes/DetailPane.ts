@@ -3,6 +3,7 @@ import { ViewContext } from "../context";
 import { Task, isComplete } from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
+import { renderImportance } from "../../ui/Importance";
 
 const REPEATS = [
 	{ label: "Daily", value: "every day" },
@@ -18,32 +19,19 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	const ref = ctx.state.selectedTask;
 	const task = ref ? ctx.store.findTask(ref.filePath, ref.line) : undefined;
 
-	if (!task) {
-		if (ctx.wide) {
-			const empty = pane.createDiv({ cls: "lists-empty" });
-			const icon = empty.createDiv({ cls: "lists-empty-icon" });
-			setIcon(icon, "square-check-big");
-			empty.createDiv({ cls: "lists-empty-title", text: "No task selected" });
-			empty.createDiv({
-				cls: "lists-empty-body",
-				text: "Pick a task to see its steps, dates and notes.",
-			});
-		}
-		return;
-	}
+	// The panel only exists while a task is selected, so there is no empty state.
+	if (!task) return;
 
 	/* ---------------- header ---------------- */
-	if (!ctx.wide) {
-		const bar = pane.createDiv({ cls: "lists-detail-bar" });
-		const back = bar.createDiv({ cls: "lists-back" });
-		setIcon(back, "chevron-left");
-		back.setAttribute("aria-label", "Back to tasks");
-		back.addEventListener("click", () => ctx.showPane("tasks"));
-		bar.createDiv({
-			cls: "lists-detail-bar-title",
-			text: task.filePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
-		});
-	}
+	const bar = pane.createDiv({ cls: "lists-detail-bar" });
+	const close = bar.createDiv({ cls: "lists-back" });
+	setIcon(close, "x");
+	close.setAttribute("aria-label", "Close");
+	close.addEventListener("click", () => ctx.selectTask(null));
+	bar.createDiv({
+		cls: "lists-detail-bar-title",
+		text: task.filePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
+	});
 
 	const scroll = pane.createDiv({ cls: "lists-scroll" });
 
@@ -80,12 +68,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 		}
 	});
 
-	const isHigh = task.meta.priority === "high" || task.meta.priority === "highest";
-	const star = card.createDiv({ cls: "lists-star" });
-	star.toggleClass("is-on", isHigh);
-	star.setAttribute("aria-label", isHigh ? "Remove importance" : "Mark as important");
-	setIcon(star, "star");
-	star.addEventListener("click", () => void ctx.mutator.toggleImportant(task));
+	renderImportance(card, task, ctx);
 
 	/* ---------------- steps ---------------- */
 	if (ctx.settings.enableSubtasks) {
@@ -186,8 +169,14 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	});
 	note.value = task.note ?? "";
 	note.addEventListener("blur", () => {
-		// Note editing writes indented lines beneath the task; wired up in P3.
-		note.value = task.note ?? "";
+		void ctx.mutator.setNote(task, note.value);
+	});
+	note.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			e.preventDefault();
+			note.value = task.note ?? "";
+			note.blur();
+		}
 	});
 
 	/* ---------------- footer ---------------- */
@@ -204,7 +193,6 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	trash.addEventListener("click", () => {
 		void ctx.mutator.remove(task);
 		ctx.selectTask(null);
-		if (!ctx.wide) ctx.showPane("tasks");
 	});
 }
 

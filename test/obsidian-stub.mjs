@@ -56,6 +56,15 @@ export function makeApp(files, openEditors = []) {
 				l[n] = text;
 				store.set(path, l.join("\n"));
 			},
+			transaction: (tx) => {
+				// Only the whole-document replacement shape the Mutator uses.
+				for (const c of tx.changes ?? []) {
+					const l = lines();
+					const head = l.slice(0, c.from.line);
+					const tail = c.to ? l.slice(c.to.line + 1) : [];
+					store.set(path, [...head, c.text, ...tail].join("\n"));
+				}
+			},
 			replaceRange: (replacement, from, to) => {
 				const l = lines();
 				if (!to) {

@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type ListsPlugin from "./main";
 import { Dialect } from "./model/types";
+import { SORT_OPTIONS, SortKey } from "./model/sort";
 
 export interface ListsSettings {
 	/** Vault-relative folder holding the list files. */
@@ -20,6 +21,16 @@ export interface ListsSettings {
 	addDoneDate: boolean;
 	/** Stamp a ➕ date on newly created tasks. */
 	addCreatedDate: boolean;
+	/**
+	 * How importance is shown and edited.
+	 * Both modes read and write the same priority field, so switching is free
+	 * and never rewrites a file.
+	 */
+	importanceMode: "star" | "stars5";
+	/** Sort applied to lists that have not been given their own. */
+	defaultSort: SortKey;
+	/** Per-list sort choice, keyed by file path. View-only, never written to the file. */
+	sortByList: Record<string, SortKey>;
 	/** Last opened list, restored on reopen. */
 	lastList?: string;
 }
@@ -31,7 +42,10 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	side: "left",
 	showCompleted: "collapsed",
 	addDoneDate: true,
-	addCreatedDate: false,
+	addCreatedDate: true,
+	importanceMode: "star",
+	defaultSort: "custom",
+	sortByList: {},
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -107,6 +121,35 @@ export class ListsSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Importance")
+			.setDesc(
+				"A single star, or a 1–5 star rating where 5 is most important. Both write the same priority field, so switching never changes any file."
+			)
+			.addDropdown((d) =>
+				d
+					.addOption("star", "Star — on or off")
+					.addOption("stars5", "Rating — 1 to 5 stars")
+					.setValue(this.plugin.settings.importanceMode)
+					.onChange(async (v) => {
+						this.plugin.settings.importanceMode = v as ListsSettings["importanceMode"];
+						await this.plugin.saveSettings();
+						this.plugin.refreshViews();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Default sort")
+			.setDesc("Used by any list you have not sorted individually.")
+			.addDropdown((d) => {
+				for (const o of SORT_OPTIONS) d.addOption(o.key, o.label);
+				d.setValue(this.plugin.settings.defaultSort).onChange(async (v) => {
+					this.plugin.settings.defaultSort = v as SortKey;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				});
+			});
+
 		new Setting(containerEl).setName("Storage").setHeading();
 
 		new Setting(containerEl)
@@ -137,7 +180,9 @@ export class ListsSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Add creation date")
-			.setDesc("Stamp ➕ with the date when a task is created.")
+			.setDesc(
+				"Stamp ➕ with the date when a task is created. Needed for the two date-created sort options."
+			)
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.addCreatedDate).onChange(async (v) => {
 					this.plugin.settings.addCreatedDate = v;

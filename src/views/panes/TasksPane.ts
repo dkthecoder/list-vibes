@@ -3,10 +3,11 @@ import { SMART_VIEWS, ViewContext } from "../context";
 import { Task, isComplete } from "../../model/types";
 import { renderTaskRow } from "../../ui/TaskRow";
 import { todayISO } from "../../model/store";
+import { SORT_OPTIONS, partitionCompleted, sortTasks } from "../../model/sort";
 
 /**
- * Middle pane: the tasks of the current selection, with the completed ones
- * grouped into a collapsible section beneath, and an add box at the bottom.
+ * The task list for the current selection, with completed tasks grouped into a
+ * collapsible section beneath and an add box at the bottom that expands upward.
  */
 export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const pane = parent.createDiv({ cls: "lists-pane lists-tasks" });
@@ -30,11 +31,33 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		const v = SMART_VIEWS.find((s) => s.id === sel.view);
 		titleWrap.createSpan({ text: v?.label ?? "Tasks" });
 	} else {
-		if (list?.config.icon) titleWrap.createSpan({ cls: "lists-header-icon", text: list.config.icon });
+		if (list?.config.icon)
+			titleWrap.createSpan({ cls: "lists-header-icon", text: list.config.icon });
 		titleWrap.createSpan({ text: list?.name ?? "List" });
 	}
 
 	if (!isSmart && list) {
+		const sortKey = ctx.sortKey();
+		const current = SORT_OPTIONS.find((o) => o.key === sortKey);
+
+		const sortBtn = header.createDiv({ cls: "lists-header-action" });
+		sortBtn.toggleClass("is-active", sortKey !== "custom");
+		setIcon(sortBtn, "arrow-up-down");
+		sortBtn.setAttribute("aria-label", `Sort: ${current?.label ?? "Custom order"}`);
+		sortBtn.addEventListener("click", (e) => {
+			const menu = new Menu();
+			for (const o of SORT_OPTIONS) {
+				menu.addItem((i) =>
+					i
+						.setTitle(o.label)
+						.setIcon(o.icon)
+						.setChecked(o.key === sortKey)
+						.onClick(() => ctx.setSortKey(o.key))
+				);
+			}
+			menu.showAtMouseEvent(e);
+		});
+
 		const more = header.createDiv({ cls: "lists-header-action" });
 		setIcon(more, "more-horizontal");
 		more.setAttribute("aria-label", "List options");
@@ -48,9 +71,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			);
 			menu.addItem((i) =>
 				i
-					.setTitle(
-						ctx.state.completedOpen ? "Hide completed" : "Show completed"
-					)
+					.setTitle(ctx.state.completedOpen ? "Hide completed" : "Show completed")
 					.setIcon("check-check")
 					.onClick(() => {
 						ctx.state.completedOpen = !ctx.state.completedOpen;
@@ -64,12 +85,12 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	/* ---------------- body ---------------- */
 	const scroll = pane.createDiv({ cls: "lists-scroll" });
 
-	const tasks: Task[] = isSmart
+	const raw: Task[] = isSmart
 		? ctx.store.getSmartView(sel.view)
 		: (list?.tasks ?? []);
 
-	const open = tasks.filter((t) => !isComplete(t));
-	const done = tasks.filter((t) => isComplete(t));
+	const sortKey = isSmart ? "custom" : ctx.sortKey();
+	const { open, done } = partitionCompleted(sortTasks(raw, sortKey));
 
 	if (!open.length && !done.length) {
 		const empty = scroll.createDiv({ cls: "lists-empty" });
@@ -87,8 +108,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		});
 	}
 
-	// Group by the file's own ## headings, preserving file order.
-	renderGrouped(scroll, open, ctx, isSmart);
+	// Headings only make sense while the file's own order is intact.
+	const grouped = sortKey === "custom" && !isSmart;
+	renderTasks(scroll, open, ctx, { grouped, showList: isSmart });
 
 	/* ---------------- completed ---------------- */
 	const showCompleted =
@@ -130,67 +152,144 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	}
 }
 
-/** Render tasks grouped under their source headings, in file order. */
-function renderGrouped(
+/** Render tasks, optionally grouped under their source headings. */
+function renderTasks(
 	scroll: HTMLElement,
 	tasks: Task[],
 	ctx: ViewContext,
-	showList: boolean
+	opts: { grouped: boolean; showList: boolean }
 ): void {
+	if (!opts.grouped) {
+		const group = scroll.createDiv({ cls: "lists-group" });
+		for (const t of tasks) renderTaskRow(group, t, ctx, { showList: opts.showList });
+		return;
+	}
+
 	let current: string | undefined | null = null;
-	let container: HTMLElement = scroll;
+	let container: HTMLElement | null = null;
 
 	for (const t of tasks) {
-		if (!showList && t.section !== current) {
+		if (t.section !== current || !container) {
 			current = t.section;
-			if (t.section) {
-				scroll.createDiv({ cls: "lists-section", text: t.section });
-			}
-			container = scroll.createDiv({ cls: "lists-group" });
-		} else if (container === scroll) {
+			if (t.section) scroll.createDiv({ cls: "lists-section", text: t.section });
 			container = scroll.createDiv({ cls: "lists-group" });
 		}
-		renderTaskRow(container, t, ctx, { showList });
+		renderTaskRow(container, t, ctx, { showList: opts.showList });
 	}
 }
 
+/* ------------------------------------------------------------------ *
+ * Add box
+ *
+ * Collapsed it is a single line: type a title, press Enter, done. Clicking it
+ * expands the box upward to add a description field. Both paths create the same
+ * task; the expanded one just writes a note line beneath it.
+ * ------------------------------------------------------------------ */
+
 function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	const sel = ctx.state.selection;
-	const box = pane.createDiv({ cls: "lists-add" });
+	const expanded = ctx.state.composing;
 
-	const icon = box.createDiv({ cls: "lists-add-icon" });
+	const box = pane.createDiv({ cls: "lists-add" });
+	box.toggleClass("is-expanded", expanded);
+
+	const top = box.createDiv({ cls: "lists-add-top" });
+	const icon = top.createDiv({ cls: "lists-add-icon" });
 	setIcon(icon, "plus");
 
-	const input = box.createEl("input", {
+	const title = top.createEl("input", {
 		type: "text",
 		cls: "lists-add-input",
-		attr: { placeholder: "Add a task", "aria-label": "Add a task" },
+		attr: { placeholder: "Add a task", "aria-label": "Task name" },
 	});
 
-	const submit = async () => {
-		const value = input.value.trim();
+	let description: HTMLTextAreaElement | null = null;
+
+	const commit = async (keepOpen: boolean) => {
+		const value = title.value.trim();
 		if (!value) return;
-		input.value = "";
+		const note = description?.value.trim();
+
+		title.value = "";
+		if (description) description.value = "";
 
 		if (sel.kind === "list") {
-			await ctx.mutator.addTask(sel.path, value);
+			await ctx.mutator.addTask(sel.path, value, {}, { note });
 		} else {
-			// From My Day, the task needs a home. Use the first list, and flag it.
+			// From My Day a task still needs a home list. Use the first one and flag it.
 			const first = ctx.store.getLists()[0];
 			if (!first) return;
-			await ctx.mutator.addTask(first.path, value, {
-				myDay: true,
-				due: todayISO(),
-			});
+			await ctx.mutator.addTask(
+				first.path,
+				value,
+				{ myDay: true, due: todayISO() },
+				{ note }
+			);
 		}
-		input.focus();
+
+		if (!keepOpen) {
+			ctx.state.composing = false;
+			ctx.render();
+		} else {
+			title.focus();
+		}
 	};
 
-	input.addEventListener("keydown", (e) => {
+	const expand = () => {
+		if (ctx.state.composing) return;
+		ctx.state.composing = true;
+		ctx.render();
+	};
+
+	title.addEventListener("focus", expand);
+	title.addEventListener("keydown", (e) => {
 		if (e.key === "Enter") {
 			e.preventDefault();
-			void submit();
+			void commit(true);
 		}
-		if (e.key === "Escape") input.value = "";
+		if (e.key === "Escape") {
+			e.preventDefault();
+			title.value = "";
+			ctx.state.composing = false;
+			ctx.render();
+		}
 	});
+
+	if (!expanded) return;
+
+	/* --- expanded: description + actions --- */
+	description = box.createEl("textarea", {
+		cls: "lists-add-note",
+		attr: {
+			placeholder: "Add a description",
+			rows: "2",
+			"aria-label": "Description",
+		},
+	});
+	description.addEventListener("keydown", (e) => {
+		// Enter inside the description adds a newline; Cmd/Ctrl+Enter submits.
+		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault();
+			void commit(false);
+		}
+		if (e.key === "Escape") {
+			e.preventDefault();
+			ctx.state.composing = false;
+			ctx.render();
+		}
+	});
+
+	const actions = box.createDiv({ cls: "lists-add-actions" });
+
+	const cancel = actions.createEl("button", {
+		cls: "lists-add-cancel",
+		text: "Cancel",
+	});
+	cancel.addEventListener("click", () => {
+		ctx.state.composing = false;
+		ctx.render();
+	});
+
+	const add = actions.createEl("button", { cls: "mod-cta", text: "Add task" });
+	add.addEventListener("click", () => void commit(false));
 }

@@ -122,6 +122,7 @@ export function blockRange(task: Task): { start: number; end: number } {
 	const visit = (t: Task) => {
 		max = Math.max(max, t.line);
 		for (const n of t.noteLines) max = Math.max(max, n);
+		
 		for (const c of t.children) visit(c);
 	};
 	visit(task);
