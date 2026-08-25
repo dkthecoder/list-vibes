@@ -3,6 +3,7 @@ import { ListStore, SmartView } from "../model/store";
 import { Mutator } from "../model/mutate";
 import { ListsSettings } from "../settings";
 import { ListColor, Task, ViewMode } from "../model/types";
+import type { RenderScope } from "./ListsView";
 import { SortKey } from "../model/sort";
 
 export type Selection =
@@ -33,7 +34,12 @@ export interface ViewContext {
 	/** True when all three panes fit side by side. */
 	wide: boolean;
 	/** Repaint everything. */
-	render: () => void;
+	/**
+	 * Repaint. Name the narrowest scope that covers what changed — "detail" for
+	 * anything inside the task detail panel, "tasks" for the list itself. "all"
+	 * rebuilds the whole tree and is only right when the layout shape changes.
+	 */
+	render: (scope?: RenderScope) => void;
 	/** Persist settings, e.g. after remembering the last opened list. */
 	save: () => Promise<void>;
 	select: (sel: Selection) => void;

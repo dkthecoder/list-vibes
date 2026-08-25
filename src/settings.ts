@@ -33,6 +33,8 @@ export interface ListsSettings {
 	sortByList: Record<string, SortKey>;
 	/** Add the view to the sidebar automatically when Obsidian starts. */
 	openOnStartup: boolean;
+	/** Place it first in the sidebar's tab strip the first time it is created. */
+	sidebarFirst: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
 	/** Per-list layout override, keyed by file path. */
@@ -55,6 +57,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	defaultView: "list",
 	viewByList: {},
 	openOnStartup: true,
+	sidebarFirst: false,
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -104,11 +107,23 @@ export class ListsSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Show in the sidebar on startup")
 			.setDesc(
-				"Adds List Vibes to the sidebar alongside Files and Search when Obsidian opens, without taking focus. Where it sits in the tab strip is up to Obsidian — drag it to the front once and it stays there."
+				"Adds List Vibes to the sidebar alongside Files and Search when Obsidian opens, without taking focus."
 			)
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.openOnStartup).onChange(async (v) => {
 					this.plugin.settings.openOnStartup = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Put it first in the sidebar")
+			.setDesc(
+				"Insert List Vibes ahead of Files, Search and Bookmarks instead of after them. This only applies when the pane is first created — once it is in your layout, its position is yours, and dragging it somewhere else sticks. Desktop only; the mobile drawer has no tab strip to reorder."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.sidebarFirst).onChange(async (v) => {
+					this.plugin.settings.sidebarFirst = v;
 					await this.plugin.saveSettings();
 				})
 			);

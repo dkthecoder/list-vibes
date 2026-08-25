@@ -69,3 +69,34 @@ export function selectionTitle(sel: Selection, listName?: string): string {
 	const base = sel.path.split("/").pop() ?? sel.path;
 	return base.replace(/\.md$/i, "");
 }
+
+/**
+ * How much of the view a repaint touches.
+ *
+ * The view used to rebuild everything on every change, and that is what made
+ * editing a task flash: a click wrote the file, the vault event came back ~30ms
+ * later, and the whole tree — nav, task list, overlay and all — was destroyed
+ * and recreated underneath the pointer. Scroll offsets were re-applied after the
+ * fact and could clamp, focus was reattached by class name, and the overlay's
+ * backdrop restarted its fade from scratch.
+ *
+ * A repaint now says what it actually affects, and anything it does not name is
+ * left on screen untouched.
+ */
+export type RenderScope = "detail" | "tasks" | "all";
+
+/** Narrowest first. "tasks" also refreshes the detail panel; "all" rebuilds. */
+const SCOPE_RANK: Record<RenderScope, number> = { detail: 0, tasks: 1, all: 2 };
+
+/**
+ * The wider of two scopes.
+ *
+ * Repaints are coalesced into one frame, so a frame that has already been asked
+ * for a wide repaint must not be narrowed by a later request — a file change
+ * landing while a detail row is expanding would otherwise repaint the panel and
+ * leave a stale task list behind it. Widening is safe in a way narrowing is not,
+ * so ties and conflicts both resolve upward.
+ */
+export function widerScope(a: RenderScope, b: RenderScope): RenderScope {
+	return SCOPE_RANK[a] >= SCOPE_RANK[b] ? a : b;
+}

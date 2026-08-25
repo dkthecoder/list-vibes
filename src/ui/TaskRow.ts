@@ -25,7 +25,7 @@ export function renderTaskRow(
 	}
 
 	/* --- checkbox --- */
-	const box = row.createDiv({ cls: "lv-check" });
+	const box = row.createDiv({ cls: "lv-check lv-no-drag" });
 	box.setAttribute("role", "checkbox");
 	box.setAttribute("aria-checked", String(isComplete(task)));
 	box.setAttribute("aria-label", isComplete(task) ? "Mark not done" : "Mark done");

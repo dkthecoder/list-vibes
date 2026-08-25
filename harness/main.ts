@@ -79,7 +79,22 @@ let sortKey: SortKey = "custom";
 let viewMode: ViewMode = "list";
 
 const noop = async () => undefined;
-const mutator = new Proxy({}, { get: () => noop }) as ViewContext["mutator"];
+/* Record what a drag actually asked for, so the browser test can assert on it
+   rather than on pixels. */
+const calls: unknown[][] = [];
+(window as unknown as { lvCalls: unknown[][] }).lvCalls = calls;
+const mutator = new Proxy(
+	{},
+	{
+		get:
+			(_t, name) =>
+			async (...args: unknown[]) => {
+				calls.push([String(name), ...args]);
+				return undefined;
+			},
+	}
+) as ViewContext["mutator"];
+void noop;
 
 let importanceMode: "star" | "stars5" = "star";
 
@@ -164,6 +179,13 @@ function paint(): void {
 	renderInto(document.getElementById("cards") as HTMLElement, true, "tasks", false);
 	viewMode = "list";
 	state.selectedTask = savedSel;
+
+	// File order with nothing selected: the only state in which rows can be
+	// dragged, and the one the drag harness drives.
+	const dragSel = state.selectedTask;
+	state.selectedTask = null;
+	renderInto(document.getElementById("drag") as HTMLElement, true, "tasks", false);
+	state.selectedTask = dragSel;
 
 	// The detail panel with an action row expanded inline.
 	state.openAction = "due";

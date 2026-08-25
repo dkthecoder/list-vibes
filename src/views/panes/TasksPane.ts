@@ -3,6 +3,7 @@ import { SMART_VIEWS, ViewContext } from "../context";
 import { Task, TaskList, ViewMode, isComplete } from "../../model/types";
 import { renderTaskRow } from "../../ui/TaskRow";
 import { renderTaskCard } from "../../ui/TaskCard";
+import { makeDragSortable } from "../../ui/dragSort";
 import { todayISO } from "../../model/store";
 import { SORT_OPTIONS, partitionCompleted, sortTasks } from "../../model/sort";
 
@@ -160,7 +161,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 					.setIcon("check-check")
 					.onClick(() => {
 						ctx.state.completedOpen = !ctx.state.completedOpen;
-						ctx.render();
+						ctx.render("tasks");
 					})
 			);
 			menu.showAtMouseEvent(e);
@@ -196,7 +197,22 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	// Headings only make sense while the file's own order is intact.
 	const grouped = sortKey === "custom" && !isSmart;
 	const mode = isSmart ? "list" : ctx.viewMode();
-	renderTasks(scroll, open, ctx, { grouped, showList: isSmart, mode });
+
+	/*
+	 * Dragging is only offered where it means something.
+	 *
+	 * Custom sort *is* the file's order, so moving a row is a real edit to the
+	 * file and the new position is what you will see next time. Under any other
+	 * sort the order on screen is computed — dropping a task between two others
+	 * would write a change the sort immediately undoes, which reads as the drag
+	 * having failed. Smart views are excluded for a stronger reason: their rows
+	 * come from several files at once, so there is no single order to rewrite.
+	 *
+	 * Post-it mode is excluded for now because the wall wraps into a grid, and a
+	 * vertical drag preview cannot describe a move in two dimensions.
+	 */
+	const sortable = sortKey === "custom" && !isSmart && mode === "list";
+	renderTasks(scroll, open, ctx, { grouped, showList: isSmart, mode, sortable });
 
 	/* ---------------- completed ---------------- */
 	const showCompleted =
@@ -216,7 +232,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 		const toggle = () => {
 			ctx.state.completedOpen = !ctx.state.completedOpen;
-			ctx.render();
+			ctx.render("tasks");
 		};
 		head.addEventListener("click", toggle);
 		head.addEventListener("keydown", (e) => {
@@ -229,6 +245,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		if (ctx.state.completedOpen) {
 			const body = section.createDiv({ cls: "lv-completed-body" });
 			body.toggleClass("lv-postit", mode === "postit");
+			// Deliberately not sortable: this section is a filtered subset of the
+			// file, so its rows are not adjacent lines and a splice between two of
+			// them would land in the middle of the open tasks above.
 			for (const t of done) {
 				if (mode === "postit") renderTaskCard(body, t, ctx, { showList: isSmart });
 				else renderTaskRow(body, t, ctx, { showList: isSmart });
@@ -247,7 +266,13 @@ function renderTasks(
 	scroll: HTMLElement,
 	tasks: Task[],
 	ctx: ViewContext,
-	opts: { grouped: boolean; showList: boolean; mode: ViewMode }
+	opts: {
+		grouped: boolean;
+		showList: boolean;
+		mode: ViewMode;
+		/** Whether rows may be dragged into a new order. */
+		sortable: boolean;
+	}
 ): void {
 	const postit = opts.mode === "postit";
 	const cls = postit ? "lv-group lv-postit" : "lv-group";
@@ -256,23 +281,58 @@ function renderTasks(
 			? renderTaskCard(parent, t, ctx, { showList: opts.showList })
 			: renderTaskRow(parent, t, ctx, { showList: opts.showList });
 
+	/**
+	 * Wire up dragging for one contiguous run of rows.
+	 *
+	 * A run is passed rather than the whole list because `##` headings split a
+	 * list into groups, and a drag has to stay inside the group it started in —
+	 * the file order within a group is contiguous, so a splice inside one is a
+	 * plain reorder, whereas dragging across a heading would silently move a task
+	 * to another section.
+	 */
+	const makeSortable = (rows: HTMLElement[], run: Task[]) => {
+		if (!opts.sortable || run.length < 2) return;
+		rows.forEach((row, index) => {
+			row.addClass("lv-sortable");
+			makeDragSortable(row, {
+				index,
+				siblings: () => rows,
+				onDrop: (from, to) => void ctx.mutator.reorder(run[from], run, to),
+			});
+		});
+	};
+
 	if (!opts.grouped) {
 		const group = scroll.createDiv({ cls });
-		for (const t of tasks) draw(group, t);
+		makeSortable(
+			tasks.map((t) => draw(group, t)),
+			tasks
+		);
 		return;
 	}
 
 	let current: string | undefined | null = null;
 	let container: HTMLElement | null = null;
+	let run: Task[] = [];
+	let rows: HTMLElement[] = [];
+
+	const flush = () => {
+		makeSortable(rows, run);
+		run = [];
+		rows = [];
+	};
 
 	for (const t of tasks) {
 		if (t.section !== current || !container) {
+			flush();
 			current = t.section;
 			if (t.section) scroll.createDiv({ cls: "lv-section", text: t.section });
 			container = scroll.createDiv({ cls });
 		}
-		draw(container, t);
+		rows.push(draw(container, t));
+		run.push(t);
 	}
+	flush();
 }
 
 async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
@@ -335,7 +395,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 
 		if (!keepOpen) {
 			ctx.state.composing = false;
-			ctx.render();
+			ctx.render("tasks");
 		} else {
 			title.focus();
 		}
@@ -344,7 +404,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	const expand = () => {
 		if (ctx.state.composing) return;
 		ctx.state.composing = true;
-		ctx.render();
+		ctx.render("tasks");
 	};
 
 	title.addEventListener("focus", expand);
@@ -357,7 +417,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 			e.preventDefault();
 			title.value = "";
 			ctx.state.composing = false;
-			ctx.render();
+			ctx.render("tasks");
 		}
 	});
 
@@ -381,7 +441,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		if (e.key === "Escape") {
 			e.preventDefault();
 			ctx.state.composing = false;
-			ctx.render();
+			ctx.render("tasks");
 		}
 	});
 
@@ -393,7 +453,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	});
 	cancel.addEventListener("click", () => {
 		ctx.state.composing = false;
-		ctx.render();
+		ctx.render("tasks");
 	});
 
 	const add = actions.createEl("button", { cls: "mod-cta", text: "Add task" });

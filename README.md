@@ -19,6 +19,10 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   inline into a row of chips. They are not Obsidian Menus: a Menu opens at the
   cursor and reads as a right-click context menu, which is wrong for a primary
   control and has nothing to anchor to on touch.
+- **Rows drag into order.** Grab a task and move it; the rows it passes slide to
+  open the gap, and nothing is written until you let go. Steps inside a task
+  reorder the same way, within their own parent. On touch it takes a long press
+  to start, because a vertical swipe on a list has to stay a scroll.
 - **The add box expands upward.** Collapsed it is a single line — type a title,
   press Enter, keep going. Click it and it opens into a title plus a description,
   with Cancel and Add task. The description is written as an indented line
@@ -60,9 +64,15 @@ The view is added to the sidebar when Obsidian starts, alongside Files, Search
 and Bookmarks, without taking focus from whatever you had open. Turn it off in
 settings if you would rather open it from the ribbon.
 
-Where it lands in the tab strip is Obsidian's call: leaf order is user-owned
-workspace state and there is no public API to reorder it. Drag it to the front
-once and Obsidian remembers.
+By default it lands after Files, Search and Bookmarks, because `getLeftLeaf`
+and `ensureSideLeaf` always append — Obsidian passes index -1 internally and
+offers no way to change it, which is why every community plugin ends up last.
+
+**Put it first in the sidebar** in settings uses `createLeafInParent`, which is
+public, documented, and does take an index. It applies only when the pane is
+first created: once List Vibes is in your layout its position is yours, and
+dragging it elsewhere sticks. Desktop only — the mobile drawer is a vertical
+list with no tab strip to reorder.
 
 ## Lists as tabs
 
@@ -153,6 +163,13 @@ changing it cannot touch a byte of the file. Custom order is the only mode that
 shows the file's `##` headings as section dividers, since the others break that
 grouping by definition.
 
+Dragging is only offered under **custom** sort, and never in a smart view.
+Custom sort *is* the file's order, so moving a row is a real edit and the new
+position is what you see next time. Under a computed sort, dropping a task
+between two others would write a change the sort immediately undoes — which
+reads as the drag having failed. A smart view has no single order to rewrite at
+all: its rows come from several files at once.
+
 There is deliberately no "last modified" sort for tasks. A markdown line has no
 modified timestamp — only the file does — so every task in a list would share one
 value. Date created is the honest version of that, and needs the creation-date
@@ -188,6 +205,28 @@ Line numbers are re-verified against the file immediately before every write; if
 the line has changed underneath us the edit is abandoned rather than applied to
 the wrong place.
 
+## Repainting
+
+Editing a task used to make the view flash. A click wrote the file, the vault
+event came back about 30ms later, and the whole tree — picker, task list,
+overlay and all — was destroyed and rebuilt underneath the pointer.
+
+A repaint now names what it affects, and anything it does not name is left on
+screen untouched. Expanding a date row rebuilds the detail panel and nothing
+else; a file change rebuilds the panes but leaves the overlay, and therefore its
+slide and its backdrop, exactly where they were. Only a genuine change of layout
+shape — the pane switching, the detail opening or closing, the width crossing
+the breakpoint — rebuilds the tree.
+
+## Fonts
+
+The plugin reads `--font-interface`, the resolved interface stack, not
+`--font-interface-theme`. The latter is an input hook that themes may set, and
+Obsidian defaults it to a font registered over `unicode-range: U+0` — it renders
+no glyphs. Reading it directly gives a font stack containing nothing at all, and
+the text falls back to the browser's default serif. That failure is worst
+exactly when a theme is well behaved and sets no font of its own.
+
 ## Folder
 
 Default `lists/`, configurable.
@@ -200,7 +239,9 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 196 tests: parsing, sorting, frontmatter, view state, writes
+npm test         # 231 tests: parsing, sorting, frontmatter, view state, writes
+npm run test:drag # drives a real drag in a headless browser
+npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```
 
 ### Running it in Obsidian

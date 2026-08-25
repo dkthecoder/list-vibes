@@ -3,6 +3,7 @@ import { ViewContext } from "../context";
 import { Task, isComplete } from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
+import { makeDragSortable } from "../../ui/dragSort";
 import { renderImportance } from "../../ui/Importance";
 
 const REPEATS = [
@@ -74,11 +75,13 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	if (ctx.settings.enableSubtasks) {
 		const steps = scroll.createDiv({ cls: "lv-card lv-steps" });
 
+		const stepRows: HTMLElement[] = [];
 		for (const child of task.children) {
 			const row = steps.createDiv({ cls: "lv-step" });
 			row.toggleClass("is-complete", isComplete(child));
+			stepRows.push(row);
 
-			const cb = row.createDiv({ cls: "lv-check lv-check-sm" });
+			const cb = row.createDiv({ cls: "lv-check lv-check-sm lv-no-drag" });
 			setIcon(cb, isComplete(child) ? "check-circle-2" : "circle");
 			cb.setAttribute("role", "checkbox");
 			cb.setAttribute("aria-checked", String(isComplete(child)));
@@ -87,10 +90,28 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 			const label = row.createDiv({ cls: "lv-step-label" });
 			renderInline(label, child.title, ctx);
 
-			const del = row.createDiv({ cls: "lv-step-remove" });
+			const del = row.createDiv({ cls: "lv-step-remove lv-no-drag" });
 			setIcon(del, "x");
 			del.setAttribute("aria-label", "Remove step");
 			del.addEventListener("click", () => void ctx.mutator.remove(child));
+		}
+
+		/*
+		 * Steps reorder within their own parent and nowhere else. They are always
+		 * in file order — there is no sort applied to steps — so unlike the task
+		 * list this needs no guard beyond having two of them to swap.
+		 */
+		if (stepRows.length > 1) {
+			const siblings = task.children;
+			stepRows.forEach((row, index) => {
+				row.addClass("lv-sortable");
+				makeDragSortable(row, {
+					index,
+					siblings: () => stepRows,
+					onDrop: (from, to) =>
+						void ctx.mutator.reorder(siblings[from], siblings, to),
+				});
+			});
 		}
 
 		const add = steps.createDiv({ cls: "lv-step lv-step-add" });
@@ -291,7 +312,7 @@ function action(parent: HTMLElement, ctx: ViewContext, o: ActionOpts): void {
 	const activate = () => {
 		if (o.expands) {
 			ctx.state.openAction = open ? null : o.id;
-			ctx.render();
+			ctx.render("detail");
 			return;
 		}
 		o.onClick?.();

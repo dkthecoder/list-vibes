@@ -26,7 +26,7 @@
 	padding: 0;
 	height: 100%;
 	overflow: hidden;
-	font-family: var(--font-interface-theme);
+	font-family: var(--font-interface);
 	color: var(--text-normal);
 }
 
@@ -1352,4 +1352,47 @@
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	padding-bottom: 4px;
+}
+
+/* ------------------------------------------------------------------
+   Drag to reorder
+
+   Rows are only draggable under the file's own order — see the comment
+   in TasksPane. The lifted row follows the pointer; the rows it passes
+   slide to open the gap. Nothing moves in the DOM until the drop, so an
+   abandoned drag has nothing to undo.
+   ------------------------------------------------------------------ */
+
+.lv-sortable {
+	/* The transform is set from script during a drag and cleared on drop, so
+	   only the rows getting out of the way are animated. Animating the lifted
+	   row would make it lag the pointer. */
+	transition: transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.lv-dragging {
+	position: relative;
+	z-index: 5;
+	transition: none;
+	box-shadow: var(--shadow-l, 0 8px 20px rgba(0, 0, 0, 0.18));
+	background: var(--background-primary-alt, var(--background-secondary));
+	opacity: 0.95;
+}
+
+/* While a drag is live, nothing else on the page should look interactive or
+   select under the pointer. */
+body.lv-is-dragging {
+	cursor: grabbing;
+	user-select: none;
+}
+
+body.lv-is-dragging .lv-task:hover,
+body.lv-is-dragging .lv-step:hover {
+	background: var(--background-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.lv-sortable {
+		transition: none;
+	}
 }

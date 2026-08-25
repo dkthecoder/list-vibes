@@ -461,31 +461,67 @@ export class Mutator {
 		await this.insertLines(parent.filePath, at, [line]);
 	}
 
-	/** Move a root task up or down among its siblings. */
+	/** Move a task one place up or down among its siblings. */
 	async move(task: Task, siblings: Task[], delta: -1 | 1): Promise<void> {
 		const idx = siblings.findIndex((s) => s.line === task.line);
-		const target = siblings[idx + delta];
-		if (idx < 0 || !target) return;
+		if (idx < 0) return;
+		await this.reorder(task, siblings, idx + delta);
+	}
+
+	/**
+	 * Move a task to an arbitrary position among its siblings — what a drag
+	 * lands on.
+	 *
+	 * `toIndex` is read against the list as it stands *before* the move, which is
+	 * the same frame of reference the drag preview uses: "put me where item 3 is
+	 * now". Moving a task down therefore lands it after the item currently at
+	 * that index, which is what the preview showed.
+	 *
+	 * The whole block travels — the task, its note lines and every step beneath
+	 * it — because a task's children are only its children by virtue of sitting
+	 * underneath it. Leaving them behind would silently reparent them.
+	 *
+	 * This goes through `Vault.process` even when the file is open in an editor,
+	 * unlike the single-line edits. A block move is several splices that must not
+	 * be observed half-applied, and the atomic read-modify-write is the only path
+	 * that guarantees that. The cost is the editor's cursor and folds, which a
+	 * drag does not depend on the way typing does.
+	 */
+	async reorder(task: Task, siblings: Task[], toIndex: number): Promise<void> {
+		const from = siblings.findIndex((s) => s.line === task.line);
+		if (from < 0) return;
+
+		const to = Math.max(0, Math.min(siblings.length - 1, toIndex));
+		if (to === from) return;
 
 		const file = this.fileFor(task.filePath);
 		if (!file) return;
 
 		const self = blockRange(task);
-		const other = blockRange(target);
 		const block = self.end - self.start;
-		const targetBlock = other.end - other.start;
+		const target = siblings[to];
+		const targetRange = blockRange(target);
 
 		await this.app.vault.process(file, (data) => {
 			const lines = data.split("\n");
-			if (lines[task.line] !== task.raw || lines[target.line] !== target.raw) {
-				return data; // stale parse, do nothing
+
+			// Every sibling's first line is re-verified, not just the two being
+			// swapped. The indices came from a parse that may be a frame or two
+			// old, and splicing against a file that has shifted underneath us
+			// would move the wrong block.
+			for (const s of siblings) {
+				if (lines[s.line] !== s.raw) return data;
 			}
-			const moving = lines.splice(task.line, block);
+
+			const moving = lines.splice(self.start, block);
+			// Splicing the block out shifts everything below it up by `block`
+			// lines, so a downward move has to be measured after the removal.
 			const insertAt =
-				delta === -1 ? target.line : target.line + targetBlock - block;
+				to < from
+					? targetRange.start
+					: targetRange.end - block;
 			lines.splice(insertAt, 0, ...moving);
 			return lines.join("\n");
 		});
 	}
 }
-

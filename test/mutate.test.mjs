@@ -291,6 +291,101 @@ describe("move", () => {
 		await s.mutator.move(roots[1], roots, -1);
 		assert.equal(s.read(), rewritten, "stale move corrupted the file");
 	});
+
+	/* --- arbitrary reorder, which is what a drag lands on --- */
+
+	test("dragging a task to the front", async () => {
+		const s = setup(SAMPLE);
+		const roots = s.parse().tasks;
+		await s.mutator.reorder(roots[2], roots, 0);
+		assert.deepEqual(
+			s.parse().tasks.map((t) => t.title),
+			["Third task", "First task", "Second task"]
+		);
+	});
+
+	test("dragging a task to the end", async () => {
+		const s = setup(SAMPLE);
+		const roots = s.parse().tasks;
+		await s.mutator.reorder(roots[0], roots, 2);
+		assert.deepEqual(
+			s.parse().tasks.map((t) => t.title),
+			["Second task", "Third task", "First task"]
+		);
+	});
+
+	test("a dragged task lands where the preview showed it, in both directions", async () => {
+		// The index is read against the list before the move, so dropping onto
+		// index 2 must land at index 2 whichever way the task travelled.
+		const down = setup(SAMPLE);
+		await down.mutator.reorder(down.parse().tasks[0], down.parse().tasks, 2);
+		assert.equal(down.parse().tasks[2].title, "First task");
+
+		const up = setup(SAMPLE);
+		await up.mutator.reorder(up.parse().tasks[2], up.parse().tasks, 0);
+		assert.equal(up.parse().tasks[0].title, "Third task");
+	});
+
+	test("a dragged block keeps its steps and note, and its own order", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.reorder(s.parse().tasks[1], s.parse().tasks, 0);
+		const moved = s.parse().tasks[0];
+		assert.equal(moved.title, "Second task");
+		assert.equal(moved.children.length, 2, "steps did not travel");
+		assert.deepEqual(
+			moved.children.map((c) => c.title),
+			["step one", "step two"],
+			"steps travelled but were reordered"
+		);
+		assert.equal(moved.note, "A note under the parent.", "note did not travel");
+	});
+
+	test("dropping a task on itself is not a write", async () => {
+		const s = setup(SAMPLE);
+		const roots = s.parse().tasks;
+		await s.mutator.reorder(roots[1], roots, 1);
+		assert.equal(s.read(), SAMPLE, "a no-op drop rewrote the file");
+	});
+
+	test("an out-of-range index is clamped, never thrown", async () => {
+		const s = setup(SAMPLE);
+		for (const to of [-5, 99]) {
+			const fresh = setup(SAMPLE);
+			await fresh.mutator.reorder(fresh.parse().tasks[1], fresh.parse().tasks, to);
+			const titles = fresh.parse().tasks.map((t) => t.title);
+			assert.equal(titles.length, 3, `lost a task clamping to ${to}`);
+			assert.ok(titles.includes("Second task"));
+		}
+		void s;
+	});
+
+	test("a stale reorder is abandoned even when the moved lines still match", async () => {
+		// The guard checks every sibling, not just the block being moved: the
+		// parse these indices came from may be a frame behind the file.
+		const s = setup(SAMPLE);
+		const roots = s.parse().tasks;
+		const rewritten = SAMPLE.replace("Third task", "Renamed");
+		assert.notEqual(rewritten, SAMPLE, "the fixture edit did not apply");
+		s.app.__store.set(s.path, rewritten);
+		await s.mutator.reorder(roots[0], roots, 1);
+		assert.equal(s.read(), rewritten, "stale reorder corrupted the file");
+	});
+
+	test("reordering steps within their parent", async () => {
+		const s = setup(SAMPLE);
+		const steps = s.parse().tasks[1].children;
+		assert.equal(steps.length, 2, "fixture changed");
+		await s.mutator.reorder(steps[1], steps, 0);
+		assert.deepEqual(
+			s.parse().tasks[1].children.map((c) => c.title),
+			["step two", "step one"]
+		);
+		// The parent and its siblings must be untouched by a step move.
+		assert.deepEqual(
+			s.parse().tasks.map((t) => t.title),
+			["First task", "Second task", "Third task"]
+		);
+	});
 });
 
 /* ------------------------------------------------------------------ *

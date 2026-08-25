@@ -4,6 +4,7 @@ import {
 	encodeSelection,
 	decodeSelection,
 	selectionTitle,
+	widerScope,
 } from "./build/views/viewState.js";
 
 /* A tab only remembers its own list if this round-trips exactly. */
@@ -77,5 +78,47 @@ test("encoded state is a plain serialisable object", () => {
 	assert.deepEqual(decodeSelection(JSON.parse(JSON.stringify(encoded))), {
 		kind: "list",
 		path: "lists/A.md",
+	});
+});
+
+/* ------------------------------------------------------------------
+   Repaint scope
+
+   These guard the rule that stops the view flashing: repaints are
+   coalesced into one frame, and coalescing must widen, never narrow.
+   ------------------------------------------------------------------ */
+
+test("widerScope", async (t) => {
+	const ORDER = ["detail", "tasks", "all"];
+
+	await t.test("a scope merged with itself is unchanged", () => {
+		for (const s of ORDER) assert.equal(widerScope(s, s), s);
+	});
+
+	await t.test("wins in both argument orders", () => {
+		for (let i = 0; i < ORDER.length; i++) {
+			for (let j = 0; j < ORDER.length; j++) {
+				const wider = ORDER[Math.max(i, j)];
+				assert.equal(widerScope(ORDER[i], ORDER[j]), wider);
+				assert.equal(widerScope(ORDER[j], ORDER[i]), wider);
+			}
+		}
+	});
+
+	await t.test("a queued repaint is never narrowed", () => {
+		// The case that matters: a file change arriving while a detail row is
+		// expanding must not be reduced to a detail-only repaint, or the task
+		// list behind the panel keeps showing the old text.
+		assert.equal(widerScope("detail", "tasks"), "tasks");
+		assert.equal(widerScope("detail", "all"), "all");
+		assert.equal(widerScope("tasks", "all"), "all");
+	});
+
+	await t.test("folding a burst in any order gives the widest", () => {
+		const fold = (scopes) => scopes.reduce(widerScope);
+		assert.equal(fold(["detail", "detail", "tasks"]), "tasks");
+		assert.equal(fold(["tasks", "detail", "detail"]), "tasks");
+		assert.equal(fold(["detail", "all", "detail"]), "all");
+		assert.equal(fold(["detail", "detail", "detail"]), "detail");
 	});
 });

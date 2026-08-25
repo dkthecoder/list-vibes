@@ -1,4 +1,15 @@
-import { App, FuzzySuggestModal, Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
+import {
+	App,
+	FuzzySuggestModal,
+	Notice,
+	Plugin,
+	TAbstractFile,
+	TFile,
+	WorkspaceLeaf,
+	WorkspaceParent,
+	WorkspaceSplit,
+	WorkspaceTabs,
+} from "obsidian";
 import { DEFAULT_SETTINGS, ListsSettingTab, ListsSettings } from "./settings";
 import { ListStore, todayISO } from "./model/store";
 import { TaskList, normalizeViewMode } from "./model/types";
@@ -195,14 +206,17 @@ export default class ListsPlugin extends Plugin {
 	/**
 	 * Put the view in the sidebar so it sits alongside Files, Search and
 	 * Bookmarks, without stealing focus from whatever the user had open.
-	 *
-	 * Where it lands in the tab strip is Obsidian's to decide — leaf order is
-	 * user-owned workspace state and there is no public API to reorder it. Drag
-	 * it to the front once and Obsidian remembers.
 	 */
 	private async ensureInSidebar(): Promise<void> {
 		if (this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS).length) return;
 		try {
+			if (this.settings.sidebarFirst) {
+				const leaf = this.leafAtFrontOfSidebar();
+				if (leaf) {
+					await leaf.setViewState({ type: VIEW_TYPE_LISTS, active: false });
+					return;
+				}
+			}
 			await this.app.workspace.ensureSideLeaf(VIEW_TYPE_LISTS, this.settings.side, {
 				active: false,
 				reveal: false,
@@ -211,6 +225,54 @@ export default class ListsPlugin extends Plugin {
 			// A workspace layout that will not take the leaf is not worth a
 			// notice on startup; the ribbon icon still opens it.
 		}
+	}
+
+	/**
+	 * Create a leaf at the front of the sidebar's tab strip, or null if that is
+	 * not possible here.
+	 *
+	 * `getLeftLeaf` and `ensureSideLeaf` always append — Obsidian passes index -1
+	 * internally and offers no way to change it — which is why every community
+	 * plugin lands after Files, Search and Bookmarks. `createLeafInParent` is
+	 * public, documented, and takes an index, and the tab strip is rebuilt from
+	 * the parent's children on every layout change, so inserting at 0 puts the
+	 * tab first and Obsidian persists that to workspace.json like any other
+	 * layout change.
+	 *
+	 * The one wrinkle is a typings gap: the parameter is declared
+	 * `WorkspaceSplit`, but a sidebar's leaves live in a `WorkspaceTabs`, which
+	 * extends `WorkspaceParent` instead. Both share the `children` and
+	 * `insertChild` implementation the method actually uses, so the cast is
+	 * describing runtime reality rather than reaching past the public API.
+	 */
+	private leafAtFrontOfSidebar(): WorkspaceLeaf | null {
+		const { workspace } = this.app;
+		const root = this.settings.side === "left" ? workspace.leftSplit : workspace.rightSplit;
+		if (!root) return null;
+
+		let tabs: WorkspaceTabs | null = null;
+		workspace.iterateAllLeaves((leaf) => {
+			if (tabs) return;
+			// Only leaves belonging to the sidebar we are targeting.
+			for (let p = leaf.parent as WorkspaceParent | null; p; p = p.parent) {
+				if (p !== root) continue;
+				if (leaf.parent instanceof WorkspaceTabs) tabs = leaf.parent;
+				return;
+			}
+		});
+		// On mobile the sidebar is a WorkspaceMobileDrawer, whose tabs are a
+		// vertical list rather than a strip; leave that to ensureSideLeaf.
+		if (!tabs) return null;
+
+		// createLeafInParent focuses the leaf it makes, which on startup would
+		// take the user to an empty sidebar pane. Put focus back where it was.
+		const previous = workspace.getMostRecentLeaf();
+		const leaf = workspace.createLeafInParent(
+			tabs as unknown as WorkspaceSplit,
+			0
+		);
+		if (previous) workspace.setActiveLeaf(previous, { focus: false });
+		return leaf;
 	}
 
 	/**

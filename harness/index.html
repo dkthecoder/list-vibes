@@ -5,6 +5,13 @@
 		<title>Lists — harness</title>
 		<link rel="stylesheet" href="../styles.css" />
 		<style>
+			/* Obsidian registers this glyphless face so an unset font hook stays
+			   syntactically valid while contributing nothing. */
+			@font-face {
+				font-family: "??";
+				unicode-range: U+0;
+				src: local("Arial");
+			}
 			/* A stand-in for Obsidian's theme variables, so the harness shows
 			   what the plugin looks like inside the app.
 
@@ -81,7 +88,23 @@
 				--nav-item-weight-active: var(--font-medium);
 
 				/* Type */
-				--font-interface-theme: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+				/* Obsidian's interface font is a four-tier cascade: the user's
+				   override, then the theme's hook, then a legacy hook, then its own
+				   default. --font-interface is the resolved output and the only one
+				   a plugin should read.
+
+				   The hooks are reproduced faithfully, sentinel and all: Obsidian
+				   defaults them to a font registered over unicode-range U+0, which
+				   renders no glyphs. A plugin that reads a hook directly therefore
+				   gets a stack containing nothing and falls through to the browser's
+				   own default — a serif — and it is worst precisely when the theme
+				   is well behaved and sets nothing. Keeping the sentinel here means
+				   the harness shows that breakage instead of hiding it. */
+				--font-interface-override: '??';
+				--font-interface-theme: '??';
+				--font-interface:
+					var(--font-interface-override), var(--font-interface-theme),
+					-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 				--font-ui-smaller: 12px;
 				--font-ui-small: 13px;
 				--font-ui-medium: 15px;
@@ -186,8 +209,11 @@
 		<h2 style="margin-top: 28px">Detail — action row expanded inline, no context menu</h2>
 		<div class="frame" id="picker"></div>
 
-		<h2 style="margin-top: 28px">Cards — Google Keep-style layout</h2>
+		<h2 style="margin-top: 28px">Post-it view — Google Keep-style layout</h2>
 		<div class="frame" id="cards"></div>
+
+		<h2 style="margin-top: 28px">Desktop — file order, rows draggable, no overlay</h2>
+		<div class="frame" id="drag"></div>
 
 		<h2 style="margin-top: 28px">Desktop — 1–5 rating mode, sorted by importance, add box expanded</h2>
 		<div class="frame" id="desktop2"></div>

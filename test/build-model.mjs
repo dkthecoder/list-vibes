@@ -24,7 +24,12 @@ await esbuild.build({
 });
 
 await esbuild.build({
-	entryPoints: ["src/model/mutate.ts", "src/model/store.ts", "src/views/viewState.ts"],
+	entryPoints: [
+		"src/model/mutate.ts",
+		"src/model/store.ts",
+		"src/views/viewState.ts",
+		"src/ui/dragSort.ts",
+	],
 	bundle: true,
 	format: "esm",
 	target: "es2022",

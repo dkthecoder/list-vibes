@@ -6,7 +6,15 @@ import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
-import { decodeSelection, encodeSelection, selectionTitle } from "./viewState";
+import {
+	RenderScope,
+	decodeSelection,
+	encodeSelection,
+	selectionTitle,
+	widerScope,
+} from "./viewState";
+
+export type { RenderScope };
 
 export const VIEW_TYPE_LISTS = "list-vibes-view";
 
@@ -16,6 +24,7 @@ export const VIEW_TYPE_LISTS = "list-vibes-view";
  */
 const WIDE_BREAKPOINT = 620;
 
+
 export class ListsView extends ItemView {
 	private plugin: ListsPlugin;
 	private state: ViewState;
@@ -23,8 +32,19 @@ export class ListsView extends ItemView {
 	private observer: ResizeObserver | null = null;
 	private wide = false;
 	private queued = false;
+	private queuedScope: RenderScope = "all";
 	/** Whether the overlay was on screen last paint, so it only animates in once. */
 	private detailWasOpen = false;
+	/**
+	 * The containers kept alive between paints. Rebuilding only the pane that
+	 * changed is what stops the view flashing on every edit — see `paint`.
+	 */
+	private shellEl: HTMLElement | null = null;
+	private navEl: HTMLElement | null = null;
+	private tasksEl: HTMLElement | null = null;
+	private overlayEl: HTMLElement | null = null;
+	/** Layout shape of the last paint. A change here forces a full rebuild. */
+	private lastShape = "";
 	/** Guards the setViewState round trip from re-entering itself. */
 	private persisting = false;
 
@@ -78,7 +98,9 @@ export class ListsView extends ItemView {
 		this.navigation = this.inMainWorkspace();
 
 		this.contentEl.addClass("lv-root");
-		this.unsubscribe = this.plugin.store.onChange(() => this.render());
+		// A file changing alters what the panes show, never the layout's shape,
+		// so this repaints their contents and leaves the tree standing.
+		this.unsubscribe = this.plugin.store.onChange(() => this.render("tasks"));
 
 		// Repaint on width change so the layout can switch between one and two
 		// panes without the user reopening anything.
@@ -165,7 +187,7 @@ export class ListsView extends ItemView {
 			settings: this.plugin.settings,
 			state: this.state,
 			wide: this.wide,
-			render: () => this.render(),
+			render: (scope?: RenderScope) => this.render(scope ?? "all"),
 			save: () => this.plugin.saveSettings(),
 
 			select: (sel: Selection) => {
@@ -216,7 +238,7 @@ export class ListsView extends ItemView {
 				// must not touch a single byte of the user's markdown.
 				this.plugin.settings.sortByList[sel.path] = key;
 				void this.plugin.saveSettings();
-				this.render();
+				this.render("tasks");
 			},
 
 			viewMode: () => {
@@ -238,7 +260,7 @@ export class ListsView extends ItemView {
 			setDefaultViewMode: (mode: ViewMode) => {
 				this.plugin.settings.defaultView = mode;
 				void this.plugin.saveSettings();
-				this.render();
+				this.render("tasks");
 			},
 
 			setViewMode: (mode: ViewMode) => {
@@ -248,7 +270,7 @@ export class ListsView extends ItemView {
 				void this.plugin.saveSettings();
 				// Also record it on the list, so the choice travels with the file.
 				void this.plugin.mutator.setListConfig(sel.path, "view", mode);
-				this.render();
+				this.render("tasks");
 			},
 
 			setColor: (path: string, color: ListColor | null) => {
@@ -278,25 +300,82 @@ export class ListsView extends ItemView {
 						this.state.selection = { kind: "list", path: next };
 						if (this.inMainWorkspace()) void this.persistState();
 					}
-					this.render();
+					this.render("tasks");
 				});
 			},
 		};
 	}
 
 	/** Coalesce repaints so a burst of file events costs one pass. */
-	render(): void {
+	render(scope: RenderScope = "all"): void {
+		this.queuedScope = this.queued
+			? widerScope(this.queuedScope, scope)
+			: scope;
 		if (this.queued) return;
 		this.queued = true;
 		window.requestAnimationFrame(() => {
 			this.queued = false;
-			this.paint();
+			const s = this.queuedScope;
+			this.queuedScope = "all";
+			this.paint(s);
 		});
 	}
 
-	private paint(): void {
+	/**
+	 * The layout shape, as opposed to its contents. Two paints with the same
+	 * shape can reuse the same containers; a change means the tree itself is
+	 * different and has to be rebuilt.
+	 */
+	private shape(): string {
+		return [
+			this.wide ? "wide" : "narrow",
+			this.wide ? "both" : this.state.pane,
+			this.state.selectedTask ? "detail" : "nodetail",
+		].join("|");
+	}
+
+	private paint(scope: RenderScope = "all"): void {
 		this.wide = this.contentEl.clientWidth >= WIDE_BREAKPOINT;
 
+		const shape = this.shape();
+		const reuse = scope !== "all" && shape === this.lastShape && !!this.shellEl;
+
+		if (reuse) {
+			this.repaintPanes(scope);
+			return;
+		}
+
+		this.rebuild(shape);
+	}
+
+	/**
+	 * Refill the panes this repaint names, leaving the rest of the tree — and
+	 * therefore its scroll position, its focus and the overlay's own transition
+	 * state — exactly as it was.
+	 */
+	private repaintPanes(scope: RenderScope): void {
+		const ctx = this.buildContext();
+
+		if (scope !== "detail") {
+			if (this.navEl) {
+				this.navEl = swapPane(this.navEl, (p) => renderListsPane(p, ctx));
+			}
+			if (this.tasksEl) {
+				this.tasksEl = swapPane(this.tasksEl, (p) => renderTasksPane(p, ctx));
+			}
+		}
+
+		// The overlay element itself is deliberately left in place: it owns the
+		// slide transform and the backdrop's fade, and recreating it restarts
+		// both. Only its contents are rebuilt.
+		if (this.overlayEl && this.state.selectedTask) {
+			this.overlayEl.empty();
+			renderDetailPane(this.overlayEl, ctx);
+		}
+	}
+
+	/** Full teardown. Only for a genuine change of layout shape. */
+	private rebuild(shape: string): void {
 		// Preserve scroll position across repaints, otherwise checking off a task
 		// jumps a long list back to the top.
 		const scrollTops: number[] = [];
@@ -325,15 +404,23 @@ export class ListsView extends ItemView {
 
 		const ctx = this.buildContext();
 		const shell = this.contentEl.createDiv({ cls: "lv-shell" });
+		this.shellEl = shell;
+		this.navEl = null;
+		this.tasksEl = null;
+		this.overlayEl = null;
 
 		/* --- base layer: browsing lists, then a list --- */
+		const added = (fn: () => void): HTMLElement => {
+			fn();
+			return shell.lastElementChild as HTMLElement;
+		};
 		if (this.wide) {
-			renderListsPane(shell, ctx);
-			renderTasksPane(shell, ctx);
+			this.navEl = added(() => renderListsPane(shell, ctx));
+			this.tasksEl = added(() => renderTasksPane(shell, ctx));
 		} else if (this.state.pane === "nav") {
-			renderListsPane(shell, ctx);
+			this.navEl = added(() => renderListsPane(shell, ctx));
 		} else {
-			renderTasksPane(shell, ctx);
+			this.tasksEl = added(() => renderTasksPane(shell, ctx));
 		}
 
 		/* --- overlay layer: the detail panel, always floating --- */
@@ -343,6 +430,7 @@ export class ListsView extends ItemView {
 			backdrop.addEventListener("click", () => this.closeDetail());
 
 			const overlay = shell.createDiv({ cls: "lv-overlay" });
+			this.overlayEl = overlay;
 			renderDetailPane(overlay, ctx);
 
 			if (this.detailWasOpen) {
@@ -357,6 +445,7 @@ export class ListsView extends ItemView {
 			}
 		}
 		this.detailWasOpen = showDetail;
+		this.lastShape = shape;
 
 		/* --- restore scroll and focus --- */
 		this.contentEl
@@ -379,4 +468,30 @@ export class ListsView extends ItemView {
 			}
 		}
 	}
+}
+
+/**
+ * Rebuild one pane in place.
+ *
+ * The pane is built detached and then swapped for the old one, rather than the
+ * old one being emptied and refilled: a pane element carries state of its own —
+ * the list's colour class, for one — and refilling it would let that accumulate
+ * across lists. Its scroll offset is carried over by hand, since that is the one
+ * piece of the old element worth keeping.
+ */
+function swapPane(el: HTMLElement, render: (parent: HTMLElement) => void): HTMLElement {
+	const scrolled = el.querySelector<HTMLElement>(".lv-scroll, .lv-nav-scroll");
+	const keep = scrolled ? scrolled.scrollTop : 0;
+
+	const holder = document.createElement("div");
+	render(holder);
+	const next = holder.firstElementChild as HTMLElement | null;
+	if (!next) return el;
+
+	el.replaceWith(next);
+	if (keep) {
+		const sc = next.querySelector<HTMLElement>(".lv-scroll, .lv-nav-scroll");
+		if (sc) sc.scrollTop = keep;
+	}
+	return next;
 }
