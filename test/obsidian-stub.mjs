@@ -56,6 +56,8 @@ export function makeApp(files, openEditors = []) {
 				l[n] = text;
 				store.set(path, l.join("\n"));
 			},
+			getValue: () => store.get(path),
+			setValue: (v) => store.set(path, v),
 			transaction: (tx) => {
 				// Only the whole-document replacement shape the Mutator uses.
 				for (const c of tx.changes ?? []) {
@@ -97,6 +99,13 @@ export function makeApp(files, openEditors = []) {
 				const next = fn(store.get(f.path));
 				store.set(f.path, next);
 				return next;
+			},
+		},
+		fileManager: {
+			renameFile: async (file, target) => {
+				const content = store.get(file.path);
+				store.delete(file.path);
+				store.set(target, content);
 			},
 		},
 		workspace: {

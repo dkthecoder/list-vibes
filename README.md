@@ -12,11 +12,34 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   arrow when there is not.
 - **The detail panel is never a column.** It slides in from the right over the
   task list, with a dimmed backdrop. Escape, the close button, or a tap outside
-  dismisses it. One behaviour at every width, from phone to wide main pane.
+  dismisses it. One behaviour at every width, from phone to wide main pane. It is
+  never full width — a strip of the list always stays visible behind it, because
+  at 100% there is nothing to overlay and it just looks like the view changed.
+- **Every control opens in place.** The due date, reminder and repeat rows expand
+  inline into a row of chips. They are not Obsidian Menus: a Menu opens at the
+  cursor and reads as a right-click context menu, which is wrong for a primary
+  control and has nothing to anchor to on touch.
 - **The add box expands upward.** Collapsed it is a single line — type a title,
   press Enter, keep going. Click it and it opens into a title plus a description,
   with Cancel and Add task. The description is written as an indented line
   beneath the task, so it is the same field the detail panel edits.
+
+## Lists
+
+The list's name **is** its filename. Click the name in the list header and type
+to rename it — that renames the file, and Obsidian updates any links pointing at
+it. The same is on each list's `⋯` menu in the picker, along with its colour.
+
+A colour is stored as a name in the list's frontmatter (`color: teal`), not a hex
+value, so the same list reads correctly in a light and a dark theme. It shows as
+a bar on the picker row, an underline on the list header, and an edge on each
+card — a bar rather than a wash, because a tinted row fights both the selected
+state and whatever background the theme already uses.
+
+Each list can be laid out as **rows** or as a **Google Keep-style card wall**,
+toggled from the list header. Cards put the note, the steps and the metadata on
+the face rather than behind the detail panel, which is what makes Keep feel like
+glancing at a pinboard instead of drilling into a task manager.
 
 ## Lists as tabs
 
@@ -121,6 +144,12 @@ anything already on disk.
 An emoji at the start of a filename (`📺Movies & TV.md`) is used as the list icon
 and removed from the display name.
 
+Colour and layout are written to the list's frontmatter. That write goes through
+our own single-key editor rather than Obsidian's `processFrontMatter`, which
+round-trips the whole block through a YAML parser and can reorder keys — these
+files are yours, and one of them is a Kanban board whose plugin reads its own
+frontmatter back. Only the line being set is ever touched.
+
 ## Safety
 
 The plugin never rebuilds a file from its parsed model. Every task carries the
@@ -148,7 +177,7 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 159 tests: parsing, sorting, view state, and the write path
+npm test         # 196 tests: parsing, sorting, frontmatter, view state, writes
 ```
 
 ### Running it in Obsidian

@@ -4,7 +4,7 @@ import { PaneName, Selection, ViewContext, ViewState } from "./context";
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
-import { Task } from "../model/types";
+import { ListColor, Task, ViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import { decodeSelection, encodeSelection, selectionTitle } from "./viewState";
 
@@ -39,6 +39,7 @@ export class ListsView extends ItemView {
 			pane: "nav",
 			completedOpen: plugin.settings.showCompleted === "expanded",
 			composing: false,
+			openAction: null,
 		};
 	}
 
@@ -187,6 +188,7 @@ export class ListsView extends ItemView {
 				this.state.selectedTask = task
 					? { filePath: task.filePath, line: task.line }
 					: null;
+				this.state.openAction = null;
 				this.render();
 			},
 
@@ -215,6 +217,57 @@ export class ListsView extends ItemView {
 				this.plugin.settings.sortByList[sel.path] = key;
 				void this.plugin.saveSettings();
 				this.render();
+			},
+
+			viewMode: () => {
+				const sel = this.state.selection;
+				if (sel.kind !== "list") return "list";
+				return (
+					this.plugin.settings.viewByList[sel.path] ??
+					this.plugin.store.getList(sel.path)?.config.view ??
+					this.plugin.settings.defaultView
+				);
+			},
+
+			setViewMode: (mode: ViewMode) => {
+				const sel = this.state.selection;
+				if (sel.kind !== "list") return;
+				this.plugin.settings.viewByList[sel.path] = mode;
+				void this.plugin.saveSettings();
+				// Also record it on the list, so the choice travels with the file.
+				void this.plugin.mutator.setListConfig(sel.path, "view", mode);
+				this.render();
+			},
+
+			setColor: (path: string, color: ListColor | null) => {
+				void this.plugin.mutator.setListConfig(path, "color", color);
+			},
+
+			renameList: (path: string, name: string) => {
+				void this.plugin.mutator.renameList(path, name).then((next) => {
+					if (!next) return;
+					// Follow the list to its new path rather than losing the selection.
+					const s = this.plugin.settings;
+					if (s.sortByList[path]) {
+						s.sortByList[next] = s.sortByList[path];
+						delete s.sortByList[path];
+					}
+					if (s.viewByList[path]) {
+						s.viewByList[next] = s.viewByList[path];
+						delete s.viewByList[path];
+					}
+					if (s.lastList === path) s.lastList = next;
+					void this.plugin.saveSettings();
+
+					if (
+						this.state.selection.kind === "list" &&
+						this.state.selection.path === path
+					) {
+						this.state.selection = { kind: "list", path: next };
+						if (this.inMainWorkspace()) void this.persistState();
+					}
+					this.render();
+				});
 			},
 		};
 	}

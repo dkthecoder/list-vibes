@@ -2,7 +2,7 @@ import { App } from "obsidian";
 import { ListStore, SmartView } from "../model/store";
 import { Mutator } from "../model/mutate";
 import { ListsSettings } from "../settings";
-import { Task } from "../model/types";
+import { ListColor, Task, ViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 
 export type Selection =
@@ -20,6 +20,8 @@ export interface ViewState {
 	completedOpen: boolean;
 	/** True while the add box is expanded into its title + description form. */
 	composing: boolean;
+	/** Which detail action row is expanded, so only one opens at a time. */
+	openAction: string | null;
 }
 
 export interface ViewContext {
@@ -42,6 +44,16 @@ export interface ViewContext {
 	/** Sort for the current list: per-list choice, then frontmatter, then default. */
 	sortKey: () => SortKey;
 	setSortKey: (key: SortKey) => void;
+
+	/** Rows or cards for the current list. */
+	viewMode: () => ViewMode;
+	setViewMode: (mode: ViewMode) => void;
+
+	/** Colour is a property of the list, so it lives in its frontmatter. */
+	setColor: (path: string, color: ListColor | null) => void;
+
+	/** The list's name is its filename, so this renames the file. */
+	renameList: (path: string, name: string) => void;
 }
 
 export function sameSelection(a: Selection, b: Selection): boolean {

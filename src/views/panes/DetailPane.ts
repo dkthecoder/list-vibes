@@ -1,4 +1,4 @@
-import { Menu, setIcon } from "obsidian";
+import { setIcon } from "obsidian";
 import { ViewContext } from "../context";
 import { Task, isComplete } from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
@@ -114,10 +114,18 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 		});
 	}
 
-	/* ---------------- actions ---------------- */
+	/* ---------------- actions ---------------- *
+	 *
+	 * These open inline, expanding in place beneath the row they belong to.
+	 * They used to be Obsidian Menus, which read as right-click context menus
+	 * appearing under the cursor — wrong for a primary control, and awkward on
+	 * touch where there is no cursor to anchor to.
+	 * ------------------------------------------------------------------ */
+
 	const actions = scroll.createDiv({ cls: "lv-card lv-actions" });
 
-	action(actions, {
+	action(actions, ctx, {
+		id: "myday",
 		icon: "sun",
 		label: task.meta.myDay ? "Added to My Day" : "Add to My Day",
 		active: !!task.meta.myDay,
@@ -127,35 +135,75 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 			: undefined,
 	});
 
-	action(actions, {
+	action(actions, ctx, {
+		id: "reminder",
 		icon: "bell",
 		label: task.meta.reminder
 			? `Remind me at ${formatTime(task.meta.reminder)}`
 			: "Remind me",
 		sub: task.meta.reminder ? formatDate(task.meta.due ?? todayISO()) : undefined,
 		active: !!task.meta.reminder,
-		onClick: (e) => reminderMenu(e, ctx, task),
+		expands: true,
+		options: [
+			...["09:00", "12:00", "17:00", "20:00"].map((t) => ({
+				label: formatTime(t),
+				selected: task.meta.reminder === t,
+				onPick: () => void ctx.mutator.setField(task, "reminder", t),
+			})),
+			{
+				label: "Pick a time…",
+				onPick: () => void pickTime(ctx, task),
+			},
+		],
 		onClear: task.meta.reminder
 			? () => void ctx.mutator.setField(task, "reminder", null)
 			: undefined,
 	});
 
-	action(actions, {
+	action(actions, ctx, {
+		id: "due",
 		icon: "calendar",
 		label: task.meta.due ? `Due ${formatDate(task.meta.due)}` : "Add due date",
 		active: !!task.meta.due,
 		danger: isOverdue(task.meta.due),
-		onClick: (e) => dueMenu(e, ctx, task),
+		expands: true,
+		options: [
+			{
+				label: "Today",
+				selected: task.meta.due === todayISO(),
+				onPick: () => void ctx.mutator.setField(task, "due", todayISO()),
+			},
+			{
+				label: "Tomorrow",
+				selected: task.meta.due === addDays(1),
+				onPick: () => void ctx.mutator.setField(task, "due", addDays(1)),
+			},
+			{
+				label: "Next week",
+				onPick: () =>
+					void ctx.mutator.setField(task, "due", addDays(daysUntilWeekday(1))),
+			},
+			{
+				label: "Pick a date…",
+				onPick: () => void pickDate(ctx, task, "due"),
+			},
+		],
 		onClear: task.meta.due
 			? () => void ctx.mutator.setField(task, "due", null)
 			: undefined,
 	});
 
-	action(actions, {
+	action(actions, ctx, {
+		id: "repeat",
 		icon: "repeat",
 		label: task.meta.repeat ? capitalise(task.meta.repeat) : "Repeat",
 		active: !!task.meta.repeat,
-		onClick: (e) => repeatMenu(e, ctx, task),
+		expands: true,
+		options: REPEATS.map((r) => ({
+			label: r.label,
+			selected: task.meta.repeat === r.value,
+			onPick: () => void ctx.mutator.setField(task, "repeat", r.value),
+		})),
 		onClear: task.meta.repeat
 			? () => void ctx.mutator.setField(task, "repeat", null)
 			: undefined,
@@ -196,24 +244,42 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	});
 }
 
-/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ *
+ * An action row, optionally expanding into a row of choices.
+ * ------------------------------------------------------------------ */
+
+interface PickOption {
+	label: string;
+	selected?: boolean;
+	onPick: () => void;
+}
 
 interface ActionOpts {
+	/** Identifies which row is open, so only one is at a time. */
+	id: string;
 	icon: string;
 	label: string;
 	sub?: string;
 	active?: boolean;
 	danger?: boolean;
-	onClick: (e: MouseEvent) => void;
+	/** When set, clicking the row reveals `options` beneath it. */
+	expands?: boolean;
+	options?: PickOption[];
+	onClick?: () => void;
 	onClear?: () => void;
 }
 
-function action(parent: HTMLElement, o: ActionOpts): void {
-	const row = parent.createDiv({ cls: "lv-action" });
+function action(parent: HTMLElement, ctx: ViewContext, o: ActionOpts): void {
+	const open = ctx.state.openAction === o.id;
+
+	const wrap = parent.createDiv({ cls: "lv-action-wrap" });
+	const row = wrap.createDiv({ cls: "lv-action" });
 	row.toggleClass("is-active", !!o.active);
 	row.toggleClass("is-danger", !!o.danger);
+	row.toggleClass("is-open", open);
 	row.setAttribute("tabindex", "0");
 	row.setAttribute("role", "button");
+	if (o.expands) row.setAttribute("aria-expanded", String(open));
 
 	const icon = row.createDiv({ cls: "lv-action-icon" });
 	setIcon(icon, o.icon);
@@ -222,16 +288,30 @@ function action(parent: HTMLElement, o: ActionOpts): void {
 	text.createDiv({ cls: "lv-action-label", text: o.label });
 	if (o.sub) text.createDiv({ cls: "lv-action-sub", text: o.sub });
 
+	const activate = () => {
+		if (o.expands) {
+			ctx.state.openAction = open ? null : o.id;
+			ctx.render();
+			return;
+		}
+		o.onClick?.();
+	};
+
 	row.addEventListener("click", (e) => {
 		if ((e.target as HTMLElement).closest(".lv-action-clear")) return;
-		o.onClick(e);
+		activate();
 	});
 	row.addEventListener("keydown", (e) => {
 		if (e.key === "Enter" || e.key === " ") {
 			e.preventDefault();
-			o.onClick(e as unknown as MouseEvent);
+			activate();
 		}
 	});
+
+	if (o.expands) {
+		const chev = row.createDiv({ cls: "lv-action-chevron" });
+		setIcon(chev, open ? "chevron-up" : "chevron-down");
+	}
 
 	if (o.onClear) {
 		const clear = row.createDiv({ cls: "lv-action-clear" });
@@ -239,7 +319,25 @@ function action(parent: HTMLElement, o: ActionOpts): void {
 		clear.setAttribute("aria-label", `Clear ${o.label}`);
 		clear.addEventListener("click", (e) => {
 			e.stopPropagation();
+			ctx.state.openAction = null;
 			o.onClear?.();
+		});
+	}
+
+	if (!open || !o.options?.length) return;
+
+	const options = wrap.createDiv({ cls: "lv-action-options" });
+	for (const opt of o.options) {
+		const chip = options.createEl("button", {
+			cls: "lv-chip",
+			text: opt.label,
+		});
+		chip.toggleClass("is-selected", !!opt.selected);
+		chip.addEventListener("click", (e) => {
+			e.stopPropagation();
+			// Collapse on choose: the row's own label now shows the answer.
+			ctx.state.openAction = null;
+			opt.onPick();
 		});
 	}
 }
@@ -255,83 +353,6 @@ function addDays(n: number): string {
 function daysUntilWeekday(target: number): number {
 	const diff = (target - new Date().getDay() + 7) % 7;
 	return diff === 0 ? 7 : diff;
-}
-
-function dueMenu(e: MouseEvent, ctx: ViewContext, task: Task): void {
-	const menu = new Menu();
-	const set = (v: string | null) => void ctx.mutator.setField(task, "due", v);
-
-	menu.addItem((i) => i.setTitle("Today").setIcon("calendar").onClick(() => set(todayISO())));
-	menu.addItem((i) => i.setTitle("Tomorrow").setIcon("calendar").onClick(() => set(addDays(1))));
-	menu.addItem((i) =>
-		i
-			.setTitle("Next week")
-			.setIcon("calendar")
-			.onClick(() => set(addDays(daysUntilWeekday(1))))
-	);
-	menu.addSeparator();
-	menu.addItem((i) =>
-		i
-			.setTitle("Pick a date…")
-			.setIcon("calendar-days")
-			.onClick(() => void pickDate(ctx, task, "due"))
-	);
-	if (task.meta.due) {
-		menu.addSeparator();
-		menu.addItem((i) => i.setTitle("Remove due date").setIcon("x").onClick(() => set(null)));
-	}
-	menu.showAtMouseEvent(e);
-}
-
-function repeatMenu(e: MouseEvent, ctx: ViewContext, task: Task): void {
-	const menu = new Menu();
-	for (const r of REPEATS) {
-		menu.addItem((i) =>
-			i
-				.setTitle(r.label)
-				.setChecked(task.meta.repeat === r.value)
-				.onClick(() => void ctx.mutator.setField(task, "repeat", r.value))
-		);
-	}
-	if (task.meta.repeat) {
-		menu.addSeparator();
-		menu.addItem((i) =>
-			i
-				.setTitle("Never repeat")
-				.setIcon("x")
-				.onClick(() => void ctx.mutator.setField(task, "repeat", null))
-		);
-	}
-	menu.showAtMouseEvent(e);
-}
-
-function reminderMenu(e: MouseEvent, ctx: ViewContext, task: Task): void {
-	const menu = new Menu();
-	for (const t of ["09:00", "12:00", "17:00", "20:00"]) {
-		menu.addItem((i) =>
-			i
-				.setTitle(formatTime(t))
-				.setChecked(task.meta.reminder === t)
-				.onClick(() => void ctx.mutator.setField(task, "reminder", t))
-		);
-	}
-	menu.addSeparator();
-	menu.addItem((i) =>
-		i
-			.setTitle("Pick a time…")
-			.setIcon("clock")
-			.onClick(() => void pickTime(ctx, task))
-	);
-	if (task.meta.reminder) {
-		menu.addSeparator();
-		menu.addItem((i) =>
-			i
-				.setTitle("Remove reminder")
-				.setIcon("x")
-				.onClick(() => void ctx.mutator.setField(task, "reminder", null))
-		);
-	}
-	menu.showAtMouseEvent(e);
 }
 
 async function pickDate(

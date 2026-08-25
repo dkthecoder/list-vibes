@@ -12,7 +12,8 @@ import { renderListsPane } from "../src/views/panes/ListsPane";
 import { renderTasksPane } from "../src/views/panes/TasksPane";
 import { renderDetailPane } from "../src/views/panes/DetailPane";
 import { todayISO } from "../src/model/store";
-import { SortKey, partitionCompleted, sortTasks } from "../src/model/sort";
+import { SortKey } from "../src/model/sort";
+import { ListColor, ViewMode } from "../src/model/types";
 
 installDomHelpers();
 
@@ -36,6 +37,9 @@ for (const [path, content] of Object.entries(FILES)) {
 const lists: TaskList[] = Object.entries(FIXED).map(([path, content]) =>
 	parseFile(content, path)
 );
+// A colour on the work list, so the accent treatment is visible.
+const work = lists.find((l) => l.path.includes("Work To-Dos"));
+if (work) work.config.color = "teal";
 
 /* ---- A store standing in for ListStore, same shape ---- */
 const store = {
@@ -66,9 +70,11 @@ const state: ViewState = {
 	pane: "tasks",
 	completedOpen: false,
 	composing: false,
+	openAction: null,
 };
 
 let sortKey: SortKey = "custom";
+let viewMode: ViewMode = "list";
 
 const noop = async () => undefined;
 const mutator = new Proxy({}, { get: () => noop }) as ViewContext["mutator"];
@@ -104,6 +110,13 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			sortKey = k;
 			paint();
 		},
+		viewMode: () => viewMode,
+		setViewMode: (m: ViewMode) => {
+			viewMode = m;
+			paint();
+		},
+		setColor: (_p: string, _c: ListColor | null) => undefined,
+		renameList: (_p: string, _n: string) => undefined,
 	};
 }
 
@@ -139,6 +152,19 @@ function renderInto(
 function paint(): void {
 	// Desktop, two columns, detail sliding over the task list.
 	renderInto(document.getElementById("desktop") as HTMLElement, true, "tasks", true);
+
+	// Cards layout, the Google Keep-style wall.
+	viewMode = "cards";
+	const savedSel = state.selectedTask;
+	state.selectedTask = null;
+	renderInto(document.getElementById("cards") as HTMLElement, true, "tasks", false);
+	viewMode = "list";
+	state.selectedTask = savedSel;
+
+	// The detail panel with an action row expanded inline.
+	state.openAction = "due";
+	renderInto(document.getElementById("picker") as HTMLElement, true, "tasks", true);
+	state.openAction = null;
 
 	// Desktop with no task selected: 1-5 rating mode and the add box expanded.
 	const wasComposing = state.composing;

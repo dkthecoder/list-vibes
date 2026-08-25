@@ -129,10 +129,36 @@ export function blockRange(task: Task): { start: number; end: number } {
 	return { start: task.line, end: max + 1 };
 }
 
+/** How a list's tasks are laid out. */
+export type ViewMode = "list" | "cards";
+
+/**
+ * The named colours a list can carry. Stored by name rather than as a hex
+ * value so the actual colour can differ between light and dark themes.
+ */
+export const LIST_COLORS = [
+	"red",
+	"orange",
+	"yellow",
+	"green",
+	"teal",
+	"blue",
+	"purple",
+	"pink",
+	"grey",
+] as const;
+
+export type ListColor = (typeof LIST_COLORS)[number];
+
+export function isListColor(v: unknown): v is ListColor {
+	return typeof v === "string" && (LIST_COLORS as readonly string[]).includes(v);
+}
+
 /** Frontmatter settings a list file may carry. */
 export interface ListConfig {
 	icon?: string;
-	color?: string;
+	color?: ListColor;
+	view?: ViewMode;
 	sort?: "manual" | "due" | "priority" | "alpha" | "created";
 	showCompleted?: "collapsed" | "expanded" | "hidden";
 	defaultDue?: string;

@@ -1,5 +1,6 @@
-import { App, MarkdownView, TFile } from "obsidian";
+import { App, MarkdownView, Notice, TFile } from "obsidian";
 import { parseLine } from "./parse";
+import { setFrontmatterKey } from "./frontmatter";
 import {
 	newTaskLine,
 	setField,
@@ -259,6 +260,74 @@ export class Mutator {
 				0,
 				insert
 			);
+		}
+	}
+
+	/* ---------------------------------------------------------------- *
+	 * List operations
+	 * ---------------------------------------------------------------- */
+
+	/**
+	 * Set or clear one frontmatter key on a list file.
+	 *
+	 * Goes through setFrontmatterKey rather than Obsidian's processFrontMatter,
+	 * which round-trips the block through a YAML parser and can reorder keys.
+	 * These files are the user's — one of them is a Kanban board whose plugin
+	 * reads its own frontmatter back.
+	 */
+	async setListConfig(
+		listPath: string,
+		key: string,
+		value: string | null
+	): Promise<void> {
+		const file = this.fileFor(listPath);
+		if (!file) return;
+
+		const editor = this.editorFor(listPath);
+		if (editor) {
+			const before = editor.getValue();
+			const after = setFrontmatterKey(before, key, value);
+			if (after === before) return;
+			editor.setValue(after);
+			return;
+		}
+
+		await this.app.vault.process(file, (data) => setFrontmatterKey(data, key, value));
+	}
+
+	/**
+	 * Rename a list. The list's name IS its filename, so this renames the file
+	 * and lets Obsidian update any links pointing at it.
+	 *
+	 * Returns the new path, or null if it did not happen.
+	 */
+	async renameList(listPath: string, name: string): Promise<string | null> {
+		const file = this.fileFor(listPath);
+		if (!file) return null;
+
+		// Strip what macOS and Obsidian will not accept in a filename, rather
+		// than failing on it.
+		const clean = name
+			.replace(/[\\/:*?"<>|#^[\]]/g, "")
+			.replace(/\s+/g, " ")
+			.trim();
+		if (!clean) return null;
+
+		const parent = file.parent?.path ?? "";
+		const target = (parent && parent !== "/" ? `${parent}/` : "") + `${clean}.md`;
+		if (target === listPath) return null;
+
+		if (this.app.vault.getAbstractFileByPath(target)) {
+			new Notice(`A list called "${clean}" already exists.`);
+			return null;
+		}
+
+		try {
+			await this.app.fileManager.renameFile(file, target);
+			return target;
+		} catch (err) {
+			new Notice(`Could not rename: ${String(err)}`);
+			return null;
 		}
 	}
 

@@ -1,7 +1,8 @@
 import { Menu, setIcon } from "obsidian";
 import { SMART_VIEWS, ViewContext } from "../context";
-import { Task, isComplete } from "../../model/types";
+import { Task, TaskList, ViewMode, isComplete } from "../../model/types";
 import { renderTaskRow } from "../../ui/TaskRow";
+import { renderTaskCard } from "../../ui/TaskCard";
 import { todayISO } from "../../model/store";
 import { SORT_OPTIONS, partitionCompleted, sortTasks } from "../../model/sort";
 
@@ -15,6 +16,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	const isSmart = sel.kind === "smart";
 	const list = sel.kind === "list" ? ctx.store.getList(sel.path) : undefined;
+	if (list?.config.color) pane.addClass(`lv-color-${list.config.color}`);
 
 	/* ---------------- header ---------------- */
 	const header = pane.createDiv({ cls: "lv-header" });
@@ -30,10 +32,39 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	if (isSmart) {
 		const v = SMART_VIEWS.find((s) => s.id === sel.view);
 		titleWrap.createSpan({ text: v?.label ?? "Tasks" });
-	} else {
-		if (list?.config.icon)
+	} else if (list) {
+		if (list.config.icon)
 			titleWrap.createSpan({ cls: "lv-header-icon", text: list.config.icon });
-		titleWrap.createSpan({ text: list?.name ?? "List" });
+
+		// The name IS the filename, so editing it here renames the file.
+		const nameEl = titleWrap.createSpan({ cls: "lv-header-name", text: list.name });
+		nameEl.setAttribute("contenteditable", "plaintext-only");
+		nameEl.setAttribute("role", "textbox");
+		nameEl.setAttribute("aria-label", "List name, edit to rename the file");
+		nameEl.setAttribute("spellcheck", "false");
+
+		const commit = () => {
+			const next = (nameEl.textContent ?? "").trim();
+			if (!next || next === list.name) {
+				nameEl.setText(list.name);
+				return;
+			}
+			ctx.renameList(list.path, next);
+		};
+		nameEl.addEventListener("blur", commit);
+		nameEl.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				nameEl.blur();
+			}
+			if (e.key === "Escape") {
+				e.preventDefault();
+				nameEl.setText(list.name);
+				nameEl.blur();
+			}
+		});
+	} else {
+		titleWrap.createSpan({ text: "List" });
 	}
 
 	if (!isSmart && list) {
@@ -58,6 +89,18 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			menu.showAtMouseEvent(e);
 		});
 
+		const mode = ctx.viewMode();
+		const layout = header.createDiv({ cls: "lv-header-action" });
+		layout.toggleClass("is-active", mode === "cards");
+		setIcon(layout, mode === "cards" ? "layout-grid" : "list");
+		layout.setAttribute(
+			"aria-label",
+			mode === "cards" ? "Switch to rows" : "Switch to cards"
+		);
+		layout.addEventListener("click", () =>
+			ctx.setViewMode(mode === "cards" ? "list" : "cards")
+		);
+
 		const more = header.createDiv({ cls: "lv-header-action" });
 		setIcon(more, "more-horizontal");
 		more.setAttribute("aria-label", "List options");
@@ -69,6 +112,28 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 					.setIcon("list-todo")
 					.onClick(() => ctx.openInNewTab({ kind: "list", path: list.path }))
 			);
+			menu.addItem((i) =>
+				i
+					.setTitle("Rename")
+					.setIcon("pencil")
+					.onClick(() => {
+						const el = header.querySelector<HTMLElement>(".lv-header-name");
+						el?.focus();
+						// Select the whole name so typing replaces it.
+						const range = document.createRange();
+						if (el) range.selectNodeContents(el);
+						const s = window.getSelection();
+						s?.removeAllRanges();
+						if (el) s?.addRange(range);
+					})
+			);
+			menu.addItem((i) =>
+				i
+					.setTitle("Change colour")
+					.setIcon("palette")
+					.onClick(() => void pickColor(ctx, list))
+			);
+			menu.addSeparator();
 			menu.addItem((i) =>
 				i
 					.setTitle("Open as note")
@@ -116,7 +181,8 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	// Headings only make sense while the file's own order is intact.
 	const grouped = sortKey === "custom" && !isSmart;
-	renderTasks(scroll, open, ctx, { grouped, showList: isSmart });
+	const mode = isSmart ? "list" : ctx.viewMode();
+	renderTasks(scroll, open, ctx, { grouped, showList: isSmart, mode });
 
 	/* ---------------- completed ---------------- */
 	const showCompleted =
@@ -148,7 +214,11 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 		if (ctx.state.completedOpen) {
 			const body = section.createDiv({ cls: "lv-completed-body" });
-			for (const t of done) renderTaskRow(body, t, ctx, { showList: isSmart });
+			body.toggleClass("lv-cards", mode === "cards");
+			for (const t of done) {
+				if (mode === "cards") renderTaskCard(body, t, ctx, { showList: isSmart });
+				else renderTaskRow(body, t, ctx, { showList: isSmart });
+			}
 		}
 	}
 
@@ -158,16 +228,23 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	}
 }
 
-/** Render tasks, optionally grouped under their source headings. */
+/** Render tasks as rows or cards, optionally grouped under their headings. */
 function renderTasks(
 	scroll: HTMLElement,
 	tasks: Task[],
 	ctx: ViewContext,
-	opts: { grouped: boolean; showList: boolean }
+	opts: { grouped: boolean; showList: boolean; mode: ViewMode }
 ): void {
+	const cards = opts.mode === "cards";
+	const cls = cards ? "lv-group lv-cards" : "lv-group";
+	const draw = (parent: HTMLElement, t: Task) =>
+		cards
+			? renderTaskCard(parent, t, ctx, { showList: opts.showList })
+			: renderTaskRow(parent, t, ctx, { showList: opts.showList });
+
 	if (!opts.grouped) {
-		const group = scroll.createDiv({ cls: "lv-group" });
-		for (const t of tasks) renderTaskRow(group, t, ctx, { showList: opts.showList });
+		const group = scroll.createDiv({ cls });
+		for (const t of tasks) draw(group, t);
 		return;
 	}
 
@@ -178,10 +255,19 @@ function renderTasks(
 		if (t.section !== current || !container) {
 			current = t.section;
 			if (t.section) scroll.createDiv({ cls: "lv-section", text: t.section });
-			container = scroll.createDiv({ cls: "lv-group" });
+			container = scroll.createDiv({ cls });
 		}
-		renderTaskRow(container, t, ctx, { showList: opts.showList });
+		draw(container, t);
 	}
+}
+
+async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
+	const { ColorModal } = await import("../../ui/ColorModal");
+	new ColorModal(ctx.app, {
+		listName: list.name,
+		current: list.config.color,
+		onPick: (color) => ctx.setColor(list.path, color),
+	}).open();
 }
 
 /* ------------------------------------------------------------------ *

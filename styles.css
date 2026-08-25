@@ -4,6 +4,7 @@
    ------------------------------------------------------------------ */
 
 .lv-root {
+	position: relative;
 	--lv-row-height: 44px; /* touch target floor */
 	--lv-gutter: 12px;
 	--lv-radius: 8px;
@@ -772,6 +773,9 @@
 	top: 0;
 	right: 0;
 	bottom: 0;
+	/* Belt and braces: the shell is the containing block, but if a theme ever
+	   unsets its position this keeps the panel inside the pane. */
+	max-height: 100%;
 	z-index: 11;
 	display: flex;
 	width: min(360px, 100%);
@@ -792,9 +796,14 @@
 	border-left: 1px solid var(--background-modifier-border);
 }
 
-/* On a phone the panel takes the full width, so it reads as a screen. */
+/*
+ * Never full width. At 100% there is nothing behind it, so it stops reading as
+ * something laid over the list and just looks like the view changed. Leaving a
+ * strip of the list and backdrop showing is what makes it legible as an overlay,
+ * and it doubles as an obvious tap target for dismissing it.
+ */
 .lv-root.is-narrow .lv-overlay {
-	width: 100%;
+	width: calc(100% - 44px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -946,4 +955,359 @@
 /* The detail panel gives the rating more room than a list row. */
 .lv-detail-title .lv-rating {
 	align-self: flex-start;
+}
+
+
+/* ------------------------------------------------------------------
+   List colours
+
+   Stored by name, resolved here, so the same list reads correctly in a
+   light and a dark theme rather than being pinned to one hex value.
+   ------------------------------------------------------------------ */
+
+.lv-color-red    { --lv-accent: #d64545; }
+.lv-color-orange { --lv-accent: #d97706; }
+.lv-color-yellow { --lv-accent: #b59000; }
+.lv-color-green  { --lv-accent: #3f9142; }
+.lv-color-teal   { --lv-accent: #0f8b8d; }
+.lv-color-blue   { --lv-accent: #3b74d6; }
+.lv-color-purple { --lv-accent: #7c5cd6; }
+.lv-color-pink   { --lv-accent: #cc4b8d; }
+.lv-color-grey   { --lv-accent: #7a8290; }
+
+.theme-dark .lv-color-red    { --lv-accent: #ef7a7a; }
+.theme-dark .lv-color-orange { --lv-accent: #e2a14a; }
+.theme-dark .lv-color-yellow { --lv-accent: #ddc352; }
+.theme-dark .lv-color-green  { --lv-accent: #6bc46f; }
+.theme-dark .lv-color-teal   { --lv-accent: #43bcbe; }
+.theme-dark .lv-color-blue   { --lv-accent: #6f9ff0; }
+.theme-dark .lv-color-purple { --lv-accent: #a68bf0; }
+.theme-dark .lv-color-pink   { --lv-accent: #ea7cb4; }
+.theme-dark .lv-color-grey   { --lv-accent: #9aa3b0; }
+
+/* A coloured list gets a bar, not a wash — a tinted row would fight the
+   selected state and every theme's own background. */
+.lv-nav-row.is-coloured {
+	position: relative;
+}
+
+.lv-nav-row.is-coloured::before {
+	content: "";
+	position: absolute;
+	left: 2px;
+	top: 8px;
+	bottom: 8px;
+	width: 3px;
+	border-radius: 2px;
+	background: var(--lv-accent);
+}
+
+.lv-nav-row.is-coloured .lv-nav-icon {
+	color: var(--lv-accent);
+}
+
+.lv-tasks[class*="lv-color-"] .lv-header {
+	box-shadow: inset 0 -2px 0 var(--lv-accent);
+}
+
+.lv-tasks[class*="lv-color-"] .lv-card-task {
+	border-left: 3px solid var(--lv-accent);
+}
+
+/* ------------------------------------------------------------------
+   Nav row menu button
+   ------------------------------------------------------------------ */
+
+.lv-nav-more {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	flex: 0 0 26px;
+	margin-left: 2px;
+	border-radius: 4px;
+	color: var(--text-faint);
+	opacity: 0;
+}
+
+.lv-nav-more .svg-icon {
+	width: 15px;
+	height: 15px;
+}
+
+.lv-nav-row:hover .lv-nav-more,
+.lv-nav-row.is-selected .lv-nav-more,
+.lv-nav-more:focus-visible {
+	opacity: 1;
+}
+
+.lv-nav-more:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+/* Hover does not exist on touch, so the button is always visible there. */
+.is-mobile .lv-nav-more {
+	opacity: 1;
+}
+
+/* ------------------------------------------------------------------
+   Editable list name
+   ------------------------------------------------------------------ */
+
+.lv-header-name {
+	outline: none;
+	border-radius: 4px;
+	padding: 0 2px;
+	cursor: text;
+}
+
+.lv-header-name:hover {
+	background: var(--background-modifier-hover);
+}
+
+.lv-header-name:focus {
+	background: var(--background-primary);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* ------------------------------------------------------------------
+   Inline action pickers
+
+   These replaced Obsidian Menus. A Menu opens at the cursor and reads as a
+   right-click context menu, which is wrong for a primary control and has
+   nothing to anchor to on touch.
+   ------------------------------------------------------------------ */
+
+.lv-action-wrap + .lv-action-wrap .lv-action {
+	border-top: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+}
+
+.lv-action.is-open {
+	background: var(--background-modifier-hover);
+}
+
+.lv-action-chevron {
+	display: flex;
+	align-items: center;
+	color: var(--text-faint);
+	flex: 0 0 auto;
+}
+
+.lv-action-chevron .svg-icon {
+	width: 15px;
+	height: 15px;
+}
+
+.lv-action-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 4px 12px 12px 44px;
+}
+
+.lv-chip {
+	font-family: inherit;
+	font-size: var(--font-ui-smaller);
+	padding: 6px 12px;
+	min-height: 32px;
+	border: none;
+	border-radius: 16px;
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.lv-chip:hover {
+	background: var(--background-modifier-active-hover, var(--background-secondary));
+}
+
+.lv-chip.is-selected {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent, #fff);
+}
+
+.is-mobile .lv-chip {
+	min-height: 40px;
+	padding: 8px 14px;
+}
+
+/* ------------------------------------------------------------------
+   Colour swatches
+   ------------------------------------------------------------------ */
+
+.lv-swatches {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 10px;
+	padding: 8px 0 16px;
+}
+
+.lv-swatch {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	aspect-ratio: 1;
+	border-radius: 50%;
+	background: var(--lv-accent, var(--background-modifier-border));
+	color: #fff;
+	cursor: pointer;
+	box-shadow: 0 0 0 2px transparent;
+}
+
+.lv-swatch:hover {
+	transform: scale(1.06);
+}
+
+.lv-swatch:focus-visible,
+.lv-swatch.is-selected {
+	box-shadow:
+		0 0 0 2px var(--background-primary),
+		0 0 0 4px var(--interactive-accent);
+}
+
+.lv-swatch-none {
+	background: transparent;
+	border: 2px dashed var(--background-modifier-border);
+	color: var(--text-faint);
+}
+
+.lv-swatch .svg-icon {
+	width: 18px;
+	height: 18px;
+}
+
+/* ------------------------------------------------------------------
+   Cards layout
+
+   A CSS-columns masonry: cards flow top to bottom then wrap, so rows of
+   different heights do not leave the ragged gaps a grid would.
+   ------------------------------------------------------------------ */
+
+.lv-cards {
+	column-count: 2;
+	column-gap: 10px;
+	padding: 0 var(--lv-gutter);
+}
+
+@media (max-width: 560px) {
+	.lv-cards {
+		column-count: 1;
+	}
+}
+
+.lv-root.is-wide .lv-cards {
+	column-count: 3;
+}
+
+.lv-card-task {
+	break-inside: avoid;
+	display: block;
+	margin: 0 0 10px;
+	padding: 12px;
+	border-radius: var(--lv-radius);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	-webkit-touch-callout: none;
+	user-select: none;
+}
+
+.lv-card-task:hover {
+	background: var(--background-modifier-hover);
+}
+
+.lv-card-task.is-selected {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.lv-card-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.lv-card-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.lv-card-task.is-complete .lv-card-title {
+	color: var(--text-muted);
+	text-decoration: line-through;
+}
+
+.lv-card-note {
+	margin: 8px 0 0 32px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.lv-card-steps {
+	margin: 8px 0 0 26px;
+}
+
+.lv-card-step {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 24px;
+}
+
+.lv-card-step-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.lv-card-step.is-complete .lv-card-step-label {
+	text-decoration: line-through;
+	opacity: 0.7;
+}
+
+.lv-card-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 10px 0 0 32px;
+}
+
+.lv-card-chip {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	background: var(--background-modifier-hover);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.lv-card-chip-icon {
+	display: flex;
+	align-items: center;
+}
+
+.lv-card-chip-icon .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.lv-card-chip.is-today {
+	color: var(--interactive-accent);
+}
+
+.lv-card-chip.is-overdue {
+	color: var(--text-error);
 }

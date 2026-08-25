@@ -69,8 +69,16 @@
 				box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 			}
 			#desktop,
-			#desktop2 {
+			#desktop2,
+			#picker,
+			#cards {
 				height: 500px;
+			}
+			#cards {
+				height: 620px;
+			}
+			#picker {
+				height: 640px;
 			}
 			.phones {
 				display: flex;
@@ -105,6 +113,12 @@
 	<body>
 		<h2>Desktop — detail sliding over the list</h2>
 		<div class="frame" id="desktop"></div>
+
+		<h2 style="margin-top: 28px">Detail — action row expanded inline, no context menu</h2>
+		<div class="frame" id="picker"></div>
+
+		<h2 style="margin-top: 28px">Cards — Google Keep-style layout</h2>
+		<div class="frame" id="cards"></div>
 
 		<h2 style="margin-top: 28px">Desktop — 1–5 rating mode, sorted by importance, add box expanded</h2>
 		<div class="frame" id="desktop2"></div>

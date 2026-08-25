@@ -438,3 +438,134 @@ describe("notes", () => {
 		);
 	});
 });
+
+/* ------------------------------------------------------------------ *
+ * List-level operations: config in frontmatter, and renaming the file
+ * ------------------------------------------------------------------ */
+
+describe("list config", () => {
+	for (const open of [false, true]) {
+		const via = open ? "editor" : "process";
+
+		test(`sets a colour on a list with existing frontmatter (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setListConfig(s.path, "color", "red");
+			assert.equal(s.parse().config.color, "red");
+			assert.equal(s.parse().config.icon, "💼", "existing key lost");
+			// Tasks are untouched.
+			assert.equal(s.parse().tasks.length, 3);
+			assert.equal(s.parse().tasks[1].children.length, 2);
+		});
+
+		test(`adds frontmatter to a list that has none (${via})`, async () => {
+			const s = setup("- [ ] Only a task", { open });
+			await s.mutator.setListConfig(s.path, "color", "teal");
+			assert.equal(s.parse().config.color, "teal");
+			assert.equal(s.parse().tasks.length, 1);
+			assert.equal(s.parse().tasks[0].title, "Only a task");
+		});
+
+		test(`clearing a colour removes just that key (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setListConfig(s.path, "color", "red");
+			await s.mutator.setListConfig(s.path, "color", null);
+			assert.equal(s.parse().config.color, undefined);
+			assert.equal(s.parse().config.icon, "💼");
+		});
+
+		test(`setting the same value twice writes once (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setListConfig(s.path, "color", "red");
+			const after = s.read();
+			await s.mutator.setListConfig(s.path, "color", "red");
+			assert.equal(s.read(), after, "second write changed the file");
+		});
+
+		test(`repeated colour changes do not stack duplicate keys (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			for (const c of ["red", "blue", "green"]) {
+				await s.mutator.setListConfig(s.path, "color", c);
+			}
+			assert.equal((s.read().match(/^color:/gm) || []).length, 1);
+			assert.equal(s.parse().config.color, "green");
+		});
+	}
+
+	test("a Kanban board keeps its own frontmatter", async () => {
+		const kanban = [
+			"---",
+			"",
+			"kanban-plugin: board",
+			"",
+			"---",
+			"",
+			"## Monday",
+			"",
+			"- [ ] Gym",
+		].join("\n");
+		const s = setup(kanban);
+		await s.mutator.setListConfig(s.path, "color", "purple");
+		assert.ok(s.read().includes("kanban-plugin: board"), "kanban key lost");
+		assert.equal(s.parse().config.color, "purple");
+		assert.equal(s.parse().tasks.length, 1);
+	});
+
+	test("config on a missing file is a no-op rather than a throw", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.setListConfig("lists/Gone.md", "color", "red");
+		assert.equal(s.read(), SAMPLE);
+	});
+});
+
+describe("rename list", () => {
+	test("renames the file and keeps the content", async () => {
+		const s = setup(SAMPLE);
+		const next = await s.mutator.renameList(s.path, "Groceries");
+		assert.equal(next, "lists/Groceries.md");
+		assert.equal(s.app.__store.get("lists/Groceries.md"), SAMPLE);
+		assert.equal(s.app.__store.has("lists/Test.md"), false, "old file left behind");
+	});
+
+	test("strips characters a filename cannot contain", async () => {
+		const s = setup(SAMPLE);
+		const next = await s.mutator.renameList(s.path, 'We:ird/Na*me?"');
+		assert.equal(next, "lists/WeirdName.md");
+	});
+
+	test("collapses the whitespace left behind by stripping", async () => {
+		const s = setup(SAMPLE);
+		const next = await s.mutator.renameList(s.path, "  Weekly   /  Review  ");
+		assert.equal(next, "lists/Weekly Review.md");
+	});
+
+	test("keeps an emoji prefix, since that is the list icon", async () => {
+		const s = setup(SAMPLE);
+		const next = await s.mutator.renameList(s.path, "📺 Shows");
+		assert.equal(next, "lists/📺 Shows.md");
+	});
+
+	test("refuses a blank name", async () => {
+		const s = setup(SAMPLE);
+		assert.equal(await s.mutator.renameList(s.path, '   /// '), null);
+		assert.equal(s.app.__store.has("lists/Test.md"), true);
+	});
+
+	test("renaming to the same name does nothing", async () => {
+		const s = setup(SAMPLE);
+		assert.equal(await s.mutator.renameList(s.path, "Test"), null);
+		assert.equal(s.app.__store.has("lists/Test.md"), true);
+	});
+
+	test("refuses to clobber an existing list", async () => {
+		const app = makeApp({ "lists/A.md": "- [ ] a", "lists/B.md": "- [ ] b" });
+		const m = new Mutator(app, OPTS);
+		assert.equal(await m.renameList("lists/A.md", "B"), null);
+		assert.equal(app.__store.get("lists/B.md"), "- [ ] b", "B was overwritten");
+		assert.equal(app.__store.get("lists/A.md"), "- [ ] a", "A was lost");
+	});
+
+	test("renaming a missing file is a no-op", async () => {
+		const s = setup(SAMPLE);
+		assert.equal(await s.mutator.renameList("lists/Gone.md", "X"), null);
+	});
+});

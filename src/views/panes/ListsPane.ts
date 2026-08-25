@@ -1,6 +1,6 @@
-import { Notice, TFile, normalizePath, setIcon } from "obsidian";
+import { Menu, Notice, normalizePath, setIcon } from "obsidian";
 import { SMART_VIEWS, Selection, ViewContext, sameSelection } from "../context";
-import { isComplete } from "../../model/types";
+import { ListColor, TaskList, isComplete } from "../../model/types";
 
 /** Left pane: smart views, then one row per list file in the folder. */
 export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
@@ -48,10 +48,12 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			emoji: list.config.icon ?? undefined,
 			label: list.name,
 			count: open,
+			color: list.config.color,
 			selected: sameSelection(ctx.state.selection, { kind: "list", path: list.path }),
 			onClick: () => ctx.select({ kind: "list", path: list.path }),
 			onNewTab: () => ctx.openInNewTab({ kind: "list", path: list.path }),
-			onContext: (e) => showListMenu(e, ctx, list.path, list.name),
+			onContext: (e) => showListMenu(e, ctx, list),
+			onMenu: (e) => showListMenu(e, ctx, list),
 		});
 	}
 
@@ -76,15 +78,20 @@ interface RowOpts {
 	count: number;
 	selected: boolean;
 	cls?: string;
+	color?: ListColor;
 	onClick: (e?: MouseEvent) => void;
 	onContext?: (e: MouseEvent) => void;
 	/** Modifier-click and middle-click target, when the row supports it. */
 	onNewTab?: () => void;
+	/** Renders a 3-dots button, so the menu is reachable without right-click. */
+	onMenu?: (e: MouseEvent) => void;
 }
 
 function row(parent: HTMLElement, o: RowOpts): void {
 	const el = parent.createDiv({ cls: "lv-nav-row" });
 	if (o.cls) el.addClass(o.cls);
+	if (o.color) el.addClass(`lv-color-${o.color}`);
+	el.toggleClass("is-coloured", !!o.color);
 	el.toggleClass("is-selected", o.selected);
 	el.setAttribute("tabindex", "0");
 	el.setAttribute("role", "button");
@@ -95,6 +102,25 @@ function row(parent: HTMLElement, o: RowOpts): void {
 
 	el.createDiv({ cls: "lv-nav-label", text: o.label });
 	if (o.count > 0) el.createDiv({ cls: "lv-nav-count", text: String(o.count) });
+
+	if (o.onMenu) {
+		const more = el.createDiv({ cls: "lv-nav-more" });
+		setIcon(more, "more-horizontal");
+		more.setAttribute("aria-label", `Options for ${o.label}`);
+		more.setAttribute("tabindex", "0");
+		const openMenu = (e: MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			o.onMenu?.(e);
+		};
+		more.addEventListener("click", openMenu);
+		more.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				o.onMenu?.(e as unknown as MouseEvent);
+			}
+		});
+	}
 
 	el.addEventListener("click", (e) => {
 		if (o.onNewTab && (e.metaKey || e.ctrlKey)) {
@@ -123,33 +149,53 @@ function row(parent: HTMLElement, o: RowOpts): void {
 function showListMenu(
 	e: MouseEvent,
 	ctx: ViewContext,
-	path: string,
-	name: string
+	list: TaskList
 ): void {
 	e.preventDefault();
-	// Imported lazily to keep the module graph flat.
-	import("obsidian").then(({ Menu }) => {
-		const menu = new Menu();
-		menu.addItem((i) =>
-			i
-				.setTitle("Open in new tab")
-				.setIcon("list-todo")
-				.onClick(() => ctx.openInNewTab({ kind: "list", path }))
-		);
-		menu.addItem((i) =>
-			i
-				.setTitle("Open as note")
-				.setIcon("file-text")
-				.onClick(() => void ctx.app.workspace.openLinkText(path, "", false))
-		);
-		menu.addItem((i) =>
-			i
-				.setTitle("Rename list")
-				.setIcon("pencil")
-				.onClick(() => void renameList(ctx, path, name))
-		);
-		menu.showAtMouseEvent(e);
-	});
+	const menu = new Menu();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Open in new tab")
+			.setIcon("list-todo")
+			.onClick(() => ctx.openInNewTab({ kind: "list", path: list.path }))
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Rename")
+			.setIcon("pencil")
+			.onClick(() => void renameList(ctx, list))
+	);
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Change colour")
+			.setIcon("palette")
+			.onClick(() => void pickColor(ctx, list))
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Open as note")
+			.setIcon("file-text")
+			.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
+	);
+
+	menu.showAtMouseEvent(e);
+}
+
+async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
+	const { ColorModal } = await import("../../ui/ColorModal");
+	new ColorModal(ctx.app, {
+		listName: list.name,
+		current: list.config.color,
+		onPick: (color) => ctx.setColor(list.path, color),
+	}).open();
 }
 
 async function newList(ctx: ViewContext): Promise<void> {
@@ -172,29 +218,13 @@ async function newList(ctx: ViewContext): Promise<void> {
 	}
 }
 
-async function renameList(
-	ctx: ViewContext,
-	path: string,
-	current: string
-): Promise<void> {
+async function renameList(ctx: ViewContext, list: TaskList): Promise<void> {
 	const { PromptModal } = await import("../../ui/PromptModal");
 	new PromptModal(ctx.app, {
 		title: "Rename list",
-		value: current,
+		value: list.name,
 		cta: "Rename",
-		onSubmit: async (value) => {
-			const clean = value.trim().replace(/[\\/:]/g, "");
-			if (!clean || clean === current) return;
-			const file = ctx.app.vault.getAbstractFileByPath(path);
-			if (!(file instanceof TFile)) return;
-			const target = `${file.parent?.path ?? ""}/${clean}.md`.replace(/^\//, "");
-			try {
-				await ctx.app.fileManager.renameFile(file, target);
-				ctx.select({ kind: "list", path: target });
-			} catch (err) {
-				new Notice(`Could not rename: ${String(err)}`);
-			}
-		},
+		onSubmit: (value) => ctx.renameList(list.path, value),
 	}).open();
 }
 

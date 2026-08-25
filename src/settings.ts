@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type ListsPlugin from "./main";
-import { Dialect } from "./model/types";
+import { Dialect, ViewMode } from "./model/types";
 import { SORT_OPTIONS, SortKey } from "./model/sort";
 
 export interface ListsSettings {
@@ -31,6 +31,10 @@ export interface ListsSettings {
 	defaultSort: SortKey;
 	/** Per-list sort choice, keyed by file path. View-only, never written to the file. */
 	sortByList: Record<string, SortKey>;
+	/** Rows or cards, for lists whose file does not say. */
+	defaultView: ViewMode;
+	/** Per-list layout override, keyed by file path. */
+	viewByList: Record<string, ViewMode>;
 	/** Last opened list, restored on reopen. */
 	lastList?: string;
 }
@@ -46,6 +50,8 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	importanceMode: "star",
 	defaultSort: "custom",
 	sortByList: {},
+	defaultView: "list",
+	viewByList: {},
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -149,6 +155,23 @@ export class ListsSettingTab extends PluginSettingTab {
 					this.plugin.refreshViews();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Default layout")
+			.setDesc(
+				"Rows, or a Google Keep-style card wall. A list can override this from its own header, and that choice is saved in the list's frontmatter."
+			)
+			.addDropdown((d) =>
+				d
+					.addOption("list", "Rows")
+					.addOption("cards", "Cards")
+					.setValue(this.plugin.settings.defaultView)
+					.onChange(async (v) => {
+						this.plugin.settings.defaultView = v as ViewMode;
+						await this.plugin.saveSettings();
+						this.plugin.refreshViews();
+					})
+			);
 
 		new Setting(containerEl).setName("Storage").setHeading();
 
