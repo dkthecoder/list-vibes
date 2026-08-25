@@ -1,9 +1,12 @@
-import { Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
+import { App, FuzzySuggestModal, Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
 import { DEFAULT_SETTINGS, ListsSettingTab, ListsSettings } from "./settings";
 import { ListStore, todayISO } from "./model/store";
+import { TaskList } from "./model/types";
 import { Mutator } from "./model/mutate";
 import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
+import { Selection } from "./views/context";
+import { encodeSelection } from "./views/viewState";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
@@ -27,6 +30,7 @@ export default class ListsPlugin extends Plugin {
 		this.addSettingTab(new ListsSettingTab(this.app, this));
 		this.registerCommands();
 		this.registerVaultEvents();
+		this.registerFileMenu();
 
 		// Wait for the vault index before the first read, otherwise the folder
 		// may not be populated yet on a cold start.
@@ -88,6 +92,21 @@ export default class ListsPlugin extends Plugin {
 		);
 	}
 
+	/** "Open as list" on any markdown file inside the lists folder. */
+	private registerFileMenu(): void {
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				if (!(file instanceof TFile) || !this.store.isListFile(file)) return;
+				menu.addItem((i) =>
+					i
+						.setTitle("Open as list")
+						.setIcon("list-todo")
+						.onClick(() => void this.openSelection({ kind: "list", path: file.path }))
+				);
+			})
+		);
+	}
+
 	private registerCommands(): void {
 		this.addCommand({
 			id: "open",
@@ -105,6 +124,12 @@ export default class ListsPlugin extends Plugin {
 		});
 
 		this.addCommand({
+			id: "open-list-in-tab",
+			name: "Open a list in a new tab",
+			callback: () => this.pickList((path) => void this.openSelection({ kind: "list", path })),
+		});
+
+		this.addCommand({
 			id: "quick-add",
 			name: "Add a task",
 			callback: () => this.quickAdd(),
@@ -115,6 +140,20 @@ export default class ListsPlugin extends Plugin {
 			name: "Add a task to My Day",
 			callback: () => this.quickAdd({ myDay: true, due: todayISO() }),
 		});
+	}
+
+	/** Choose a list by name, for commands that need one. */
+	private pickList(onPick: (path: string) => void): void {
+		const lists = this.store.getLists();
+		if (!lists.length) {
+			new Notice(`No lists found in "${this.settings.folder}".`);
+			return;
+		}
+		if (lists.length === 1) {
+			onPick(lists[0].path);
+			return;
+		}
+		new ListSuggestModal(this.app, lists, onPick).open();
 	}
 
 	/** Capture a task without opening the view first. */
@@ -140,6 +179,22 @@ export default class ListsPlugin extends Plugin {
 	}
 
 	/**
+	 * Open a list as a tab in the main workspace.
+	 *
+	 * Each tab carries its own selection through the view's state, so several
+	 * lists can be open side by side and each remembers its own after a restart.
+	 */
+	async openSelection(sel: Selection, newTab = true): Promise<void> {
+		const leaf = this.app.workspace.getLeaf(newTab ? "tab" : false);
+		await leaf.setViewState({
+			type: VIEW_TYPE_LISTS,
+			active: true,
+			state: encodeSelection(sel),
+		});
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	/**
 	 * Open the view in the configured sidebar, or focus it if already open.
 	 * `ensureSideLeaf` is used rather than `getLeftLeaf`, which returns null on
 	 * mobile.
@@ -159,5 +214,30 @@ export default class ListsPlugin extends Plugin {
 			{ reveal: true, active: true }
 		);
 		return (leaf?.view as ListsView) ?? null;
+	}
+}
+
+/** Fuzzy picker over the lists in the folder. */
+class ListSuggestModal extends FuzzySuggestModal<TaskList> {
+	private lists: TaskList[];
+	private onPick: (path: string) => void;
+
+	constructor(app: App, lists: TaskList[], onPick: (path: string) => void) {
+		super(app);
+		this.lists = lists;
+		this.onPick = onPick;
+		this.setPlaceholder("Open which list?");
+	}
+
+	getItems(): TaskList[] {
+		return this.lists;
+	}
+
+	getItemText(list: TaskList): string {
+		return list.config.icon ? `${list.config.icon} ${list.name}` : list.name;
+	}
+
+	onChooseItem(list: TaskList): void {
+		this.onPick(list.path);
 	}
 }

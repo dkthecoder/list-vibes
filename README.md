@@ -21,6 +21,21 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   with Cancel and Add task. The description is written as an indented line
   beneath the task, so it is the same field the detail panel edits.
 
+## Lists as tabs
+
+A list can be a workspace tab, not just a sidebar pane. Cmd/Ctrl-click or
+middle-click a list in the picker, use **Open in new tab** from its context menu,
+right-click the file in the explorer and choose **Open as list**, or run the
+**Open a list in a new tab** command.
+
+Each tab carries its own selection through the view's state, so several lists can
+sit open side by side and every one of them remembers which list it was showing
+after a restart. The tab is titled with the list's name.
+
+In the sidebar the view stays deliberately non-navigable. A navigable sidebar
+leaf is a valid target for opening files, which would mean clicking a note in the
+explorer replaced your Lists pane with that note.
+
 ## Why it works this way
 
 The obvious alternative is one file per task, which is what
@@ -79,7 +94,9 @@ showCompleted: collapsed
 Importance has two modes, set in settings:
 
 - **Star** — on or off, the Microsoft To Do behaviour.
-- **Rating** — 1 to 5 stars, where 5 is most important.
+- **Rating** — 0 to 5 stars, where 5 is most important. Tapping the star you are
+  already on clears it back to zero, so every value is reachable without a
+  separate clear button.
 
 Both write the same priority field. The five Obsidian Tasks glyphs map straight
 onto the rating (5★ `🔺`, 4★ `⏫`, 3★ `🔼`, 2★ `🔽`, 1★ `⏬`), so switching the
@@ -138,12 +155,12 @@ treat dotfiles as hidden and several skip them by default.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 151 tests: parser round-trip, sorting, and the write path
+npm test         # 159 tests: parsing, sorting, view state, and the write path
 ```
 
 ### Test coverage
 
-151 tests across three suites.
+159 tests across four suites.
 
 `test/roundtrip.test.mjs` (80) covers parsing and serialising. The load-bearing
 one reconstructs every fixture file through the edit path with nothing changed
@@ -151,6 +168,9 @@ and asserts the bytes come back identical.
 
 `test/sort.test.mjs` (15) covers sorting and the star scale, including that
 sorting never mutates its input and never touches a raw line.
+
+`test/viewstate.test.mjs` (8) covers the state a tab persists, including that
+junk or older blobs decode to null instead of rendering a broken view.
 
 `test/mutate.test.mjs` (56) covers the write path against an in-memory vault.
 Every behavioural test runs **twice** — once through the Editor API branch and

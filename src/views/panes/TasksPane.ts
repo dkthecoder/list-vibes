@@ -65,6 +65,12 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			const menu = new Menu();
 			menu.addItem((i) =>
 				i
+					.setTitle("Open in new tab")
+					.setIcon("list-todo")
+					.onClick(() => ctx.openInNewTab({ kind: "list", path: list.path }))
+			);
+			menu.addItem((i) =>
+				i
 					.setTitle("Open as note")
 					.setIcon("file-text")
 					.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))

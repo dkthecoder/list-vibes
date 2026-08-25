@@ -6,7 +6,8 @@ const aliasObsidian = {
 	name: "alias-obsidian",
 	setup(build) {
 		build.onResolve({ filter: /^obsidian$/ }, () => ({
-			path: "../obsidian-stub.mjs",
+			// Relative to the bundle's own location, which is test/build/<dir>/.
+			path: "../../obsidian-stub.mjs",
 			external: true,
 		}));
 	},
@@ -23,11 +24,13 @@ await esbuild.build({
 });
 
 await esbuild.build({
-	entryPoints: ["src/model/mutate.ts", "src/model/store.ts"],
+	entryPoints: ["src/model/mutate.ts", "src/model/store.ts", "src/views/viewState.ts"],
 	bundle: true,
 	format: "esm",
 	target: "es2022",
 	platform: "node",
+	// Pin the base so output paths stay flat and predictable as entries are added.
+	outbase: "src",
 	outdir: "test/build",
 	plugins: [aliasObsidian],
 	logLevel: "warning",

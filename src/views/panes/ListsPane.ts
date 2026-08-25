@@ -19,6 +19,7 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			selected: sameSelection(ctx.state.selection, { kind: "smart", view: v.id }),
 			cls: `lists-smart-${v.id}`,
 			onClick: () => ctx.select({ kind: "smart", view: v.id }),
+			onNewTab: () => ctx.openInNewTab({ kind: "smart", view: v.id }),
 		});
 	}
 
@@ -49,6 +50,7 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			count: open,
 			selected: sameSelection(ctx.state.selection, { kind: "list", path: list.path }),
 			onClick: () => ctx.select({ kind: "list", path: list.path }),
+			onNewTab: () => ctx.openInNewTab({ kind: "list", path: list.path }),
 			onContext: (e) => showListMenu(e, ctx, list.path, list.name),
 		});
 	}
@@ -74,8 +76,10 @@ interface RowOpts {
 	count: number;
 	selected: boolean;
 	cls?: string;
-	onClick: () => void;
+	onClick: (e?: MouseEvent) => void;
 	onContext?: (e: MouseEvent) => void;
+	/** Modifier-click and middle-click target, when the row supports it. */
+	onNewTab?: () => void;
 }
 
 function row(parent: HTMLElement, o: RowOpts): void {
@@ -92,7 +96,21 @@ function row(parent: HTMLElement, o: RowOpts): void {
 	el.createDiv({ cls: "lists-nav-label", text: o.label });
 	if (o.count > 0) el.createDiv({ cls: "lists-nav-count", text: String(o.count) });
 
-	el.addEventListener("click", o.onClick);
+	el.addEventListener("click", (e) => {
+		if (o.onNewTab && (e.metaKey || e.ctrlKey)) {
+			e.preventDefault();
+			o.onNewTab();
+			return;
+		}
+		o.onClick(e);
+	});
+	// Middle-click opens in a new tab, as it does everywhere else in Obsidian.
+	el.addEventListener("auxclick", (e) => {
+		if (e.button === 1 && o.onNewTab) {
+			e.preventDefault();
+			o.onNewTab();
+		}
+	});
 	el.addEventListener("keydown", (e) => {
 		if (e.key === "Enter" || e.key === " ") {
 			e.preventDefault();
@@ -112,6 +130,12 @@ function showListMenu(
 	// Imported lazily to keep the module graph flat.
 	import("obsidian").then(({ Menu }) => {
 		const menu = new Menu();
+		menu.addItem((i) =>
+			i
+				.setTitle("Open in new tab")
+				.setIcon("list-todo")
+				.onClick(() => ctx.openInNewTab({ kind: "list", path }))
+		);
 		menu.addItem((i) =>
 			i
 				.setTitle("Open as note")

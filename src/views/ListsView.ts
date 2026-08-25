@@ -1,4 +1,4 @@
-import { ItemView, Scope, WorkspaceLeaf } from "obsidian";
+import { ItemView, Scope, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import type ListsPlugin from "../main";
 import { PaneName, Selection, ViewContext, ViewState } from "./context";
 import { renderListsPane } from "./panes/ListsPane";
@@ -6,6 +6,7 @@ import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { Task } from "../model/types";
 import { SortKey } from "../model/sort";
+import { decodeSelection, encodeSelection, selectionTitle } from "./viewState";
 
 export const VIEW_TYPE_LISTS = "lists-view";
 
@@ -24,6 +25,8 @@ export class ListsView extends ItemView {
 	private queued = false;
 	/** Whether the overlay was on screen last paint, so it only animates in once. */
 	private detailWasOpen = false;
+	/** Guards the setViewState round trip from re-entering itself. */
+	private persisting = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ListsPlugin) {
 		super(leaf);
@@ -43,12 +46,22 @@ export class ListsView extends ItemView {
 		return VIEW_TYPE_LISTS;
 	}
 
+	/** True when this view is a tab in the main workspace rather than a sidebar. */
+	private inMainWorkspace(): boolean {
+		return this.leaf.getRoot() === this.app.workspace.rootSplit;
+	}
+
 	/**
-	 * Shown as a tooltip on desktop, but as a real text label in the mobile
-	 * drawer's tab list — so this needs to read as a name, not a description.
+	 * In a workspace tab this is the tab's title, so it names the list. In a
+	 * sidebar it is the pane name — and on mobile it is a real text label in the
+	 * drawer's tab list, not just a tooltip — so there it stays generic.
 	 */
 	getDisplayText(): string {
-		return "Lists";
+		if (!this.inMainWorkspace()) return "Lists";
+		const sel = this.state.selection;
+		const name =
+			sel.kind === "list" ? this.plugin.store.getList(sel.path)?.name : undefined;
+		return selectionTitle(sel, name);
 	}
 
 	getIcon(): string {
@@ -56,6 +69,13 @@ export class ListsView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		// Navigable only as a workspace tab, so it joins back/forward history
+		// there. It must stay false in a sidebar: a navigable sidebar leaf is a
+		// valid target for opening files, and clicking a note in the explorer
+		// would replace the Lists pane with that note. Placement is only known
+		// once the leaf is attached, so this cannot be set in the constructor.
+		this.navigation = this.inMainWorkspace();
+
 		this.contentEl.addClass("lists-root");
 		this.unsubscribe = this.plugin.store.onChange(() => this.render());
 
@@ -82,6 +102,27 @@ export class ListsView extends ItemView {
 		this.observer = null;
 	}
 
+	/** Persisted by Obsidian per leaf, so every tab keeps its own list. */
+	getState(): Record<string, unknown> {
+		return encodeSelection(this.state.selection) as Record<string, unknown>;
+	}
+
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
+		// A leaf can be dragged between the sidebar and the main area.
+		this.navigation = this.inMainWorkspace();
+
+		const sel = decodeSelection(state);
+		if (sel) {
+			this.state.selection = sel;
+			this.state.selectedTask = null;
+			this.state.composing = false;
+			// Opening a list in a tab starts you in the list, not the picker.
+			this.state.pane = "tasks";
+		}
+		result.history = true;
+		this.render();
+	}
+
 	onResize(): void {
 		const wide = this.contentEl.clientWidth >= WIDE_BREAKPOINT;
 		if (wide !== this.wide) this.render();
@@ -93,6 +134,21 @@ export class ListsView extends ItemView {
 		this.state.selectedTask = null;
 		this.state.pane = "tasks";
 		this.render();
+	}
+
+	/** Push the current selection back into the leaf so the tab title follows it. */
+	private async persistState(): Promise<void> {
+		if (this.persisting) return;
+		this.persisting = true;
+		try {
+			await this.leaf.setViewState({
+				type: VIEW_TYPE_LISTS,
+				active: true,
+				state: this.getState(),
+			});
+		} finally {
+			this.persisting = false;
+		}
 	}
 
 	private closeDetail(): void {
@@ -121,6 +177,10 @@ export class ListsView extends ItemView {
 				}
 				this.state.pane = "tasks";
 				this.render();
+				// In a workspace tab the header shows the list name, so the tab has
+				// to be told the state changed. setViewState is the public way to do
+				// that; it re-enters setState harmlessly.
+				if (this.inMainWorkspace()) void this.persistState();
 			},
 
 			selectTask: (task: Task | null) => {
@@ -134,6 +194,8 @@ export class ListsView extends ItemView {
 				this.state.pane = pane;
 				this.render();
 			},
+
+			openInNewTab: (sel: Selection) => void this.plugin.openSelection(sel, true),
 
 			sortKey: () => {
 				const sel = this.state.selection;

@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { Mutator } from "./build/mutate.js";
+import { Mutator } from "./build/model/mutate.js";
 import { makeApp } from "./obsidian-stub.mjs";
 import { parseFile } from "./model.mjs";
 

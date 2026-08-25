@@ -37,6 +37,8 @@ export interface ViewContext {
 	select: (sel: Selection) => void;
 	selectTask: (task: Task | null) => void;
 	showPane: (pane: PaneName) => void;
+	/** Open a selection as its own tab in the main workspace. */
+	openInNewTab: (sel: Selection) => void;
 	/** Sort for the current list: per-list choice, then frontmatter, then default. */
 	sortKey: () => SortKey;
 	setSortKey: (key: SortKey) => void;
