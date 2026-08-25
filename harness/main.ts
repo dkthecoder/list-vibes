@@ -106,13 +106,20 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		settings: { ...DEFAULT_SETTINGS, importanceMode },
 		state,
 		wide,
+		listOnly: false,
+		showPicker: () => undefined,
 		render: () => paint(),
 		save: noop,
 		select: (sel: Selection) => {
 			state.selection = sel;
 			state.selectedTask = null;
 			if (!wide) state.pane = "tasks";
-			paint();
+			// Mirrors ListsView: picking a list moves the highlight in place rather
+			// than repainting the picker. Repainting here would destroy the row
+			// under the pointer, and the harness would then hide the very bug that
+			// behaviour exists to avoid.
+			calls.push(["select", sel]);
+			markSelected();
 		},
 		selectTask: (t: Task | null) => {
 			state.selectedTask = t ? { filePath: t.filePath, line: t.line } : null;
@@ -134,8 +141,12 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		},
 		defaultViewMode: () => "list",
 		setDefaultViewMode: () => undefined,
-		setColor: (_p: string, _c: ListColor | null) => undefined,
-		renameList: (_p: string, _n: string) => undefined,
+		setColor: (p: string, c: ListColor | null) => {
+			calls.push(["setColor", p, c]);
+		},
+		renameList: (p: string, n: string) => {
+			calls.push(["renameList", p, n]);
+		},
 	};
 }
 
@@ -166,6 +177,16 @@ function renderInto(
 		renderDetailPane(overlay, ctx);
 		void backdrop;
 	}
+}
+
+/** Move the picker highlight without a repaint, as the real view does. */
+function markSelected(): void {
+	const key = state.selection.kind === "list"
+		? `list:${state.selection.path}`
+		: `smart:${state.selection.view}`;
+	document.querySelectorAll<HTMLElement>(".lv-nav-row[data-lv-sel]").forEach((el) => {
+		el.toggleClass("is-selected", el.dataset.lvSel === key);
+	});
 }
 
 function paint(): void {

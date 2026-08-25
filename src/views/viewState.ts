@@ -147,3 +147,19 @@ export function chooseTab(
 
 	return { action: "new" };
 }
+
+/**
+ * A stable string identifying a selection, for marking the picker row that is
+ * currently open.
+ *
+ * Selecting a list used to repaint the whole picker just to move one highlight,
+ * which destroyed the row under the pointer — so a double-click to rename never
+ * survived its own first click. The rows now carry this key and the highlight
+ * moves between them in place.
+ *
+ * The two kinds are prefixed rather than concatenated raw, so a list that
+ * happens to be called "myday" can never collide with the smart view.
+ */
+export function selectionKey(sel: Selection): string {
+	return sel.kind === "list" ? `list:${sel.path}` : `smart:${sel.view}`;
+}

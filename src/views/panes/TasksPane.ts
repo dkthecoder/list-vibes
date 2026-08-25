@@ -4,6 +4,7 @@ import { Task, TaskList, ViewMode, isComplete } from "../../model/types";
 import { renderTaskRow } from "../../ui/TaskRow";
 import { renderTaskCard } from "../../ui/TaskCard";
 import { makeDragSortable } from "../../ui/dragSort";
+import { editName, makeEditableName } from "../../ui/editableName";
 import { todayISO } from "../../model/store";
 import { SORT_OPTIONS, partitionCompleted, sortTasks } from "../../model/sort";
 
@@ -24,11 +25,19 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	/* ---------------- header ---------------- */
 	const header = pane.createDiv({ cls: "lv-header" });
 
-	if (!ctx.wide) {
+	/*
+	 * A way back to the picker. In a narrow pane that is the other half of this
+	 * view; in a tab the picker lives in the sidebar, so the same control reveals
+	 * it. Without this a tab opened from the sidebar is a dead end whenever the
+	 * sidebar itself has been closed.
+	 */
+	if (!ctx.wide || ctx.listOnly) {
 		const back = header.createDiv({ cls: "lv-back" });
 		setIcon(back, "chevron-left");
 		back.setAttribute("aria-label", "Back to lists");
-		back.addEventListener("click", () => ctx.showPane("nav"));
+		back.addEventListener("click", () =>
+			ctx.listOnly ? ctx.showPicker() : ctx.showPane("nav")
+		);
 	}
 
 	const titleWrap = header.createDiv({ cls: "lv-header-title" });
@@ -39,32 +48,13 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		if (list.config.icon)
 			titleWrap.createSpan({ cls: "lv-header-icon", text: list.config.icon });
 
-		// The name IS the filename, so editing it here renames the file.
-		const nameEl = titleWrap.createSpan({ cls: "lv-header-name", text: list.name });
-		nameEl.setAttribute("contenteditable", "plaintext-only");
-		nameEl.setAttribute("role", "textbox");
-		nameEl.setAttribute("aria-label", "List name, edit to rename the file");
-		nameEl.setAttribute("spellcheck", "false");
-
-		const commit = () => {
-			const next = (nameEl.textContent ?? "").trim();
-			if (!next || next === list.name) {
-				nameEl.setText(list.name);
-				return;
-			}
-			ctx.renameList(list.path, next);
-		};
-		nameEl.addEventListener("blur", commit);
-		nameEl.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				nameEl.blur();
-			}
-			if (e.key === "Escape") {
-				e.preventDefault();
-				nameEl.setText(list.name);
-				nameEl.blur();
-			}
+		// The name IS the filename, so editing it here renames the file. Same
+		// implementation as the picker rows, which are armed on demand instead.
+		const nameEl = titleWrap.createSpan({ cls: "lv-header-name" });
+		makeEditableName(nameEl, {
+			value: list.name,
+			alwaysEditable: true,
+			onCommit: (next) => ctx.renameList(list.path, next),
 		});
 	} else {
 		titleWrap.createSpan({ text: "List" });
@@ -119,16 +109,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 				i
 					.setTitle("Rename")
 					.setIcon("pencil")
-					.onClick(() => {
-						const el = header.querySelector<HTMLElement>(".lv-header-name");
-						el?.focus();
-						// Select the whole name so typing replaces it.
-						const range = document.createRange();
-						if (el) range.selectNodeContents(el);
-						const s = window.getSelection();
-						s?.removeAllRanges();
-						if (el) s?.addRange(range);
-					})
+					.onClick(() => editName(header))
 			);
 			menu.addItem((i) =>
 				i

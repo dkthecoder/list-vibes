@@ -10,6 +10,7 @@ import {
 	RenderScope,
 	decodeSelection,
 	encodeSelection,
+	selectionKey,
 	selectionTitle,
 	widerScope,
 } from "./viewState";
@@ -82,6 +83,18 @@ export class ListsView extends ItemView {
 	 */
 	private pickerOnly(): boolean {
 		return this.plugin.settings.openListsInTab && !this.inMainWorkspace();
+	}
+
+	/**
+	 * True when this instance is purely a list: a main-area tab, with the sidebar
+	 * acting as the picker.
+	 *
+	 * The two halves of the same decision. Once the sidebar owns list-picking, a
+	 * tab repeating the picker down its left edge is showing the user the same
+	 * control twice and eating the width the tasks were opened to get.
+	 */
+	private listOnly(): boolean {
+		return this.plugin.settings.openListsInTab && this.inMainWorkspace();
 	}
 
 	/**
@@ -199,6 +212,8 @@ export class ListsView extends ItemView {
 			settings: this.plugin.settings,
 			state: this.state,
 			wide: this.wide,
+			listOnly: this.listOnly(),
+			showPicker: () => void this.plugin.activateView(),
 			render: (scope?: RenderScope) => this.render(scope ?? "all"),
 			save: () => this.plugin.saveSettings(),
 
@@ -220,8 +235,12 @@ export class ListsView extends ItemView {
 				 * The row is still marked selected here, so the picker shows where
 				 * you are, and only the picker repaints.
 				 */
-				if (this.plugin.settings.openListsInTab && !this.inMainWorkspace()) {
-					this.render("tasks");
+				if (this.pickerOnly()) {
+					// Move the highlight in place rather than repainting. A repaint
+					// here would destroy the row under the pointer, which among other
+					// things means a double-click to rename never survives its own
+					// first click.
+					this.markSelected();
 					void this.plugin.openSelection(sel);
 					return;
 				}
@@ -334,6 +353,14 @@ export class ListsView extends ItemView {
 		};
 	}
 
+	/** Move the picker's highlight to the current selection, without a repaint. */
+	private markSelected(): void {
+		const key = selectionKey(this.state.selection);
+		this.contentEl
+			.findAll(".lv-nav-row[data-lv-sel]")
+			.forEach((el) => el.toggleClass("is-selected", el.dataset.lvSel === key));
+	}
+
 	/** Coalesce repaints so a burst of file events costs one pass. */
 	render(scope: RenderScope = "all"): void {
 		this.queuedScope = this.queued
@@ -356,6 +383,7 @@ export class ListsView extends ItemView {
 	 */
 	private shape(): string {
 		if (this.pickerOnly()) return "picker";
+		if (this.listOnly()) return `list|${this.state.selectedTask ? "detail" : "nodetail"}`;
 		return [
 			this.wide ? "wide" : "narrow",
 			this.wide ? "both" : this.state.pane,
@@ -445,6 +473,8 @@ export class ListsView extends ItemView {
 		};
 		if (this.pickerOnly()) {
 			this.navEl = added(() => renderListsPane(shell, ctx));
+		} else if (this.listOnly()) {
+			this.tasksEl = added(() => renderTasksPane(shell, ctx));
 		} else if (this.wide) {
 			this.navEl = added(() => renderListsPane(shell, ctx));
 			this.tasksEl = added(() => renderTasksPane(shell, ctx));

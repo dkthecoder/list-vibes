@@ -30,9 +30,18 @@ Pick a list, work in it, open a task when you need more than a checkbox.
 
 ## Lists
 
-The list's name **is** its filename. Click the name in the list header and type
-to rename it — that renames the file, and Obsidian updates any links pointing at
-it. The same is on each list's `⋯` menu in the picker, along with its colour.
+The list's name **is** its filename, so renaming one renames the file and
+Obsidian updates every link pointing at it.
+
+In the list header the name is a field — click and type. In the picker a row is
+a *button*, so renaming is armed deliberately: **double-click the name**, press
+**F2**, or use **Rename** on the row's `⋯` menu. Enter commits, Escape reverts,
+and an empty name is refused rather than written, since it would be a file you
+could not open.
+
+Picking a list moves the picker's highlight in place rather than repainting.
+That is not only cheaper — a repaint destroys the row under the pointer, and a
+double-click cannot survive its own first click.
 
 Every list is accented. Left alone, that accent is **the colour you picked in
 Obsidian's own appearance settings**, so the plugin follows your theme rather
@@ -99,9 +108,15 @@ Each tab carries its own selection through the view's state, so several lists ca
 sit open side by side and every one of them remembers which list it was showing
 after a restart. The tab is titled with the list's name.
 
+The two halves of that arrangement move together: the sidebar shows only the
+picker, and a tab shows only its list. A tab repeating the picker down its left
+edge would be showing the same control twice and eating the width the tasks were
+opened to get. The back arrow in a tab's header reveals the sidebar picker, so a
+tab is never a dead end when the sidebar has been closed.
+
 Turn **Open lists in a tab** off to browse entirely inside the sidebar pane
 instead, with the list picker and the task list swapping places behind a back
-arrow.
+arrow, and each pane self-contained.
 
 In the sidebar the view stays deliberately non-navigable. A navigable sidebar
 leaf is a valid target for opening files, which would mean clicking a note in the
@@ -257,8 +272,8 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 243 tests: parsing, sorting, frontmatter, view state, writes
-npm run test:drag # drives a real drag in a headless browser
+npm test         # 248 tests: parsing, sorting, frontmatter, view state, writes
+npm run test:ui  # drives real drags and renames in a headless browser
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```
 

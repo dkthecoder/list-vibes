@@ -1396,3 +1396,59 @@ body.lv-is-dragging .lv-step:hover {
 		transition: none;
 	}
 }
+
+/* ------------------------------------------------------------------
+   Renaming a list in the picker
+
+   A picker row is a button, so its label is a plain label until
+   renaming is armed — by double-click, F2, or the Rename menu item.
+   Only then does it look and behave like a field.
+   ------------------------------------------------------------------ */
+
+.lv-nav-label.is-editing {
+	flex: 1 1 auto;
+	min-width: 0;
+	/* The label sits inside a padded row, so the field is pulled back by its
+	   own padding to stay aligned with the text it replaced. */
+	margin: 0 -4px;
+	padding: 1px 4px;
+	border-radius: var(--lv-radius-s);
+	background: var(--background-primary);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+	outline: none;
+	cursor: text;
+	/* A name being typed must be readable in full, so it wraps rather than
+	   ellipsing the way the resting label does. */
+	overflow: visible;
+	text-overflow: clip;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	user-select: text;
+	-webkit-user-select: text;
+	-webkit-touch-callout: default;
+}
+
+/* The count and the ⋯ button would only compete with the field for width. */
+.lv-nav-row.is-renaming .lv-nav-count,
+.lv-nav-row.is-renaming .lv-nav-more {
+	display: none;
+}
+
+.lv-nav-row.is-renaming {
+	background: var(--background-modifier-hover);
+}
+
+.lv-header-name {
+	cursor: text;
+	user-select: text;
+	-webkit-user-select: text;
+	border-radius: var(--lv-radius-s);
+	padding: 0 3px;
+	margin: 0 -3px;
+}
+
+.lv-header-name:focus {
+	outline: none;
+	background: var(--background-primary);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}

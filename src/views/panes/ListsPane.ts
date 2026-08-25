@@ -1,6 +1,8 @@
 import { Menu, Notice, normalizePath, setIcon } from "obsidian";
 import { SMART_VIEWS, Selection, ViewContext, sameSelection } from "../context";
 import { ListColor, TaskList, isComplete } from "../../model/types";
+import { makeEditableName } from "../../ui/editableName";
+import { selectionKey } from "../viewState";
 
 /** Left pane: smart views, then one row per list file in the folder. */
 export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
@@ -18,6 +20,7 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			count,
 			selected: sameSelection(ctx.state.selection, { kind: "smart", view: v.id }),
 			cls: `lv-smart-${v.id}`,
+			selKey: selectionKey({ kind: "smart", view: v.id }),
 			onClick: () => ctx.select({ kind: "smart", view: v.id }),
 			onNewTab: () => ctx.openInNewTab({ kind: "smart", view: v.id }),
 		});
@@ -26,6 +29,7 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 	scroll.createDiv({ cls: "lv-nav-divider" });
 
 	/* --- lists --- */
+	renamers.clear();
 	const lists = ctx.store.getLists();
 	const group = scroll.createDiv({ cls: "lv-nav-group" });
 
@@ -55,6 +59,9 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			onNewTab: () => ctx.openInNewTab({ kind: "list", path: list.path }),
 			onContext: (e) => showListMenu(e, ctx, list),
 			onMenu: (e) => showListMenu(e, ctx, list),
+			onRename: (next) => ctx.renameList(list.path, next),
+			renameKey: list.path,
+			selKey: selectionKey({ kind: "list", path: list.path }),
 		});
 	}
 
@@ -88,7 +95,20 @@ interface RowOpts {
 	onNewTab?: () => void;
 	/** Renders a 3-dots button, so the menu is reachable without right-click. */
 	onMenu?: (e: MouseEvent) => void;
+	/** Makes the label renameable in place. Lists have one, smart views do not. */
+	onRename?: (next: string) => void;
+	/** Identifies the row so the Rename menu item can find its label. */
+	renameKey?: string;
+	/** Identifies what this row selects, so the highlight can move in place. */
+	selKey?: string;
 }
+
+/**
+ * Rows that can be renamed, by list path, so the Rename menu item can reach the
+ * label it belongs to. The picker is rebuilt on every repaint, so this is
+ * cleared and refilled each time rather than accumulating.
+ */
+const renamers = new Map<string, () => void>();
 
 function row(parent: HTMLElement, o: RowOpts): void {
 	const el = parent.createDiv({ cls: "lv-nav-row" });
@@ -98,6 +118,8 @@ function row(parent: HTMLElement, o: RowOpts): void {
 	// from the user's Obsidian appearance settings.
 	el.toggleClass("is-coloured", !!o.accented);
 	el.toggleClass("is-selected", o.selected);
+	// Lets the highlight move between rows without repainting the picker.
+	if (o.selKey) el.dataset.lvSel = o.selKey;
 	el.setAttribute("tabindex", "0");
 	el.setAttribute("role", "button");
 
@@ -105,7 +127,23 @@ function row(parent: HTMLElement, o: RowOpts): void {
 	if (o.emoji) icon.setText(o.emoji);
 	else if (o.icon) setIcon(icon, o.icon);
 
-	el.createDiv({ cls: "lv-nav-label", text: o.label });
+	const label = el.createDiv({ cls: "lv-nav-label", text: o.label });
+	if (o.onRename) {
+		// Renaming is armed by double-click, F2 or the menu — never by the click
+		// that opens the list, which is what the row is primarily for.
+		const editable = makeEditableName(label, {
+			value: o.label,
+			onCommit: o.onRename,
+			onEditing: (on) => el.toggleClass("is-renaming", on),
+		});
+		if (o.renameKey) renamers.set(o.renameKey, editable.edit);
+		el.addEventListener("keydown", (e) => {
+			if (e.key === "F2") {
+				e.preventDefault();
+				editable.edit();
+			}
+		});
+	}
 	if (o.count > 0) el.createDiv({ cls: "lv-nav-count", text: String(o.count) });
 
 	if (o.onMenu) {
@@ -128,6 +166,7 @@ function row(parent: HTMLElement, o: RowOpts): void {
 	}
 
 	el.addEventListener("click", (e) => {
+		if (el.classList.contains("is-renaming")) return;
 		if (o.onNewTab && (e.metaKey || e.ctrlKey)) {
 			e.preventDefault();
 			o.onNewTab();
@@ -143,6 +182,7 @@ function row(parent: HTMLElement, o: RowOpts): void {
 		}
 	});
 	el.addEventListener("keydown", (e) => {
+		if (el.classList.contains("is-renaming")) return;
 		if (e.key === "Enter" || e.key === " ") {
 			e.preventDefault();
 			o.onClick();
@@ -172,7 +212,13 @@ function showListMenu(
 		i
 			.setTitle("Rename")
 			.setIcon("pencil")
-			.onClick(() => void renameList(ctx, list))
+			.onClick(() => {
+				// Edit the row's own label. A modal for a one-word rename is a lot
+				// of ceremony for something the file explorer does in place.
+				const edit = renamers.get(list.path);
+				if (edit) edit();
+				else void renameList(ctx, list);
+			})
 	);
 
 	menu.addItem((i) =>

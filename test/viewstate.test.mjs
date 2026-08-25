@@ -1,10 +1,13 @@
 import { test } from "node:test";
+import { sameSelection } from "./build/views/context.js";
 import assert from "node:assert/strict";
 import {
 	encodeSelection,
 	decodeSelection,
 	selectionTitle,
 	widerScope,
+	chooseTab,
+	selectionKey,
 } from "./build/views/viewState.js";
 
 /* A tab only remembers its own list if this round-trips exactly. */
@@ -120,5 +123,152 @@ test("widerScope", async (t) => {
 		assert.equal(fold(["tasks", "detail", "detail"]), "tasks");
 		assert.equal(fold(["detail", "all", "detail"]), "all");
 		assert.equal(fold(["detail", "detail", "detail"]), "detail");
+	});
+});
+
+/* ------------------------------------------------------------------
+   Which tab a picked list opens in
+
+   Clicking through five lists should leave one tab, not five — and
+   must never take over a tab holding something else.
+   ------------------------------------------------------------------ */
+
+const LIST = (path) => ({ kind: "list", path });
+const SMART = (view) => ({ kind: "smart", view });
+const tab = (selection, pinned = false) => ({ selection, pinned });
+
+test("chooseTab", async (t) => {
+	await t.test("with nothing open, a new tab", () => {
+		assert.deepEqual(chooseTab([], LIST("lists/A.md")), { action: "new" });
+	});
+
+	await t.test("a tab already showing it is focused, not duplicated", () => {
+		const tabs = [tab(LIST("lists/A.md")), tab(LIST("lists/B.md"))];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/B.md")), {
+			action: "focus",
+			index: 1,
+		});
+	});
+
+	await t.test("otherwise the first free tab is retargeted", () => {
+		const tabs = [tab(LIST("lists/A.md")), tab(LIST("lists/B.md"))];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/C.md")), {
+			action: "retarget",
+			index: 0,
+		});
+	});
+
+	await t.test("clicking through many lists never grows the tab count", () => {
+		// The whole point of the rule.
+		let tabs = [];
+		for (const name of ["A", "B", "C", "D", "E"]) {
+			const sel = LIST(`lists/${name}.md`);
+			const choice = chooseTab(tabs, sel);
+			if (choice.action === "new") tabs.push(tab(sel));
+			else if (choice.action === "retarget") tabs[choice.index] = tab(sel);
+		}
+		assert.equal(tabs.length, 1, "clicking five lists left more than one tab");
+		assert.deepEqual(tabs[0].selection, LIST("lists/E.md"));
+	});
+
+	await t.test("a pinned tab is never retargeted", () => {
+		const tabs = [tab(LIST("lists/A.md"), true)];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/B.md")), { action: "new" });
+	});
+
+	await t.test("but a pinned tab showing it is still focused", () => {
+		// Focusing does not disturb a pinned tab, so there is no reason to
+		// open a second copy of something already on screen.
+		const tabs = [tab(LIST("lists/A.md"), true)];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/A.md")), {
+			action: "focus",
+			index: 0,
+		});
+	});
+
+	await t.test("the first unpinned tab is chosen, skipping pinned ones", () => {
+		const tabs = [
+			tab(LIST("lists/A.md"), true),
+			tab(LIST("lists/B.md"), true),
+			tab(LIST("lists/C.md"), false),
+		];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/D.md")), {
+			action: "retarget",
+			index: 2,
+		});
+	});
+
+	await t.test("forcing a new tab overrides every reuse rule", () => {
+		// ⌘-click, middle-click and the named command all mean "another one",
+		// even when the list is already on screen.
+		const tabs = [tab(LIST("lists/A.md"))];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/A.md"), true), { action: "new" });
+		assert.deepEqual(chooseTab(tabs, LIST("lists/B.md"), true), { action: "new" });
+	});
+
+	await t.test("a tab whose state could not be read is retargetable, not matched", () => {
+		// decodeSelection returns null for a state blob from an older version or
+		// a hand-edited workspace file. It must never compare equal to anything.
+		const tabs = [tab(null)];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/A.md")), {
+			action: "retarget",
+			index: 0,
+		});
+	});
+
+	await t.test("smart views take part in the same rule", () => {
+		const tabs = [tab(SMART("myday")), tab(LIST("lists/A.md"))];
+		assert.deepEqual(chooseTab(tabs, SMART("myday")), { action: "focus", index: 0 });
+		assert.deepEqual(chooseTab(tabs, SMART("important")), {
+			action: "retarget",
+			index: 0,
+		});
+	});
+
+	await t.test("a list and a smart view are never confused for each other", () => {
+		const tabs = [tab(SMART("myday"))];
+		assert.notDeepEqual(chooseTab(tabs, LIST("lists/myday.md")), {
+			action: "focus",
+			index: 0,
+		});
+	});
+});
+
+test("selectionKey", async (t) => {
+	await t.test("is stable for the same selection", () => {
+		assert.equal(selectionKey(LIST("lists/A.md")), selectionKey(LIST("lists/A.md")));
+		assert.equal(selectionKey(SMART("myday")), selectionKey(SMART("myday")));
+	});
+
+	await t.test("differs between different selections", () => {
+		assert.notEqual(selectionKey(LIST("lists/A.md")), selectionKey(LIST("lists/B.md")));
+		assert.notEqual(selectionKey(SMART("myday")), selectionKey(SMART("planned")));
+	});
+
+	await t.test("a list never collides with a smart view of the same name", () => {
+		// Why the kinds are prefixed rather than concatenated raw: a list called
+		// "myday" would otherwise share a key with the My Day view, and the
+		// picker would highlight both.
+		assert.notEqual(selectionKey(LIST("myday")), selectionKey(SMART("myday")));
+		assert.notEqual(selectionKey(LIST("lists/myday.md")), selectionKey(SMART("myday")));
+	});
+
+	await t.test("agrees with sameSelection on every pair", () => {
+		const all = [
+			LIST("lists/A.md"),
+			LIST("lists/B.md"),
+			LIST("myday"),
+			SMART("myday"),
+			SMART("planned"),
+		];
+		for (const a of all) {
+			for (const b of all) {
+				assert.equal(
+					selectionKey(a) === selectionKey(b),
+					sameSelection(a, b),
+					`${JSON.stringify(a)} vs ${JSON.stringify(b)}`
+				);
+			}
+		}
 	});
 });

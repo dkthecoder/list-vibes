@@ -29,6 +29,7 @@ await esbuild.build({
 		"src/model/store.ts",
 		"src/views/viewState.ts",
 		"src/ui/dragSort.ts",
+		"src/views/context.ts",
 	],
 	bundle: true,
 	format: "esm",

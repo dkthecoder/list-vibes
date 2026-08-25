@@ -33,6 +33,10 @@ export interface ViewContext {
 	state: ViewState;
 	/** True when all three panes fit side by side. */
 	wide: boolean;
+	/** True when this pane is a list on its own, with the picker in the sidebar. */
+	listOnly: boolean;
+	/** Bring the sidebar picker into view. Only meaningful when `listOnly`. */
+	showPicker: () => void;
 	/** Repaint everything. */
 	/**
 	 * Repaint. Name the narrowest scope that covers what changed — "detail" for
