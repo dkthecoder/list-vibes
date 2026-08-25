@@ -17,7 +17,7 @@ import { Mutator } from "./model/mutate";
 import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
-import { encodeSelection } from "./views/viewState";
+import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
@@ -151,7 +151,10 @@ export default class ListsPlugin extends Plugin {
 		this.addCommand({
 			id: "open-list-in-tab",
 			name: "Open a list in a new tab",
-			callback: () => this.pickList((path) => void this.openSelection({ kind: "list", path })),
+			callback: () =>
+				this.pickList(
+					(path) => void this.openSelection({ kind: "list", path }, true)
+				),
 		});
 
 		this.addCommand({
@@ -281,14 +284,43 @@ export default class ListsPlugin extends Plugin {
 	 * Each tab carries its own selection through the view's state, so several
 	 * lists can be open side by side and each remembers its own after a restart.
 	 */
-	async openSelection(sel: Selection, newTab = true): Promise<void> {
-		const leaf = this.app.workspace.getLeaf(newTab ? "tab" : false);
+	async openSelection(sel: Selection, newTab = false): Promise<void> {
+		const { workspace } = this.app;
+		const tabs = this.listTabs();
+
+		const choice = chooseTab(
+			tabs.map((l) => {
+				const st = l.getViewState();
+				return {
+					selection: decodeSelection(st.state),
+					pinned: st.pinned === true,
+				};
+			}),
+			sel,
+			newTab
+		);
+
+		if (choice.action === "focus") {
+			await workspace.revealLeaf(tabs[choice.index]);
+			return;
+		}
+
+		const leaf =
+			choice.action === "retarget" ? tabs[choice.index] : workspace.getLeaf("tab");
 		await leaf.setViewState({
 			type: VIEW_TYPE_LISTS,
 			active: true,
 			state: encodeSelection(sel),
 		});
-		await this.app.workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
+	}
+
+	/** Our leaves in the main workspace, in layout order. Sidebar ones excluded. */
+	private listTabs(): WorkspaceLeaf[] {
+		const { workspace } = this.app;
+		return workspace
+			.getLeavesOfType(VIEW_TYPE_LISTS)
+			.filter((l) => l.getRoot() === workspace.rootSplit);
 	}
 
 	/**

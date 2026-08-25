@@ -35,6 +35,8 @@ export interface ListsSettings {
 	openOnStartup: boolean;
 	/** Place it first in the sidebar's tab strip the first time it is created. */
 	sidebarFirst: boolean;
+	/** From the sidebar, open a picked list as a workspace tab. */
+	openListsInTab: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
 	/** Per-list layout override, keyed by file path. */
@@ -58,6 +60,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	viewByList: {},
 	openOnStartup: true,
 	sidebarFirst: false,
+	openListsInTab: true,
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -124,6 +127,18 @@ export class ListsSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.sidebarFirst).onChange(async (v) => {
 					this.plugin.settings.sidebarFirst = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Open lists in a tab")
+			.setDesc(
+				"Picking a list in the sidebar opens it in the main area, leaving the sidebar as the picker — the way the file explorer works. One tab is reused as you click through lists; ⌘/Ctrl-click or middle-click opens an extra one, and pinning a tab keeps it on its own list. Turn this off to browse entirely inside the sidebar pane instead."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.openListsInTab).onChange(async (v) => {
+					this.plugin.settings.openListsInTab = v;
 					await this.plugin.saveSettings();
 				})
 			);

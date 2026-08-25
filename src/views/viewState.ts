@@ -10,7 +10,7 @@
  */
 
 import { SmartView } from "../model/store";
-import { Selection } from "./context";
+import { Selection, sameSelection } from "./context";
 
 const SMART_VIEWS: SmartView[] = ["myday", "important", "planned", "all"];
 
@@ -99,4 +99,51 @@ const SCOPE_RANK: Record<RenderScope, number> = { detail: 0, tasks: 1, all: 2 };
  */
 export function widerScope(a: RenderScope, b: RenderScope): RenderScope {
 	return SCOPE_RANK[a] >= SCOPE_RANK[b] ? a : b;
+}
+
+/** One open List Vibes tab, as far as the choice below is concerned. */
+export interface OpenTab {
+	/** What it is showing, or null if its state could not be read. */
+	selection: Selection | null;
+	pinned: boolean;
+}
+
+export type TabChoice =
+	| { action: "focus"; index: number }
+	| { action: "retarget"; index: number }
+	| { action: "new" };
+
+/**
+ * Which tab a picked list should open in.
+ *
+ * Clicking through five lists should leave one tab, not five, so an existing
+ * List Vibes tab is retargeted rather than added to. Three rules, in order:
+ *
+ * 1. A tab already showing this selection is focused — never duplicated, and
+ *    this applies to pinned tabs too, since focusing one does not disturb it.
+ * 2. Otherwise the first *unpinned* List Vibes tab is retargeted. Pinning is how
+ *    an Obsidian user says "this one stays put", and it has to mean the same
+ *    here as it does for a note.
+ * 3. Failing both, a new tab.
+ *
+ * Note what is absent: tabs holding *notes* are never candidates. Replacing
+ * whatever the user happened to be reading is a much worse surprise than one
+ * extra tab, so only our own tabs are ever reused.
+ */
+export function chooseTab(
+	tabs: OpenTab[],
+	sel: Selection,
+	forceNew = false
+): TabChoice {
+	if (forceNew) return { action: "new" };
+
+	const showing = tabs.findIndex(
+		(t) => t.selection && sameSelection(t.selection, sel)
+	);
+	if (showing >= 0) return { action: "focus", index: showing };
+
+	const free = tabs.findIndex((t) => !t.pinned);
+	if (free >= 0) return { action: "retarget", index: free };
+
+	return { action: "new" };
 }

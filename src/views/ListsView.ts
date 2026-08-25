@@ -73,6 +73,18 @@ export class ListsView extends ItemView {
 	}
 
 	/**
+	 * True when this instance is purely a picker: the sidebar, with lists set to
+	 * open in the main area.
+	 *
+	 * Without this a wide sidebar would render the task list beside the picker
+	 * *and* open a tab showing the same thing. Picking a side and holding it is
+	 * what makes the pane read as a navigator.
+	 */
+	private pickerOnly(): boolean {
+		return this.plugin.settings.openListsInTab && !this.inMainWorkspace();
+	}
+
+	/**
 	 * In a workspace tab this is the tab's title, so it names the list. In a
 	 * sidebar it is the pane name — and on mobile it is a real text label in the
 	 * drawer's tab list, not just a tooltip — so there it stays generic.
@@ -198,6 +210,22 @@ export class ListsView extends ItemView {
 					this.plugin.settings.lastList = sel.path;
 					void this.plugin.saveSettings();
 				}
+
+				/*
+				 * In the sidebar, picking a list opens it in the main area and the
+				 * sidebar stays the picker — the same division of labour the file
+				 * explorer has, and what makes the pane usable as a navigator
+				 * rather than something you have to keep backing out of.
+				 *
+				 * The row is still marked selected here, so the picker shows where
+				 * you are, and only the picker repaints.
+				 */
+				if (this.plugin.settings.openListsInTab && !this.inMainWorkspace()) {
+					this.render("tasks");
+					void this.plugin.openSelection(sel);
+					return;
+				}
+
 				this.state.pane = "tasks";
 				this.render();
 				// In a workspace tab the header shows the list name, so the tab has
@@ -327,6 +355,7 @@ export class ListsView extends ItemView {
 	 * different and has to be rebuilt.
 	 */
 	private shape(): string {
+		if (this.pickerOnly()) return "picker";
 		return [
 			this.wide ? "wide" : "narrow",
 			this.wide ? "both" : this.state.pane,
@@ -414,7 +443,9 @@ export class ListsView extends ItemView {
 			fn();
 			return shell.lastElementChild as HTMLElement;
 		};
-		if (this.wide) {
+		if (this.pickerOnly()) {
+			this.navEl = added(() => renderListsPane(shell, ctx));
+		} else if (this.wide) {
 			this.navEl = added(() => renderListsPane(shell, ctx));
 			this.tasksEl = added(() => renderTasksPane(shell, ctx));
 		} else if (this.state.pane === "nav") {
@@ -424,7 +455,7 @@ export class ListsView extends ItemView {
 		}
 
 		/* --- overlay layer: the detail panel, always floating --- */
-		const showDetail = !!this.state.selectedTask;
+		const showDetail = !this.pickerOnly() && !!this.state.selectedTask;
 		if (showDetail) {
 			const backdrop = shell.createDiv({ cls: "lv-backdrop" });
 			backdrop.addEventListener("click", () => this.closeDetail());

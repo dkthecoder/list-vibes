@@ -76,14 +76,32 @@ list with no tab strip to reorder.
 
 ## Lists as tabs
 
-A list can be a workspace tab, not just a sidebar pane. Cmd/Ctrl-click or
-middle-click a list in the picker, use **Open in new tab** from its context menu,
-right-click the file in the explorer and choose **Open as list**, or run the
-**Open a list in a new tab** command.
+Picking a list in the sidebar opens it in the main area, and the sidebar stays
+the picker — the same division of labour the file explorer has, and what makes
+the pane usable as a navigator rather than something you keep backing out of.
+
+**One tab is reused** as you click through lists, so browsing five of them
+leaves one tab rather than five. Three rules decide where a list lands:
+
+1. A tab already showing it is focused, never duplicated.
+2. Otherwise the first **unpinned** List Vibes tab is retargeted. Pin a tab and
+   it keeps its list, exactly as pinning a note does.
+3. Failing both, a new tab.
+
+Tabs holding *notes* are never candidates. Taking over whatever you happened to
+be reading is a much worse surprise than one extra tab.
+
+Cmd/Ctrl-click or middle-click always opens an extra tab, as does **Open in new
+tab** on a list's menu and the **Open a list in a new tab** command. Right-click
+a file in the explorer and choose **Open as list** to open it the normal way.
 
 Each tab carries its own selection through the view's state, so several lists can
 sit open side by side and every one of them remembers which list it was showing
 after a restart. The tab is titled with the list's name.
+
+Turn **Open lists in a tab** off to browse entirely inside the sidebar pane
+instead, with the list picker and the task list swapping places behind a back
+arrow.
 
 In the sidebar the view stays deliberately non-navigable. A navigable sidebar
 leaf is a valid target for opening files, which would mean clicking a note in the
@@ -239,7 +257,7 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 231 tests: parsing, sorting, frontmatter, view state, writes
+npm test         # 243 tests: parsing, sorting, frontmatter, view state, writes
 npm run test:drag # drives a real drag in a headless browser
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```
