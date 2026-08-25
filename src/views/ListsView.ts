@@ -4,7 +4,7 @@ import { PaneName, Selection, ViewContext, ViewState } from "./context";
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
-import { ListColor, Task, ViewMode } from "../model/types";
+import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import { decodeSelection, encodeSelection, selectionTitle } from "./viewState";
 
@@ -222,11 +222,23 @@ export class ListsView extends ItemView {
 			viewMode: () => {
 				const sel = this.state.selection;
 				if (sel.kind !== "list") return "list";
+				// Normalised on the way out as well as on load: settings written by
+				// an older version say "cards", and so may a list's frontmatter.
 				return (
-					this.plugin.settings.viewByList[sel.path] ??
+					normalizeViewMode(this.plugin.settings.viewByList[sel.path]) ??
 					this.plugin.store.getList(sel.path)?.config.view ??
-					this.plugin.settings.defaultView
+					normalizeViewMode(this.plugin.settings.defaultView) ??
+					"list"
 				);
+			},
+
+			defaultViewMode: () =>
+				normalizeViewMode(this.plugin.settings.defaultView) ?? "list",
+
+			setDefaultViewMode: (mode: ViewMode) => {
+				this.plugin.settings.defaultView = mode;
+				void this.plugin.saveSettings();
+				this.render();
 			},
 
 			setViewMode: (mode: ViewMode) => {

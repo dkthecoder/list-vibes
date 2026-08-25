@@ -117,6 +117,8 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			viewMode = m;
 			paint();
 		},
+		defaultViewMode: () => "list",
+		setDefaultViewMode: () => undefined,
 		setColor: (_p: string, _c: ListColor | null) => undefined,
 		renameList: (_p: string, _n: string) => undefined,
 	};
@@ -155,8 +157,8 @@ function paint(): void {
 	// Desktop, two columns, detail sliding over the task list.
 	renderInto(document.getElementById("desktop") as HTMLElement, true, "tasks", true);
 
-	// Cards layout, the Google Keep-style wall.
-	viewMode = "cards";
+	// The post-it wall, the Google Keep-style layout.
+	viewMode = "postit";
 	const savedSel = state.selectedTask;
 	state.selectedTask = null;
 	renderInto(document.getElementById("cards") as HTMLElement, true, "tasks", false);

@@ -5,19 +5,34 @@
 
 .lv-root {
 	position: relative;
+
 	/*
-	 * Every list is accented. Uncustomised, that accent is the one the user
-	 * picked in Obsidian's own appearance settings, so the plugin follows their
-	 * theme instead of imposing a colour of its own. A list that sets `color:`
-	 * in its frontmatter overrides this for itself.
+	 * Everything below aliases an Obsidian token rather than inventing a value,
+	 * so the plugin inherits the user's theme, their accent colour and their
+	 * app zoom instead of fighting all three.
 	 */
+
+	/* Uncustomised, a list's accent is the one the user picked in Obsidian's
+	   appearance settings. A `color:` in its frontmatter overrides this. */
 	--lv-accent: var(--interactive-accent);
-	--lv-row-height: 44px; /* touch target floor */
-	--lv-gutter: 12px;
-	--lv-radius: 8px;
+
+	/* Rows are sized by padding and line height, as Obsidian's own file
+	   explorer is, so they scale with zoom. The min-height is only a floor. */
+	--lv-row-min: var(--size-4-9);
+	--lv-gutter: var(--size-4-3);
+	--lv-radius: var(--radius-m);
+	--lv-radius-s: var(--radius-s);
+
 	padding: 0;
 	height: 100%;
 	overflow: hidden;
+	font-family: var(--font-interface-theme);
+	color: var(--text-normal);
+}
+
+/* Touch needs a bigger floor than a pointer does. */
+.is-mobile .lv-root {
+	--lv-row-min: var(--size-4-12);
 }
 
 .lv-shell {
@@ -30,7 +45,7 @@
 
 .lv-root.is-wide .lv-nav {
 	flex: 0 0 240px;
-	border-right: 1px solid var(--background-modifier-border);
+	border-right: var(--border-width) solid var(--divider-color);
 }
 
 .lv-root.is-wide .lv-tasks {
@@ -66,26 +81,27 @@
 }
 
 .lv-nav-divider {
-	height: 1px;
-	background: var(--background-modifier-border);
+	height: var(--divider-width, 1px);
+	background: var(--divider-color);
 	margin: 6px var(--lv-gutter);
 }
 
 .lv-nav-row {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	min-height: var(--lv-row-height);
+	gap: var(--size-4-2);
+	min-height: var(--lv-row-min);
 	padding: 0 10px;
 	border-radius: var(--lv-radius);
-	cursor: pointer;
+	cursor: var(--cursor);
 	color: var(--text-normal);
 	-webkit-touch-callout: none;
 	user-select: none;
 }
 
 .lv-nav-row:hover {
-	background: var(--background-modifier-hover);
+	background: var(--nav-item-background-hover, var(--background-modifier-hover));
+	color: var(--nav-item-color-hover, var(--text-normal));
 }
 
 .lv-nav-row:focus-visible {
@@ -94,8 +110,9 @@
 }
 
 .lv-nav-row.is-selected {
-	background: var(--background-modifier-active-hover, var(--background-secondary));
-	font-weight: var(--font-medium);
+	background: var(--nav-item-background-selected, var(--background-modifier-active-hover));
+	color: var(--nav-item-color-selected, var(--text-normal));
+	font-weight: var(--nav-item-weight-active, var(--font-medium));
 }
 
 .lv-nav-icon {
@@ -115,8 +132,8 @@
 }
 
 .lv-nav-icon .svg-icon {
-	width: 18px;
-	height: 18px;
+	width: var(--icon-s);
+	height: var(--icon-s);
 }
 
 .lv-nav-label {
@@ -124,7 +141,8 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: var(--font-ui-small);
+	font-size: var(--nav-item-size);
+	line-height: var(--line-height-tight);
 }
 
 .lv-nav-count {
@@ -139,7 +157,7 @@
 	flex: 0 0 auto;
 	padding: 6px var(--lv-gutter);
 	padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
-	border-top: 1px solid var(--background-modifier-border);
+	border-top: var(--border-width) solid var(--divider-color);
 }
 
 .lv-new .lv-nav-icon,
@@ -156,7 +174,7 @@
 	gap: 8px;
 	padding: 10px var(--lv-gutter);
 	padding-top: calc(10px + env(safe-area-inset-top, 0px));
-	border-bottom: 1px solid var(--background-modifier-border);
+	border-bottom: var(--border-width) solid var(--divider-color);
 }
 
 .lv-header-title {
@@ -179,7 +197,7 @@
 	flex: 0 0 32px;
 	border-radius: var(--lv-radius);
 	color: var(--text-muted);
-	cursor: pointer;
+	cursor: var(--cursor);
 }
 
 .lv-back:hover,
@@ -211,12 +229,12 @@
 	display: flex;
 	align-items: flex-start;
 	gap: 10px;
-	min-height: var(--lv-row-height);
+	min-height: var(--lv-row-min);
 	padding: 8px 10px;
 	margin-bottom: 2px;
 	border-radius: var(--lv-radius);
 	background: var(--background-secondary);
-	cursor: pointer;
+	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
 }
@@ -238,7 +256,7 @@
 	flex: 0 0 24px;
 	margin-top: 1px;
 	color: var(--text-muted);
-	cursor: pointer;
+	cursor: var(--cursor);
 	border-radius: 50%;
 }
 
@@ -313,7 +331,7 @@
 	height: 28px;
 	flex: 0 0 28px;
 	color: var(--text-faint);
-	cursor: pointer;
+	cursor: var(--cursor);
 	border-radius: var(--lv-radius);
 }
 
@@ -358,7 +376,7 @@
 	min-height: 36px;
 	padding: 0 8px;
 	border-radius: var(--lv-radius);
-	cursor: pointer;
+	cursor: var(--cursor);
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
@@ -399,7 +417,7 @@
 	margin: 8px var(--lv-gutter);
 	margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 	padding: 0 12px;
-	min-height: var(--lv-row-height);
+	min-height: var(--lv-row-min);
 	background: var(--background-secondary);
 	border-radius: var(--lv-radius);
 }
@@ -417,7 +435,7 @@
 	border: none;
 	box-shadow: none;
 	padding: 0;
-	height: var(--lv-row-height);
+	min-height: var(--lv-row-min);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }
@@ -440,7 +458,7 @@
 	gap: 4px;
 	padding: 10px var(--lv-gutter);
 	padding-top: calc(10px + env(safe-area-inset-top, 0px));
-	border-bottom: 1px solid var(--background-modifier-border);
+	border-bottom: var(--border-width) solid var(--divider-color);
 }
 
 .lv-detail-bar-title {
@@ -482,7 +500,7 @@
 }
 
 .lv-detail-title-text:focus {
-	border-radius: 4px;
+	border-radius: var(--lv-radius-s);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
@@ -494,7 +512,7 @@
 	gap: 10px;
 	min-height: 40px;
 	padding: 0 8px;
-	border-radius: 6px;
+	border-radius: var(--lv-radius-s);
 }
 
 .lv-step:hover {
@@ -522,8 +540,8 @@
 	height: 28px;
 	flex: 0 0 28px;
 	color: var(--text-faint);
-	cursor: pointer;
-	border-radius: 4px;
+	cursor: var(--cursor);
+	border-radius: var(--lv-radius-s);
 	opacity: 0;
 }
 
@@ -564,17 +582,17 @@
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	min-height: var(--lv-row-height);
+	min-height: var(--lv-row-min);
 	padding: 0 12px;
-	border-radius: 6px;
-	cursor: pointer;
+	border-radius: var(--lv-radius-s);
+	cursor: var(--cursor);
 	color: var(--text-muted);
 	-webkit-touch-callout: none;
 	user-select: none;
 }
 
 .lv-action + .lv-action {
-	border-top: 1px solid var(--background-modifier-border);
+	border-top: var(--border-width) solid var(--divider-color);
 	border-radius: 0;
 }
 
@@ -626,7 +644,7 @@
 	height: 28px;
 	flex: 0 0 28px;
 	color: var(--text-faint);
-	border-radius: 4px;
+	border-radius: var(--lv-radius-s);
 }
 
 .lv-action-clear:hover {
@@ -664,7 +682,7 @@
 	gap: 8px;
 	padding: 8px var(--lv-gutter);
 	padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-	border-top: 1px solid var(--background-modifier-border);
+	border-top: var(--border-width) solid var(--divider-color);
 }
 
 .lv-detail-created {
@@ -680,7 +698,7 @@
 	height: 32px;
 	flex: 0 0 32px;
 	color: var(--text-muted);
-	cursor: pointer;
+	cursor: var(--cursor);
 	border-radius: var(--lv-radius);
 }
 
@@ -787,7 +805,11 @@
 	display: flex;
 	width: min(360px, 100%);
 	max-width: 100%;
-	box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+	/* Obsidian ships a shadow token whose value is already correct in both a
+	   light and a dark theme. Mixing our own from --color-base-100 looked right
+	   in light and produced a white glow in dark, where base-100 is the light
+	   end of the scale. */
+	box-shadow: var(--shadow-l, -8px 0 24px rgba(0, 0, 0, 0.18));
 	transform: translateX(100%);
 	transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
 	will-change: transform;
@@ -800,7 +822,7 @@
 .lv-overlay .lv-detail {
 	flex: 1 1 auto;
 	min-width: 0;
-	border-left: 1px solid var(--background-modifier-border);
+	border-left: var(--border-width) solid var(--divider-color);
 }
 
 /*
@@ -836,7 +858,7 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	min-height: var(--lv-row-height);
+	min-height: var(--lv-row-min);
 }
 
 .lv-add.is-expanded {
@@ -910,8 +932,8 @@
 	width: 22px;
 	height: 28px;
 	color: var(--text-faint);
-	cursor: pointer;
-	border-radius: 3px;
+	cursor: var(--cursor);
+	border-radius: var(--lv-radius-s);
 }
 
 .lv-rating-star .svg-icon {
@@ -972,25 +994,25 @@
    light and a dark theme rather than being pinned to one hex value.
    ------------------------------------------------------------------ */
 
-.lv-color-red    { --lv-accent: #d64545; }
-.lv-color-orange { --lv-accent: #d97706; }
-.lv-color-yellow { --lv-accent: #b59000; }
-.lv-color-green  { --lv-accent: #3f9142; }
-.lv-color-teal   { --lv-accent: #0f8b8d; }
-.lv-color-blue   { --lv-accent: #3b74d6; }
-.lv-color-purple { --lv-accent: #7c5cd6; }
-.lv-color-pink   { --lv-accent: #cc4b8d; }
-.lv-color-grey   { --lv-accent: #7a8290; }
-
-.theme-dark .lv-color-red    { --lv-accent: #ef7a7a; }
-.theme-dark .lv-color-orange { --lv-accent: #e2a14a; }
-.theme-dark .lv-color-yellow { --lv-accent: #ddc352; }
-.theme-dark .lv-color-green  { --lv-accent: #6bc46f; }
-.theme-dark .lv-color-teal   { --lv-accent: #43bcbe; }
-.theme-dark .lv-color-blue   { --lv-accent: #6f9ff0; }
-.theme-dark .lv-color-purple { --lv-accent: #a68bf0; }
-.theme-dark .lv-color-pink   { --lv-accent: #ea7cb4; }
-.theme-dark .lv-color-grey   { --lv-accent: #9aa3b0; }
+/*
+ * Obsidian ships a semantic colour palette with its own light and dark values,
+ * and themes redefine it. Using it means a list's colour matches whatever
+ * palette the user's theme establishes, instead of nine hexes I picked.
+ */
+/* Obsidian's own default value is given as a fallback on each one. A custom
+ * theme is free to redefine the palette and we will follow it, but a theme that
+ * strips a token entirely would otherwise leave --lv-accent unresolvable, and an
+ * unresolvable custom property is not "no colour" — it is invalid, so the bar,
+ * the header underline and the card edge all vanish at once. */
+.lv-color-red    { --lv-accent: var(--color-red, #e93147); }
+.lv-color-orange { --lv-accent: var(--color-orange, #ec7500); }
+.lv-color-yellow { --lv-accent: var(--color-yellow, #e0ac00); }
+.lv-color-green  { --lv-accent: var(--color-green, #08b94e); }
+.lv-color-teal   { --lv-accent: var(--color-cyan, #00bfbc); }
+.lv-color-blue   { --lv-accent: var(--color-blue, #086ddd); }
+.lv-color-purple { --lv-accent: var(--color-purple, #7852ee); }
+.lv-color-pink   { --lv-accent: var(--color-pink, #d53984); }
+.lv-color-grey   { --lv-accent: var(--text-muted, #888); }
 
 /* A bar, not a wash — a tinted row would fight the selected state and every
    theme's own background. */
@@ -1033,7 +1055,7 @@
 	height: 26px;
 	flex: 0 0 26px;
 	margin-left: 2px;
-	border-radius: 4px;
+	border-radius: var(--lv-radius-s);
 	color: var(--text-faint);
 	opacity: 0;
 }
@@ -1065,7 +1087,7 @@
 
 .lv-header-name {
 	outline: none;
-	border-radius: 4px;
+	border-radius: var(--lv-radius-s);
 	padding: 0 2px;
 	cursor: text;
 }
@@ -1088,7 +1110,7 @@
    ------------------------------------------------------------------ */
 
 .lv-action-wrap + .lv-action-wrap .lv-action {
-	border-top: 1px solid var(--background-modifier-border);
+	border-top: var(--border-width) solid var(--divider-color);
 	border-radius: 0;
 }
 
@@ -1124,7 +1146,7 @@
 	border-radius: 16px;
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
-	cursor: pointer;
+	cursor: var(--cursor);
 	white-space: nowrap;
 }
 
@@ -1160,8 +1182,8 @@
 	aspect-ratio: 1;
 	border-radius: 50%;
 	background: var(--lv-accent, var(--background-modifier-border));
-	color: #fff;
-	cursor: pointer;
+	color: var(--text-on-accent);
+	cursor: var(--cursor);
 	box-shadow: 0 0 0 2px transparent;
 }
 
@@ -1201,19 +1223,19 @@
    different heights do not leave the ragged gaps a grid would.
    ------------------------------------------------------------------ */
 
-.lv-cards {
+.lv-postit {
 	column-count: 2;
 	column-gap: 10px;
 	padding: 0 var(--lv-gutter);
 }
 
 @media (max-width: 560px) {
-	.lv-cards {
+	.lv-postit {
 		column-count: 1;
 	}
 }
 
-.lv-root.is-wide .lv-cards {
+.lv-root.is-wide .lv-postit {
 	column-count: 3;
 }
 
@@ -1224,8 +1246,8 @@
 	padding: 12px;
 	border-radius: var(--lv-radius);
 	background: var(--background-secondary);
-	border: 1px solid var(--background-modifier-border);
-	cursor: pointer;
+	border: var(--border-width) solid var(--divider-color);
+	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
 }

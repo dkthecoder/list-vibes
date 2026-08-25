@@ -33,7 +33,7 @@ export interface ListsSettings {
 	sortByList: Record<string, SortKey>;
 	/** Add the view to the sidebar automatically when Obsidian starts. */
 	openOnStartup: boolean;
-	/** Rows or cards, for lists whose file does not say. */
+	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
@@ -172,14 +172,14 @@ export class ListsSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Default layout")
+			.setName("New lists start as")
 			.setDesc(
-				"Rows, or a Google Keep-style card wall. A list can override this from its own header, and that choice is saved in the list's frontmatter."
+				"Layout for a list that has not been given one of its own: rows, or a Google Keep-style post-it wall. Every list can be switched from its own header at any time, and that choice is written to the list's frontmatter, so this only decides where a new list begins."
 			)
 			.addDropdown((d) =>
 				d
 					.addOption("list", "Rows")
-					.addOption("cards", "Cards")
+					.addOption("postit", "Post-it wall")
 					.setValue(this.plugin.settings.defaultView)
 					.onChange(async (v) => {
 						this.plugin.settings.defaultView = v as ViewMode;

@@ -93,14 +93,14 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 		const mode = ctx.viewMode();
 		const layout = header.createDiv({ cls: "lv-header-action" });
-		layout.toggleClass("is-active", mode === "cards");
-		setIcon(layout, mode === "cards" ? "layout-grid" : "list");
+		layout.toggleClass("is-active", mode === "postit");
+		setIcon(layout, mode === "postit" ? "layout-grid" : "list");
 		layout.setAttribute(
 			"aria-label",
-			mode === "cards" ? "Switch to rows" : "Switch to cards"
+			mode === "postit" ? "Switch to rows" : "Switch to post-it view"
 		);
 		layout.addEventListener("click", () =>
-			ctx.setViewMode(mode === "cards" ? "list" : "cards")
+			ctx.setViewMode(mode === "postit" ? "list" : "postit")
 		);
 
 		const more = header.createDiv({ cls: "lv-header-action" });
@@ -134,6 +134,18 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 					.setTitle("Change colour")
 					.setIcon("palette")
 					.onClick(() => void pickColor(ctx, list))
+			);
+			menu.addSeparator();
+			menu.addItem((i) =>
+				i
+					.setTitle("Post-it view for new lists")
+					.setIcon("layout-grid")
+					.setChecked(ctx.defaultViewMode() === "postit")
+					.onClick(() =>
+						ctx.setDefaultViewMode(
+							ctx.defaultViewMode() === "postit" ? "list" : "postit"
+						)
+					)
 			);
 			menu.addSeparator();
 			menu.addItem((i) =>
@@ -216,9 +228,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 		if (ctx.state.completedOpen) {
 			const body = section.createDiv({ cls: "lv-completed-body" });
-			body.toggleClass("lv-cards", mode === "cards");
+			body.toggleClass("lv-postit", mode === "postit");
 			for (const t of done) {
-				if (mode === "cards") renderTaskCard(body, t, ctx, { showList: isSmart });
+				if (mode === "postit") renderTaskCard(body, t, ctx, { showList: isSmart });
 				else renderTaskRow(body, t, ctx, { showList: isSmart });
 			}
 		}
@@ -230,17 +242,17 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	}
 }
 
-/** Render tasks as rows or cards, optionally grouped under their headings. */
+/** Render tasks as rows or post-it notes, optionally grouped under headings. */
 function renderTasks(
 	scroll: HTMLElement,
 	tasks: Task[],
 	ctx: ViewContext,
 	opts: { grouped: boolean; showList: boolean; mode: ViewMode }
 ): void {
-	const cards = opts.mode === "cards";
-	const cls = cards ? "lv-group lv-cards" : "lv-group";
+	const postit = opts.mode === "postit";
+	const cls = postit ? "lv-group lv-postit" : "lv-group";
 	const draw = (parent: HTMLElement, t: Task) =>
-		cards
+		postit
 			? renderTaskCard(parent, t, ctx, { showList: opts.showList })
 			: renderTaskRow(parent, t, ctx, { showList: opts.showList });
 

@@ -5,20 +5,83 @@
 		<title>Lists — harness</title>
 		<link rel="stylesheet" href="../styles.css" />
 		<style>
-			/* A minimal stand-in for Obsidian's theme variables, so the harness
-			   shows roughly what the plugin looks like inside the app. */
+			/* A stand-in for Obsidian's theme variables, so the harness shows
+			   what the plugin looks like inside the app.
+
+			   These are Obsidian's own default values, not approximations of
+			   them, and every token styles.css references must appear here. A
+			   token the harness leaves undefined does not render as "close
+			   enough": the declaration using it is invalid and drops out
+			   silently, so the screenshot shows something the app never would.
+			   That is exactly how the list colour bars came to be verified
+			   against nothing. */
 			:root {
 				--background-primary: #ffffff;
 				--background-secondary: #f5f6f8;
 				--background-modifier-hover: rgba(0, 0, 0, 0.05);
 				--background-modifier-active-hover: rgba(94, 87, 214, 0.12);
 				--background-modifier-border: #e3e5e8;
+				--background-modifier-cover: rgba(0, 0, 0, 0.4);
 				--text-normal: #1f2023;
 				--text-muted: #6b6f76;
 				--text-faint: #9aa0a6;
 				--text-accent: #5e57d6;
 				--text-error: #c0392b;
+				--text-on-accent: #ffffff;
 				--interactive-accent: #5e57d6;
+
+				/* Semantic palette. Themes redefine these, and a list colour is
+				   a name that resolves through them rather than a hex. */
+				--color-red: #e93147;
+				--color-orange: #ec7500;
+				--color-yellow: #e0ac00;
+				--color-green: #08b94e;
+				--color-cyan: #00bfbc;
+				--color-blue: #086ddd;
+				--color-purple: #7852ee;
+				--color-pink: #d53984;
+				--color-base-00: #ffffff;
+				--color-base-100: #050505;
+
+				/* Spacing, radii, borders */
+				--size-2-1: 2px;
+				--size-2-2: 4px;
+				--size-2-3: 6px;
+				--size-4-1: 4px;
+				--size-4-2: 8px;
+				--size-4-3: 12px;
+				--size-4-4: 16px;
+				--size-4-5: 20px;
+				--size-4-6: 24px;
+				--size-4-8: 32px;
+				--size-4-9: 36px;
+				--size-4-10: 40px;
+				--size-4-12: 48px;
+				--size-4-16: 64px;
+				--radius-s: 4px;
+				--radius-m: 8px;
+				--radius-l: 12px;
+				--radius-xl: 16px;
+				--border-width: 1px;
+				--divider-color: var(--background-modifier-border);
+				--cursor: default;
+				--shadow-l: 0 10px 24px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.06);
+
+				/* Nav rows */
+				--nav-item-size: var(--font-ui-small);
+				--nav-item-color: var(--text-muted);
+				--nav-item-color-hover: var(--text-normal);
+				--nav-item-color-active: var(--text-normal);
+				--nav-item-color-selected: var(--text-normal);
+				--nav-item-background-hover: var(--background-modifier-hover);
+				--nav-item-background-active: var(--background-modifier-hover);
+				--nav-item-background-selected: var(--background-modifier-active-hover);
+				--nav-item-weight: inherit;
+				--nav-item-weight-hover: inherit;
+				--nav-item-weight-active: var(--font-medium);
+
+				/* Type */
+				--font-interface-theme: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 				--font-ui-smaller: 12px;
 				--font-ui-small: 13px;
 				--font-ui-medium: 15px;
@@ -26,6 +89,8 @@
 				--font-medium: 500;
 				--font-semibold: 600;
 				--font-bold: 700;
+				--line-height-tight: 1.3;
+				--line-height-normal: 1.5;
 			}
 			[data-theme="dark"] {
 				--background-primary: #1e1e1e;
@@ -33,12 +98,16 @@
 				--background-modifier-hover: rgba(255, 255, 255, 0.06);
 				--background-modifier-active-hover: rgba(138, 132, 255, 0.18);
 				--background-modifier-border: #333;
+				--background-modifier-cover: rgba(0, 0, 0, 0.6);
 				--text-normal: #dcddde;
 				--text-muted: #999;
 				--text-faint: #666;
 				--text-accent: #8a84ff;
 				--text-error: #e06c62;
 				--interactive-accent: #8a84ff;
+				--color-base-00: #1e1e1e;
+				--color-base-100: #dadada;
+				--shadow-l: 0 10px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
 			}
 			* {
 				box-sizing: border-box;

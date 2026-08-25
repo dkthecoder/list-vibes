@@ -1,7 +1,7 @@
 import { App, FuzzySuggestModal, Notice, Plugin, TAbstractFile, TFile, WorkspaceLeaf } from "obsidian";
 import { DEFAULT_SETTINGS, ListsSettingTab, ListsSettings } from "./settings";
 import { ListStore, todayISO } from "./model/store";
-import { TaskList } from "./model/types";
+import { TaskList, normalizeViewMode } from "./model/types";
 import { Mutator } from "./model/mutate";
 import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
@@ -47,6 +47,17 @@ export default class ListsPlugin extends Plugin {
 
 	async loadSettings(): Promise<void> {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+		// The post-it wall was called "cards" before. Settings are ours, so unlike
+		// a list's frontmatter they can be migrated in place; the reader still
+		// accepts the old name because a file on disk may keep using it.
+		this.settings.defaultView =
+			normalizeViewMode(this.settings.defaultView) ?? "list";
+		for (const [path, mode] of Object.entries(this.settings.viewByList)) {
+			const next = normalizeViewMode(mode);
+			if (next) this.settings.viewByList[path] = next;
+			else delete this.settings.viewByList[path];
+		}
 	}
 
 	async saveSettings(): Promise<void> {

@@ -130,7 +130,22 @@ export function blockRange(task: Task): { start: number; end: number } {
 }
 
 /** How a list's tasks are laid out. */
-export type ViewMode = "list" | "cards";
+export type ViewMode = "list" | "postit";
+
+/**
+ * Read a layout name from a file or from saved settings.
+ *
+ * The post-it wall was called "cards" in earlier versions, and that name is on
+ * disk in real vaults — in list frontmatter, which is the user's file and not
+ * ours to rewrite, and in data.json. It is accepted here forever rather than
+ * migrated, because a silent rewrite of somebody's frontmatter to fix our own
+ * naming is not a trade worth making. Anything unrecognised falls back to rows.
+ */
+export function normalizeViewMode(value: unknown): ViewMode | undefined {
+	if (value === "postit" || value === "cards") return "postit";
+	if (value === "list") return "list";
+	return undefined;
+}
 
 /**
  * The named colours a list can carry. Stored by name rather than as a hex

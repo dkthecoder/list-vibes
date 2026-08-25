@@ -45,9 +45,16 @@ export interface ViewContext {
 	sortKey: () => SortKey;
 	setSortKey: (key: SortKey) => void;
 
-	/** Rows or cards for the current list. */
+	/** Rows or the post-it wall, for the current list. */
 	viewMode: () => ViewMode;
 	setViewMode: (mode: ViewMode) => void;
+	/**
+	 * The layout a list starts in when it has not chosen one. Exposed to the
+	 * view so the choice can be made from the list you are looking at, rather
+	 * than only from a settings page two screens away.
+	 */
+	defaultViewMode: () => ViewMode;
+	setDefaultViewMode: (mode: ViewMode) => void;
 
 	/** Colour is a property of the list, so it lives in its frontmatter. */
 	setColor: (path: string, color: ListColor | null) => void;

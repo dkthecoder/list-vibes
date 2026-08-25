@@ -40,10 +40,19 @@ The accent shows as a bar on the picker row, an underline on the list header, an
 an edge on each card — a bar rather than a wash, because a tinted row fights both
 the selected state and whatever background the theme already uses.
 
-Each list can be laid out as **rows** or as a **Google Keep-style card wall**,
-toggled from the list header. Cards put the note, the steps and the metadata on
-the face rather than behind the detail panel, which is what makes Keep feel like
-glancing at a pinboard instead of drilling into a task manager.
+Each list can be laid out as **rows** or as a **post-it wall** — the Google
+Keep layout — toggled from the list header. Post-its put the note, the steps and
+the metadata on the face rather than behind the detail panel, which is what makes
+Keep feel like glancing at a pinboard instead of drilling into a task manager.
+
+Layout is per list and is written to that list's frontmatter (`view: postit`), so
+it travels with the file. **Post-it view for new lists** on the `⋯` menu decides
+where a *new* list starts; it does not touch any list you have already set. The
+same switch is in settings as **New lists start as**.
+
+Lists written by an earlier version say `view: cards`, and that keeps working —
+permanently, not as a one-off migration. Your frontmatter is your file, and
+quietly rewriting it to fix our own naming is not a trade worth making.
 
 ## In the sidebar
 
