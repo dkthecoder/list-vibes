@@ -2,10 +2,7 @@
 
 An Obsidian plugin that turns a folder of markdown files into to-do lists.
 
-**One file is one list. One line is one task.** Open `lists/Work To-Dos.md` in any
-text editor on any device and you see a checklist you can tick. Open it in
-Obsidian with this plugin and you get a task list, a collapsible completed
-section, and a detail panel with steps, due dates and reminders.
+Because how the flip can we make AI Generated content thats super realistic but no one can do a todo list/remidners app correctly 😤
 
 ## How it moves
 
@@ -143,11 +140,7 @@ the wrong place.
 
 Default `lists/`, configurable.
 
-Do **not** use a dot-prefixed folder like `.lists/`. Obsidian excludes anything
-starting with `.` from the vault entirely — that's how `.obsidian/` stays hidden —
-so the files would be invisible to the plugin, to search, and to the file
-explorer. A plain folder syncs identically; iCloud, Dropbox and Syncthing all
-treat dotfiles as hidden and several skip them by default.
+Do **not** use a dot-prefixed folder like `.lists/`. 
 
 ## Development
 
@@ -157,37 +150,6 @@ npm run dev      # watch build
 npm run build    # typecheck + production build
 npm test         # 159 tests: parsing, sorting, view state, and the write path
 ```
-
-### Test coverage
-
-159 tests across four suites.
-
-`test/roundtrip.test.mjs` (80) covers parsing and serialising. The load-bearing
-one reconstructs every fixture file through the edit path with nothing changed
-and asserts the bytes come back identical.
-
-`test/sort.test.mjs` (15) covers sorting and the star scale, including that
-sorting never mutates its input and never touches a raw line.
-
-`test/viewstate.test.mjs` (8) covers the state a tab persists, including that
-junk or older blobs decode to null instead of rendering a broken view.
-
-`test/mutate.test.mjs` (56) covers the write path against an in-memory vault.
-Every behavioural test runs **twice** — once through the Editor API branch and
-once through `Vault.process` — because those are two separate implementations
-that must agree. It also covers the stale-parse guard, which is what stops a
-write landing on the wrong line.
-
-Coverage is 95% of lines and 86% of branches over `parse`, `serialize`, `types`,
-`sort` and `mutate`. The UI layer has no unit tests; it is exercised by the harness,
-which catches crashes rather than proving correctness.
-
-### The harness
-
-`npm run harness` builds a standalone browser page that runs the real pane code
-against fixture data with a mocked `obsidian` module. It renders the desktop
-layout in both importance modes, the expanded add box, the detail overlay, and
-the three phone panes, in light and dark, without needing an Obsidian install. `node harness/shot.mjs` screenshots it.
 
 ### Running it in Obsidian
 
@@ -222,52 +184,10 @@ phone uses. To get it onto an actual phone you need the built files inside the
 vault's `.obsidian/plugins/list-vibes/` and that folder syncing to the device —
 note that Obsidian Sync excludes plugin files unless you explicitly enable it.
 
-## Releasing
 
-Obsidian installs a plugin from the GitHub release whose **tag exactly matches
-`manifest.version`**, with no `v` prefix, and it reads `main.js`,
-`manifest.json` and `styles.css` as individual release assets. A zip is not read
-by the installer. No release means no installable plugin, however good the code
-on `main` is.
+## AI
 
-That is all automated. Cutting a release is:
-
-```bash
-npm version patch     # or minor / major
-git push && git push --tags
-```
-
-`npm version` runs `scripts/version-bump.mjs`, which writes the new version into
-`manifest.json` and adds a `versions.json` entry mapping it to the current
-`minAppVersion`. That mapping is what lets Obsidian offer an older release to
-someone on an older app version — a missing entry means those users silently get
-nothing. `.npmrc` sets an empty tag prefix so the tag is `0.2.0`, not `v0.2.0`.
-
-Pushing the tag fires `.github/workflows/release.yml`, which reinstalls, runs the
-tests, builds, refuses to continue if the tag and `manifest.version` disagree,
-and publishes the release with the three files attached.
-
-`.github/workflows/ci.yml` runs the same tests and build on every push and pull
-request, plus a check that the manifest and `versions.json` agree — so a broken
-manifest fails on `main` rather than at release time.
-
-### Submitting to the community directory
-
-Submission is no longer a pull request against `obsidianmd/obsidian-releases`. It
-is a web form at [community.obsidian.md](https://community.obsidian.md): sign in
-with an Obsidian account, link GitHub, add the plugin. Review is an automated
-scan, not a human queue, and it reads `manifest.json` from the default branch
-while installs come from the matching release — so both have to exist.
-
-Before submitting, run `npx eslint src` with `eslint-plugin-obsidianmd`, which
-reproduces that scan locally.
-
-### Beta testing before that
-
-[BRAT](https://github.com/TfTHacker/obsidian42-brat) installs a plugin straight
-from a GitHub repo, from inside Obsidian. It is the practical way to get builds
-onto a phone, since it works identically on iOS and Android with no file
-wrangling. Point it at the repo once the first release exists.
+This app is co-created with AI and has been vibe coded. 
 
 ## Licence
 
