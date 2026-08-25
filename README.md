@@ -163,6 +163,31 @@ the app, because it is reading the same numbers.
 The one deliberate exception is the card-wall breakpoint, which is a layout
 threshold rather than a spacing step.
 
+## Typing on mobile
+
+Two faults lived here, and both came from the same mistake: rebuilding DOM the
+user was actively using.
+
+Tapping the add box used to repaint the pane, which destroyed and recreated the
+very input just tapped. On Android that is worse than it sounds — text arrives
+through an IME composition bound to the live element, and replacing it
+mid-composition leaves the IME inserting at a stale offset, so characters came
+out **reversed**. Expanding is now a class rather than a repaint, and a repaint
+from anywhere else is held back while focus is in a field and released when it
+leaves. A file change can wait; a half-typed word cannot.
+
+The keyboard is measured, not assumed. The first attempt guessed that Obsidian's
+navbar detaches while the keyboard is up and gave back the room reserved for it —
+backwards, because on Android the webview does not resize, so that left the add
+box under the keyboard rather than above it. `visualViewport` reports how much of
+the view is actually covered, on both platforms, and the reserve becomes whichever
+of the keyboard and the navbar is in the way. Where `visualViewport` is
+unavailable the measurement is zero and the layout is unchanged.
+
+`npm run test:ui` drives all of this under a phone viewport: typing arrives in
+order, focus survives it, nothing scrolls the view out of sight, and the box
+clears the keyboard and gives the room back afterwards.
+
 ## Where the title comes from
 
 Obsidian draws the view's title in `.view-header`, but only in some placements:
@@ -355,7 +380,7 @@ npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
 npm test         # 248 tests: parsing, sorting, frontmatter, view state, writes
-npm run test:ui  # drives real drags and renames in a headless browser
+npm run test:ui  # drives drags, renames, titles and mobile typing in a browser
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```
 

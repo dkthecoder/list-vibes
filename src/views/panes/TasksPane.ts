@@ -386,6 +386,8 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	const expanded = ctx.state.composing;
 
 	const box = pane.createDiv({ cls: "lv-add" });
+	// Set from state on every render, and toggled live by expand() without one,
+	// so a repaint that does land while composing keeps the box open.
 	box.toggleClass("is-expanded", expanded);
 
 	const top = box.createDiv({ cls: "lv-add-top" });
@@ -433,10 +435,20 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		}
 	};
 
+	/*
+	 * Expanding is a class, not a repaint.
+	 *
+	 * This used to call render(), which rebuilt the pane and therefore destroyed
+	 * and recreated the very input the user had just tapped. On Android that is
+	 * worse than it sounds: text arrives through an IME composition bound to the
+	 * live element, and replacing that element mid-composition leaves the IME
+	 * inserting at a stale offset — which is why typed characters came out in
+	 * reverse. The input now survives, so the composition does too.
+	 */
 	const expand = () => {
 		if (ctx.state.composing) return;
 		ctx.state.composing = true;
-		ctx.render("tasks");
+		box.addClass("is-expanded");
 	};
 
 	title.addEventListener("focus", expand);
@@ -455,9 +467,11 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		}
 	});
 
-	if (!expanded) return;
 
-	/* --- expanded: description + actions --- */
+	/* --- expanded: description, metadata and actions ---
+	 *
+	 * Always built, revealed by `.is-expanded`. Building it on demand meant a
+	 * repaint at exactly the moment the user started typing. */
 	description = box.createEl("textarea", {
 		cls: "lv-add-note",
 		attr: {
@@ -483,10 +497,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 
 	const actions = box.createDiv({ cls: "lv-add-actions" });
 
-	const cancel = actions.createEl("button", {
-		cls: "lv-add-cancel",
-		text: "Cancel",
-	});
+	const cancel = actions.createEl("button", { cls: "lv-add-cancel", text: "Cancel" });
 	cancel.addEventListener("click", () => {
 		ctx.state.composing = false;
 		ctx.state.draft = {};

@@ -63,6 +63,7 @@ export class ListsView extends ItemView {
 	/** Layout shape of the last paint. A change here forces a full rebuild. */
 	private lastShape = "";
 	private wasPinned = false;
+	private deferred = false;
 	/** Guards the setViewState round trip from re-entering itself. */
 	private persisting = false;
 
@@ -185,20 +186,24 @@ export class ListsView extends ItemView {
 		});
 
 		/*
-		 * Obsidian's mobile navbar is detached from the DOM while the soft
-		 * keyboard is up, so the room reserved for it has to be given back or the
-		 * add box strands itself above the keyboard. These are Capacitor events —
-		 * undocumented, and they simply never fire on desktop, which makes them
-		 * safe to attach unconditionally. registerDomEvent unbinds them with the
-		 * view.
+		 * Lift the add box above the soft keyboard.
+		 *
+		 * My first attempt assumed Obsidian's navbar detaches while the keyboard
+		 * is up and simply gave back the room reserved for it. That was a guess,
+		 * and it was backwards: on Android the webview does not resize, so
+		 * zeroing the reserve left the add box under the keyboard rather than
+		 * above it.
+		 *
+		 * `visualViewport` measures it instead of assuming. It is a web standard
+		 * rather than an Obsidian internal, it reports the keyboard on both iOS
+		 * and Android, and where it is unavailable the measurement is simply zero
+		 * and the layout is exactly as it was.
 		 */
-		const keyboard = (open: boolean) =>
-			this.contentEl.toggleClass("is-keyboard-open", open);
-		this.registerDomEvent(window, "keyboardWillShow" as "resize", () =>
-			keyboard(true)
-		);
-		this.registerDomEvent(window, "keyboardWillHide" as "resize", () =>
-			keyboard(false)
+		this.trackKeyboard();
+
+		// A held-back repaint runs the moment the field is done with.
+		this.registerDomEvent(this.contentEl, "focusout", () =>
+			window.setTimeout(() => this.flushDeferred(), 0)
 		);
 
 		this.render();
@@ -438,6 +443,60 @@ export class ListsView extends ItemView {
 		};
 	}
 
+	/**
+	 * True while the user is typing into a field inside this view.
+	 *
+	 * Deliberately asks the document rather than trusting `state.composing`: the
+	 * add box, the note field and an inline rename are all live text, and any of
+	 * them being replaced mid-keystroke is the same bug.
+	 */
+	private typing(): boolean {
+		const el = document.activeElement;
+		if (!el || !this.contentEl.contains(el)) return false;
+		return (
+			el instanceof HTMLInputElement ||
+			el instanceof HTMLTextAreaElement ||
+			(el as HTMLElement).isContentEditable
+		);
+	}
+
+	/**
+	 * Keep `--lv-keyboard-height` on the view equal to however much of it the
+	 * soft keyboard is covering.
+	 *
+	 * The visual viewport is the part of the page actually on screen. When the
+	 * keyboard opens it shrinks, or slides up leaving an offset, depending on
+	 * the platform — so the covered height is what the layout viewport has that
+	 * the visual one does not, less however far it has scrolled away.
+	 */
+	private trackKeyboard(): void {
+		const vv = window.visualViewport;
+		if (!vv) return;
+
+		const measure = () => {
+			const covered = Math.max(
+				0,
+				Math.round(window.innerHeight - vv.height - vv.offsetTop)
+			);
+			// Small differences are browser chrome, not a keyboard. Below this a
+			// reserve would just add an unexplained gap at the bottom.
+			const keyboard = covered > 120 ? covered : 0;
+			this.contentEl.style.setProperty("--lv-keyboard-height", `${keyboard}px`);
+			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
+		};
+
+		this.registerDomEvent(vv as unknown as Window, "resize", measure);
+		this.registerDomEvent(vv as unknown as Window, "scroll", measure);
+		measure();
+	}
+
+	/** Run a repaint that was held back while the user was typing. */
+	private flushDeferred(): void {
+		if (!this.deferred || this.typing()) return;
+		this.deferred = false;
+		this.render(this.queuedScope);
+	}
+
 	/** Move the picker's highlight to the current selection, without a repaint. */
 	private markSelected(): void {
 		const key = selectionKey(this.state.selection);
@@ -451,6 +510,21 @@ export class ListsView extends ItemView {
 		this.queuedScope = this.queued
 			? widerScope(this.queuedScope, scope)
 			: scope;
+
+		/*
+		 * Never repaint out from under someone who is typing.
+		 *
+		 * A repaint replaces the focused field, and on Android that breaks the
+		 * IME composition mid-word. A file change arriving while the user types
+		 * can wait: the list behind the add box being one frame stale is
+		 * invisible, whereas losing a half-typed word is not. The deferred
+		 * repaint runs as soon as the field gives up focus.
+		 */
+		if (this.typing()) {
+			this.deferred = true;
+			return;
+		}
+
 		if (this.queued) return;
 		this.queued = true;
 		window.requestAnimationFrame(() => {

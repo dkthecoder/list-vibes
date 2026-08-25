@@ -37,6 +37,8 @@
 	   so every calc() below stays valid on desktop and tablet, where Obsidian
 	   never defines the variable it is built from. */
 	--lv-navbar-clearance: 0px;
+	/* Set from script; how much of the view the soft keyboard is covering. */
+	--lv-keyboard-height: 0px;
 
 	padding: 0;
 	height: 100%;
@@ -428,17 +430,24 @@
 
 /* ---------------- add box ---------------- */
 
+/*
+ * A field at the foot of the pane, not a card floating in it.
+ *
+ * This carried its own background, radius and — when open — an accent border,
+ * which is what made it read as a form pasted on top of the list rather than
+ * part of it. Obsidian separates a footer from its pane with a divider and
+ * leaves the background alone, so this does too.
+ */
 .lv-add {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
-	margin: var(--size-4-2) var(--lv-gutter);
-	margin-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
-	padding: 0 var(--size-4-3);
+	padding: var(--size-4-2) var(--size-4-3);
+	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	min-height: var(--lv-row-min);
-	background: var(--background-secondary);
-	border-radius: var(--lv-radius);
+	border-top: var(--border-width) solid var(--divider-color);
+	background: var(--background-primary);
 }
 
 .lv-add-icon {
@@ -447,21 +456,12 @@
 	color: var(--interactive-accent);
 }
 
+/* Left to Obsidian: an <input> already carries the theme's field styling, its
+   focus ring and its radius. Only the width is ours. */
 .lv-add-input {
 	flex: 1 1 auto;
 	min-width: 0;
-	background: transparent;
-	border: none;
-	box-shadow: none;
-	padding: 0;
-	min-height: var(--lv-row-min);
 	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-}
-
-.lv-add-input:focus {
-	box-shadow: none;
-	outline: none;
 }
 
 /* ---------------- detail pane ---------------- */
@@ -867,9 +867,8 @@
 .lv-add {
 	flex-direction: column;
 	align-items: stretch;
-	gap: 0;
-	padding: 0 var(--size-4-3);
-	transition: background 150ms ease;
+	gap: var(--size-2-2);
+	transition: none;
 }
 
 .lv-add-top {
@@ -879,16 +878,19 @@
 	min-height: var(--lv-row-min);
 }
 
-.lv-add.is-expanded {
-	padding-bottom: var(--size-4-2);
-	background: var(--background-primary);
-	box-shadow: 0 0 0 1px var(--interactive-accent);
-}
+/*
+ * Expanding changes what is in the box, not what the box is.
+ *
+ * This used to repaint the footer as an accent-outlined card, which is the
+ * "bolted on" look — and its padding-bottom override also silently cancelled
+ * the navbar and keyboard clearance, so on a phone the expanded box was the one
+ * that ended up underneath the keyboard.
+ */
 
 .lv-add-note {
 	width: 100%;
-	margin: 0 0 var(--size-4-2) 30px;
-	padding: 0;
+	margin: 0;
+	padding: var(--size-2-2) var(--size-2-3);
 	min-height: var(--size-4-11, 44px);
 	resize: none;
 	background: transparent;
@@ -915,15 +917,7 @@
 	font-size: var(--font-ui-smaller);
 }
 
-.lv-add-cancel {
-	background: transparent;
-	box-shadow: none;
-	color: var(--text-muted);
-}
-
-.lv-add-cancel:hover {
-	background: var(--background-modifier-hover);
-}
+/* Left to core, which already draws a secondary button. */
 
 /* ------------------------------------------------------------------
    Importance: single star and 1-5 rating
@@ -1499,10 +1493,20 @@ body.is-phone .lv-root {
 	--lv-navbar-clearance: calc(var(--view-bottom-spacing, 0px) + var(--size-4-2));
 }
 
-/* While the keyboard is up the bar is detached from the DOM entirely, so
-   reserving room for it would strand the add box above the keyboard. */
-body.is-phone .lv-root.is-keyboard-open {
-	--lv-navbar-clearance: 0px;
+/*
+ * With the keyboard up, clear the keyboard rather than the navbar.
+ *
+ * They are never both in the way: the keyboard covers the navbar. So the room
+ * needed is whichever is taller, and the keyboard always is. This is measured
+ * from `visualViewport` — see ListsView.trackKeyboard — because assuming what
+ * the navbar does with the keyboard open got it backwards once already.
+ */
+/* Scoped through `body` to outrank `body.is-phone .lv-root` above. Written as
+   `.lv-root.is-keyboard-open` it lost the cascade and the keyboard reserve
+   silently never applied — which is exactly the failure this rule exists to
+   prevent, arriving by a different route. */
+body .lv-root.is-keyboard-open {
+	--lv-navbar-clearance: var(--lv-keyboard-height, 0px);
 }
 
 /* Let the last rows scroll clear of the bar rather than hiding behind it. */
@@ -1527,14 +1531,20 @@ body.is-phone .lv-nav-scroll {
 	padding: var(--size-2-2) 0 0;
 }
 
+/*
+ * Quiet by default. These were bordered pills, which put a second row of
+ * buttons under the field and made the whole box read as a form. Unset they
+ * are just labels; set, they take the accent so what the task will carry reads
+ * at a glance.
+ */
 .lv-add-chip {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--size-2-2);
-	min-height: var(--size-4-6);
+	min-height: var(--size-4-8);
 	padding: 0 var(--size-2-3);
 	border-radius: var(--radius-s);
-	border: var(--border-width) solid var(--divider-color);
+	border: none;
 	background: transparent;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
@@ -1675,4 +1685,45 @@ body.is-phone .workspace-split.mod-root .lv-header-title {
 	.lv-overlay:not(.is-pinned) .lv-detail-pin {
 		display: flex;
 	}
+}
+
+/* ------------------------------------------------------------------
+   Add box, collapsed and expanded
+
+   The extra fields are always in the DOM and revealed by a class.
+   Building them on demand meant a repaint at exactly the moment the
+   user tapped the field — which replaced the input mid-keystroke and,
+   on Android, scrambled the IME's composition into reversed text.
+   ------------------------------------------------------------------ */
+
+.lv-add-note,
+.lv-add-chips,
+.lv-add-picker,
+.lv-add-actions {
+	display: none;
+}
+
+.lv-add.is-expanded .lv-add-note,
+.lv-add.is-expanded .lv-add-chips,
+.lv-add.is-expanded .lv-add-actions {
+	display: flex;
+}
+
+.lv-add.is-expanded .lv-add-picker {
+	display: flex;
+}
+
+.lv-add-note {
+	width: 100%;
+	resize: vertical;
+	font-size: var(--font-ui-small);
+}
+
+/* Cancel is a plain Obsidian button; Add task is the accented one. Neither
+   needs styling of its own — core already draws both. */
+.lv-add-actions {
+	justify-content: flex-end;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-top: var(--size-2-2);
 }
