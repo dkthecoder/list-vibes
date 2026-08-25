@@ -222,6 +222,53 @@ phone uses. To get it onto an actual phone you need the built files inside the
 vault's `.obsidian/plugins/list-vibes/` and that folder syncing to the device —
 note that Obsidian Sync excludes plugin files unless you explicitly enable it.
 
+## Releasing
+
+Obsidian installs a plugin from the GitHub release whose **tag exactly matches
+`manifest.version`**, with no `v` prefix, and it reads `main.js`,
+`manifest.json` and `styles.css` as individual release assets. A zip is not read
+by the installer. No release means no installable plugin, however good the code
+on `main` is.
+
+That is all automated. Cutting a release is:
+
+```bash
+npm version patch     # or minor / major
+git push && git push --tags
+```
+
+`npm version` runs `scripts/version-bump.mjs`, which writes the new version into
+`manifest.json` and adds a `versions.json` entry mapping it to the current
+`minAppVersion`. That mapping is what lets Obsidian offer an older release to
+someone on an older app version — a missing entry means those users silently get
+nothing. `.npmrc` sets an empty tag prefix so the tag is `0.2.0`, not `v0.2.0`.
+
+Pushing the tag fires `.github/workflows/release.yml`, which reinstalls, runs the
+tests, builds, refuses to continue if the tag and `manifest.version` disagree,
+and publishes the release with the three files attached.
+
+`.github/workflows/ci.yml` runs the same tests and build on every push and pull
+request, plus a check that the manifest and `versions.json` agree — so a broken
+manifest fails on `main` rather than at release time.
+
+### Submitting to the community directory
+
+Submission is no longer a pull request against `obsidianmd/obsidian-releases`. It
+is a web form at [community.obsidian.md](https://community.obsidian.md): sign in
+with an Obsidian account, link GitHub, add the plugin. Review is an automated
+scan, not a human queue, and it reads `manifest.json` from the default branch
+while installs come from the matching release — so both have to exist.
+
+Before submitting, run `npx eslint src` with `eslint-plugin-obsidianmd`, which
+reproduces that scan locally.
+
+### Beta testing before that
+
+[BRAT](https://github.com/TfTHacker/obsidian42-brat) installs a plugin straight
+from a GitHub repo, from inside Obsidian. It is the practical way to get builds
+onto a phone, since it works identically on iOS and Android with no file
+wrangling. Point it at the repo once the first release exists.
+
 ## Licence
 
 MIT

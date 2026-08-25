@@ -8,3 +8,4 @@ test/model.mjs
 data.json
 _to_delete/
 test/build/
+_sync/

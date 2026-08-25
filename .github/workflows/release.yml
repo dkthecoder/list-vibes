@@ -1,0 +1,60 @@
+name: Release
+
+# Obsidian installs a plugin from the GitHub release whose tag exactly matches
+# manifest.version — no "v" prefix. Pushing that tag is the whole release.
+#
+#   npm version patch    # bumps manifest.json + versions.json, commits, tags
+#   git push && git push --tags
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # A broken build must never reach a release users can install.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # The tag and manifest.version must agree, or Obsidian will not find the
+      # download for the version it thinks it is installing.
+      - name: Check tag matches manifest.version
+        run: |
+          set -e
+          TAG="${GITHUB_REF#refs/tags/}"
+          MANIFEST=$(node -p "require('./manifest.json').version")
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "::error::tag $TAG does not match manifest.version $MANIFEST"
+            exit 1
+          fi
+          echo "releasing $TAG"
+
+      # Assets go up as individual files. Obsidian fetches them by name; a zip
+      # is not read by the installer.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            main.js manifest.json styles.css

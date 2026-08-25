@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      # The plugin is only installable if these three exist and parse.
+      - name: Verify release artefacts
+        run: |
+          set -e
+          for f in main.js manifest.json styles.css; do
+            test -s "$f" || { echo "::error::$f missing or empty"; exit 1; }
+          done
+          node -e "
+            const m = require('./manifest.json');
+            const v = require('./versions.json');
+            for (const k of ['id','name','version','minAppVersion','description','author']) {
+              if (!m[k]) { console.error('::error::manifest.json missing ' + k); process.exit(1); }
+            }
+            if (!v[m.version]) {
+              console.error('::error::versions.json has no entry for ' + m.version);
+              process.exit(1);
+            }
+            if (v[m.version] !== m.minAppVersion) {
+              console.error('::error::versions.json[' + m.version + '] does not match minAppVersion');
+              process.exit(1);
+            }
+            console.log('manifest ok:', m.id, m.version, '(min', m.minAppVersion + ')');
+          "
