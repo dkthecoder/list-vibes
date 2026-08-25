@@ -31,15 +31,22 @@ export class ColorModal extends Modal {
 		contentEl.empty();
 		this.titleEl.setText(`Colour for ${this.listName}`);
 
+		contentEl.createDiv({
+			cls: "lv-swatches-hint",
+			text: "The first swatch is your Obsidian accent colour, used by every list you have not given one of its own.",
+		});
+
 		const grid = contentEl.createDiv({ cls: "lv-swatches" });
 
-		// "None" first, so clearing is as reachable as setting.
+		// Default first, so reverting is as reachable as customising. "Default"
+		// is not the absence of a colour — it is the accent from the user's own
+		// Obsidian appearance settings, so the swatch shows that colour.
 		const none = grid.createDiv({ cls: "lv-swatch lv-swatch-none" });
 		none.toggleClass("is-selected", !this.current);
 		none.setAttribute("role", "button");
 		none.setAttribute("tabindex", "0");
-		none.setAttribute("aria-label", "No colour");
-		setIcon(none, "ban");
+		none.setAttribute("aria-label", "Theme accent colour");
+		if (!this.current) setIcon(none, "check");
 		this.wire(none, null);
 
 		for (const color of LIST_COLORS) {

@@ -17,6 +17,8 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const isSmart = sel.kind === "smart";
 	const list = sel.kind === "list" ? ctx.store.getList(sel.path) : undefined;
 	if (list?.config.color) pane.addClass(`lv-color-${list.config.color}`);
+	// Accent every list, falling back to the theme's own accent colour.
+	pane.toggleClass("is-accented", !!list);
 
 	/* ---------------- header ---------------- */
 	const header = pane.createDiv({ cls: "lv-header" });

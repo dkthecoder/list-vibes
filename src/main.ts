@@ -34,7 +34,10 @@ export default class ListsPlugin extends Plugin {
 
 		// Wait for the vault index before the first read, otherwise the folder
 		// may not be populated yet on a cold start.
-		this.app.workspace.onLayoutReady(() => void this.store.reloadAll());
+		this.app.workspace.onLayoutReady(() => {
+			void this.store.reloadAll();
+			if (this.settings.openOnStartup) void this.ensureInSidebar();
+		});
 	}
 
 	onunload(): void {
@@ -176,6 +179,27 @@ export default class ListsPlugin extends Plugin {
 				new Notice(`Added to ${target.name}`);
 			},
 		}).open();
+	}
+
+	/**
+	 * Put the view in the sidebar so it sits alongside Files, Search and
+	 * Bookmarks, without stealing focus from whatever the user had open.
+	 *
+	 * Where it lands in the tab strip is Obsidian's to decide — leaf order is
+	 * user-owned workspace state and there is no public API to reorder it. Drag
+	 * it to the front once and Obsidian remembers.
+	 */
+	private async ensureInSidebar(): Promise<void> {
+		if (this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS).length) return;
+		try {
+			await this.app.workspace.ensureSideLeaf(VIEW_TYPE_LISTS, this.settings.side, {
+				active: false,
+				reveal: false,
+			});
+		} catch {
+			// A workspace layout that will not take the leaf is not worth a
+			// notice on startup; the ribbon icon still opens it.
+		}
 	}
 
 	/**

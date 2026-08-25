@@ -5,6 +5,13 @@
 
 .lv-root {
 	position: relative;
+	/*
+	 * Every list is accented. Uncustomised, that accent is the one the user
+	 * picked in Obsidian's own appearance settings, so the plugin follows their
+	 * theme instead of imposing a colour of its own. A list that sets `color:`
+	 * in its frontmatter overrides this for itself.
+	 */
+	--lv-accent: var(--interactive-accent);
 	--lv-row-height: 44px; /* touch target floor */
 	--lv-gutter: 12px;
 	--lv-radius: 8px;
@@ -985,8 +992,8 @@
 .theme-dark .lv-color-pink   { --lv-accent: #ea7cb4; }
 .theme-dark .lv-color-grey   { --lv-accent: #9aa3b0; }
 
-/* A coloured list gets a bar, not a wash — a tinted row would fight the
-   selected state and every theme's own background. */
+/* A bar, not a wash — a tinted row would fight the selected state and every
+   theme's own background. */
 .lv-nav-row.is-coloured {
 	position: relative;
 }
@@ -1006,11 +1013,11 @@
 	color: var(--lv-accent);
 }
 
-.lv-tasks[class*="lv-color-"] .lv-header {
+.lv-tasks.is-accented .lv-header {
 	box-shadow: inset 0 -2px 0 var(--lv-accent);
 }
 
-.lv-tasks[class*="lv-color-"] .lv-card-task {
+.lv-tasks.is-accented .lv-card-task {
 	border-left: 3px solid var(--lv-accent);
 }
 
@@ -1169,10 +1176,17 @@
 		0 0 0 4px var(--interactive-accent);
 }
 
+/* Not "no colour" — the theme's own accent, which is a colour. Show it. */
 .lv-swatch-none {
-	background: transparent;
-	border: 2px dashed var(--background-modifier-border);
-	color: var(--text-faint);
+	background: var(--interactive-accent);
+	box-shadow: inset 0 0 0 2px var(--background-primary);
+}
+
+.lv-swatch-none.is-selected {
+	box-shadow:
+		inset 0 0 0 2px var(--background-primary),
+		0 0 0 2px var(--background-primary),
+		0 0 0 4px var(--interactive-accent);
 }
 
 .lv-swatch .svg-icon {
@@ -1310,4 +1324,10 @@
 
 .lv-card-chip.is-overdue {
 	color: var(--text-error);
+}
+
+.lv-swatches-hint {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	padding-bottom: 4px;
 }

@@ -37,9 +37,11 @@ for (const [path, content] of Object.entries(FILES)) {
 const lists: TaskList[] = Object.entries(FIXED).map(([path, content]) =>
 	parseFile(content, path)
 );
-// A colour on the work list, so the accent treatment is visible.
+// One list customised, the rest on the theme accent, so both are visible.
 const work = lists.find((l) => l.path.includes("Work To-Dos"));
 if (work) work.config.color = "teal";
+const shows = lists.find((l) => l.path.includes("Movies"));
+if (shows) shows.config.color = "pink";
 
 /* ---- A store standing in for ListStore, same shape ---- */
 const store = {

@@ -49,6 +49,7 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			label: list.name,
 			count: open,
 			color: list.config.color,
+			accented: true,
 			selected: sameSelection(ctx.state.selection, { kind: "list", path: list.path }),
 			onClick: () => ctx.select({ kind: "list", path: list.path }),
 			onNewTab: () => ctx.openInNewTab({ kind: "list", path: list.path }),
@@ -79,6 +80,8 @@ interface RowOpts {
 	selected: boolean;
 	cls?: string;
 	color?: ListColor;
+	/** Draw the accent bar. Lists do, the smart views do not. */
+	accented?: boolean;
 	onClick: (e?: MouseEvent) => void;
 	onContext?: (e: MouseEvent) => void;
 	/** Modifier-click and middle-click target, when the row supports it. */
@@ -91,7 +94,9 @@ function row(parent: HTMLElement, o: RowOpts): void {
 	const el = parent.createDiv({ cls: "lv-nav-row" });
 	if (o.cls) el.addClass(o.cls);
 	if (o.color) el.addClass(`lv-color-${o.color}`);
-	el.toggleClass("is-coloured", !!o.color);
+	// Every list gets the bar. Without its own colour it inherits the accent
+	// from the user's Obsidian appearance settings.
+	el.toggleClass("is-coloured", !!o.accented);
 	el.toggleClass("is-selected", o.selected);
 	el.setAttribute("tabindex", "0");
 	el.setAttribute("role", "button");

@@ -31,6 +31,8 @@ export interface ListsSettings {
 	defaultSort: SortKey;
 	/** Per-list sort choice, keyed by file path. View-only, never written to the file. */
 	sortByList: Record<string, SortKey>;
+	/** Add the view to the sidebar automatically when Obsidian starts. */
+	openOnStartup: boolean;
 	/** Rows or cards, for lists whose file does not say. */
 	defaultView: ViewMode;
 	/** Per-list layout override, keyed by file path. */
@@ -52,6 +54,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	sortByList: {},
 	defaultView: "list",
 	viewByList: {},
+	openOnStartup: true,
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -96,6 +99,18 @@ export class ListsSettingTab extends PluginSettingTab {
 						this.plugin.settings.side = v as "left" | "right";
 						await this.plugin.saveSettings();
 					})
+			);
+
+		new Setting(containerEl)
+			.setName("Show in the sidebar on startup")
+			.setDesc(
+				"Adds List Vibes to the sidebar alongside Files and Search when Obsidian opens, without taking focus. Where it sits in the tab strip is up to Obsidian — drag it to the front once and it stays there."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.openOnStartup).onChange(async (v) => {
+					this.plugin.settings.openOnStartup = v;
+					await this.plugin.saveSettings();
+				})
 			);
 
 		new Setting(containerEl).setName("Tasks").setHeading();

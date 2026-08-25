@@ -30,16 +30,30 @@ The list's name **is** its filename. Click the name in the list header and type
 to rename it — that renames the file, and Obsidian updates any links pointing at
 it. The same is on each list's `⋯` menu in the picker, along with its colour.
 
-A colour is stored as a name in the list's frontmatter (`color: teal`), not a hex
-value, so the same list reads correctly in a light and a dark theme. It shows as
-a bar on the picker row, an underline on the list header, and an edge on each
-card — a bar rather than a wash, because a tinted row fights both the selected
-state and whatever background the theme already uses.
+Every list is accented. Left alone, that accent is **the colour you picked in
+Obsidian's own appearance settings**, so the plugin follows your theme rather
+than imposing a palette of its own. Give a list a colour of its own and it
+overrides that, stored as a name in its frontmatter (`color: teal`) rather than a
+hex value, so it still reads correctly in both a light and a dark theme.
+
+The accent shows as a bar on the picker row, an underline on the list header, and
+an edge on each card — a bar rather than a wash, because a tinted row fights both
+the selected state and whatever background the theme already uses.
 
 Each list can be laid out as **rows** or as a **Google Keep-style card wall**,
 toggled from the list header. Cards put the note, the steps and the metadata on
 the face rather than behind the detail panel, which is what makes Keep feel like
 glancing at a pinboard instead of drilling into a task manager.
+
+## In the sidebar
+
+The view is added to the sidebar when Obsidian starts, alongside Files, Search
+and Bookmarks, without taking focus from whatever you had open. Turn it off in
+settings if you would rather open it from the ribbon.
+
+Where it lands in the tab strip is Obsidian's call: leaf order is user-owned
+workspace state and there is no public API to reorder it. Drag it to the front
+once and Obsidian remembers.
 
 ## Lists as tabs
 
