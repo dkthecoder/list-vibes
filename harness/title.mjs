@@ -43,8 +43,10 @@ const r = await p.evaluate(() => {
     phoneDrawer: shown("show-view-header is-phone is-mobile", "workspace-drawer"),
   };
 });
+// The list is named in every placement now. Twice in one of them, which is the
+// deliberate trade — see the comment on .lv-header-title.
 const want = { mainTabHeaderOn: "flex", mainTabHeaderOff: "flex", sidebar: "flex",
-               phoneMainTab: "none", phoneDrawer: "flex" };
+               phoneMainTab: "flex", phoneDrawer: "flex" };
 let bad = 0;
 for (const [k, v] of Object.entries(want)) {
   const ok = r[k] === v;

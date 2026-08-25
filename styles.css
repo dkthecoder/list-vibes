@@ -51,7 +51,16 @@
 
 	padding: 0;
 	height: 100%;
+	/*
+	 * `clip`, not `hidden`. An `overflow: hidden` box is still a scroll
+	 * container — it merely has no scrollbar — so when the keyboard covers a
+	 * focused field the browser scrolls one of these to reveal it, the whole
+	 * view slides up out of sight, and nothing can scroll it back. `clip` looks
+	 * identical and cannot be scrolled at all. The `hidden` before it is the
+	 * floor for engines without `clip`.
+	 */
 	overflow: hidden;
+	overflow: clip;
 	font-family: var(--font-interface);
 	color: var(--text-normal);
 }
@@ -66,7 +75,9 @@
 	position: relative;
 	height: 100%;
 	min-height: 0;
+	/* See .lv-root — this is the container that was actually being scrolled. */
 	overflow: hidden;
+	overflow: clip;
 }
 
 .lv-root.is-wide .lv-nav {
@@ -208,6 +219,8 @@
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
+	min-height: var(--size-4-12);
+	padding: var(--size-4-2) var(--size-4-3);
 	padding-top: calc(var(--size-4-2) + var(--safe-area-inset-top, 0px));
 	border-bottom: var(--border-width) solid var(--divider-color);
 }
@@ -831,7 +844,14 @@
 	position: absolute;
 	top: 0;
 	right: 0;
-	bottom: 0;
+	/*
+	 * Lifted clear of the keyboard rather than padded away from it. `bottom: 0`
+	 * is measured against the containing block, which knows nothing about a
+	 * keyboard, so padding the panel's insides only hides its last few hundred
+	 * pixels behind the pad. Shortening the box re-flows the whole panel — the
+	 * scroller shrinks and the step field lands directly above the keyboard.
+	 */
+	bottom: var(--lv-keyboard-height, 0px);
 	/* Belt and braces: the shell is the containing block, but if a theme ever
 	   unsets its position this keeps the panel inside the pane. */
 	max-height: 100%;
@@ -1502,11 +1522,21 @@ body.lv-is-dragging .lv-step:hover {
    plugin's navbar clearance silently became zero.
    ------------------------------------------------------------------ */
 
+/*
+ * `--view-bottom-spacing` turned out to be the wrong variable: Obsidian sets it
+ * to 0 on `.is-phone` and only makes it keyboard-aware when floating navigation
+ * or auto full screen is on — so for most phone users the clearance it produced
+ * was zero, and the bar it was meant to clear went on covering the add box.
+ *
+ * `--navbar-height` is the bar's own height and is always set, so the reserve is
+ * built from that plus the safe-area inset, with `--view-bottom-spacing` no
+ * longer in it.
+ */
 body.is-phone .lv-root {
-	/* The extra step covers a shortfall on devices reporting no bottom
-	   safe-area inset, where the bar's own offset puts it ~10px taller
-	   than the variable accounts for. */
-	--lv-navbar-clearance: calc(var(--view-bottom-spacing, 0px) + var(--size-4-2));
+	--lv-navbar-clearance: calc(
+		var(--navbar-height, 48px) + var(--safe-area-inset-bottom, 0px) +
+			var(--size-4-2)
+	);
 }
 
 /*
@@ -1522,6 +1552,8 @@ body.is-phone .lv-root {
    silently never applied — which is exactly the failure this rule exists to
    prevent, arriving by a different route. */
 body .lv-root.is-keyboard-open {
+	/* The keyboard covers the navbar, so the reserve is the keyboard's height
+	   rather than both. */
 	--lv-navbar-clearance: var(--lv-keyboard-height, 0px);
 }
 
@@ -1642,19 +1674,18 @@ body.is-phone .lv-nav-scroll {
 }
 
 /*
- * Hidden in one place only: a main-area tab on a phone, where core always
- * draws the title and ours would stack underneath it.
+ * Always shown.
  *
- * Desktop keeps its own title even when `.view-header` is showing. That is a
- * deliberate reversal — the first version also hid it whenever the title bar
- * was on, and the list ended up unnamed anywhere the tab strip was hidden too
- * (a single tab, or a theme that hides it). Redundant beats absent, and the
- * pane's title carries the list's icon and its inline rename, which the tab's
- * does not.
+ * This started hidden wherever core drew a title, then hidden only on a phone
+ * main tab. Both times the report back was the same: the list had no name where
+ * the user was looking. Core's title is small, sits in a different bar, and on a
+ * phone shares that bar with the drawer button and the tab menu — it reads as
+ * app chrome rather than as the name of the list.
+ *
+ * So this is now unconditional. The cost is a doubled name in one configuration;
+ * the cost of the alternative was no name at all in several, and that is the
+ * complaint that kept coming back.
  */
-body.is-phone .workspace-split.mod-root .lv-header-title {
-	display: none;
-}
 
 /* With no title to take up the slack, the buttons still belong at the
    trailing edge. */

@@ -200,6 +200,8 @@ export class ListsView extends ItemView {
 		 * and the layout is exactly as it was.
 		 */
 		this.trackKeyboard();
+		this.pinScroll(this.contentEl);
+		this.pinScroll(this.contentEl.closest(".workspace-leaf-content"));
 
 		// A held-back repaint runs the moment the field is done with.
 		this.registerDomEvent(this.contentEl, "focusout", () =>
@@ -485,24 +487,101 @@ export class ListsView extends ItemView {
 	 * the visual one does not, less however far it has scrolled away.
 	 */
 	private trackKeyboard(): void {
-		const vv = window.visualViewport;
-		if (!vv) return;
+		const win = this.contentEl.win;
+		const vv = win.visualViewport;
 
 		const measure = () => {
-			const covered = Math.max(
-				0,
-				Math.round(window.innerHeight - vv.height - vv.offsetTop)
-			);
-			// Small differences are browser chrome, not a keyboard. Below this a
-			// reserve would just add an unexplained gap at the bottom.
-			const keyboard = covered > 120 ? covered : 0;
+			/*
+			 * Obsidian's own value first. Its native layer reads the platform's
+			 * IME inset rather than inferring one, and Obsidian's whole mobile
+			 * layout is built on this variable — `.app-container` is capped at
+			 * `calc(100vh - var(--keyboard-height))`, the toolbar and navbar are
+			 * positioned from it, and Obsidian's own first-party Importer plugin
+			 * consumes it. Undocumented, so it carries a fallback.
+			 */
+			const native =
+				parseFloat(
+					win.getComputedStyle(win.document.documentElement).getPropertyValue(
+						"--keyboard-height"
+					)
+				) || 0;
+
+			/*
+			 * The visual viewport second. It reports on iOS, but on Android the
+			 * webview is not resized when the keyboard opens, so it frequently
+			 * reports nothing at all — which is why this is one input rather than
+			 * the only one. Small differences are browser chrome, not a keyboard.
+			 */
+			const visual = vv
+				? Math.max(0, Math.round(win.innerHeight - vv.height - vv.offsetTop))
+				: 0;
+
+			const keyboard = Math.max(native, visual > 120 ? visual : 0);
 			this.contentEl.style.setProperty("--lv-keyboard-height", `${keyboard}px`);
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
+
+			// Once the box is the right size the field may still be scrolled out
+			// of its own panel. "nearest" is deliberate: it does nothing when the
+			// field is already visible, so this cannot oscillate.
+			win.requestAnimationFrame(() => {
+				const active = this.contentEl.doc.activeElement;
+				if (active instanceof HTMLElement && this.contentEl.contains(active)) {
+					active.scrollIntoView({ block: "nearest", inline: "nearest" });
+				}
+			});
 		};
 
-		this.registerDomEvent(vv as unknown as Window, "resize", measure);
-		this.registerDomEvent(vv as unknown as Window, "scroll", measure);
+		if (vv) {
+			this.registerDomEvent(vv as unknown as Window, "resize", measure);
+			this.registerDomEvent(vv as unknown as Window, "scroll", measure);
+		}
+
+		/*
+		 * Obsidian dispatches these on window on both platforms, and on Android
+		 * they are often the only signal — neither innerHeight nor visualViewport
+		 * changes. Deferred by a tick because Obsidian writes --keyboard-height in
+		 * response to the same event, and the order between the two handlers is
+		 * not guaranteed.
+		 */
+		for (const ev of [
+			"keyboardWillShow",
+			"keyboardDidShow",
+			"keyboardWillHide",
+			"keyboardDidHide",
+		]) {
+			this.registerDomEvent(win, ev as "resize", () => win.setTimeout(measure, 0));
+		}
+
+		// Focus is the last resort: the keyboard can open with no viewport event.
+		this.registerDomEvent(this.contentEl, "focusin", measure);
+		this.registerDomEvent(this.contentEl, "focusout", () =>
+			win.setTimeout(measure, 80)
+		);
+		this.registerDomEvent(win, "resize", measure);
+		this.registerDomEvent(win, "orientationchange", measure);
+
 		measure();
+	}
+
+	/**
+	 * Stop the browser scrolling the view out of sight to reveal a focused field.
+	 *
+	 * This is what made the detail panel vanish. An `overflow: hidden` box is a
+	 * scroll container — it just has no scrollbar — so when the keyboard covers a
+	 * focused input, the browser walks up the ancestors and scrolls one of them.
+	 * Ours are exactly one viewport tall with nothing beneath, so the whole view
+	 * slides up and leaves blank space, and because there is no scrollbar the
+	 * user cannot bring it back.
+	 *
+	 * `overflow: clip` in the stylesheet prevents it; this pins the containers we
+	 * do not own, and is the same guard Obsidian runs on the document root.
+	 */
+	private pinScroll(el: HTMLElement | null): void {
+		if (!el) return;
+		this.registerDomEvent(el, "scroll", () => {
+			if (el.scrollTop !== 0) el.scrollTop = 0;
+			if (el.scrollLeft !== 0) el.scrollLeft = 0;
+		});
 	}
 
 	/** Run a repaint that was held back while the user was typing. */

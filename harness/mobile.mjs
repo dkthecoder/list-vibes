@@ -191,6 +191,105 @@ check(
 	(await page.$eval(INPUT, (e) => e.getAttribute("enterkeyhint"))) === "done"
 );
 
+/* ------------------------------------------------------------------
+   4. The detail panel with the keyboard up
+
+   Tapping "add a step" pops the keyboard and the panel disappears.
+   The add box was fixed for this; the overlay is a different subtree
+   with its own scroller and was never tested with a keyboard.
+   ------------------------------------------------------------------ */
+
+const OVERLAY = "#m-detail .lv-overlay";
+const STEP = `${OVERLAY} .lv-step-input`;
+
+await page.evaluate(() => {
+	document.body.classList.add("is-phone", "is-mobile");
+	document.querySelector("#m-detail")?.scrollIntoView({ block: "center" });
+});
+await page.waitForTimeout(150);
+
+const overlayBefore = await visible(OVERLAY);
+check("the detail panel is on screen", overlayBefore.h > 0, JSON.stringify(overlayBefore));
+check("it has a step field", (await page.$(STEP)) !== null);
+
+await page.click(STEP);
+await page.waitForTimeout(120);
+
+// The keyboard: Android does not resize the webview, so nothing about the
+// layout changes on its own — which is precisely why the panel has to reserve
+// room rather than assume it was given some.
+await page.evaluate(
+	(kb) => {
+		const root = document.querySelector("#m-detail");
+		root.style.setProperty("--lv-keyboard-height", `${kb}px`);
+		root.classList.add("is-keyboard-open");
+	},
+	KEYBOARD
+);
+await page.waitForTimeout(200);
+
+const overlayAfter = await visible(OVERLAY);
+check(
+	"the detail panel is still on screen with the keyboard up",
+	overlayAfter.h > 0,
+	JSON.stringify(overlayAfter)
+);
+
+const hidden = await page.evaluate((sel) => {
+	const el = document.querySelector(sel);
+	const cs = getComputedStyle(el);
+	return {
+		display: cs.display,
+		visibility: cs.visibility,
+		opacity: cs.opacity,
+		transform: cs.transform,
+	};
+}, OVERLAY);
+check(
+	"and is not hidden, faded or translated away",
+	hidden.display !== "none" &&
+		hidden.visibility !== "hidden" &&
+		Number(hidden.opacity) > 0 &&
+		!/matrix\(1, 0, 0, 1, [1-9]/.test(hidden.transform),
+	JSON.stringify(hidden)
+);
+
+const stepVisible = await visible(STEP);
+check(
+	"the step field the user tapped is still visible",
+	stepVisible.h > 0,
+	JSON.stringify(stepVisible)
+);
+
+const detailScrolled = await page.evaluate((sel) => {
+	const out = [];
+	let n = document.querySelector(sel);
+	while (n && n !== document.body) {
+		// A scroller that has been scrolled to reveal the field is fine; an
+		// overflow:hidden box that has been is not — it cannot be scrolled back.
+		const cs = getComputedStyle(n);
+		if (n.scrollTop > 0 && cs.overflowY === "hidden") {
+			out.push(`${n.className || n.tagName}:${n.scrollTop}`);
+		}
+		n = n.parentElement;
+	}
+	return out;
+}, STEP);
+check(
+	"no unscrollable ancestor was scrolled to reveal it",
+	detailScrolled.length === 0,
+	detailScrolled.join(", ")
+);
+
+const stepGap = await page.$eval(`${OVERLAY} .lv-scroll`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
+);
+check(
+	"the panel's scroller reserves room to clear the keyboard",
+	stepGap >= KEYBOARD,
+	`padding-bottom=${stepGap}px, keyboard=${KEYBOARD}px`
+);
+
 void rootBefore;
 void addBefore;
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
