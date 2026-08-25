@@ -67,10 +67,12 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	/* --- new list --- */
 	const foot = pane.createDiv({ cls: "lv-nav-foot" });
-	const add = foot.createDiv({ cls: "lv-nav-row lv-new" });
+	const add = foot.createDiv({
+		cls: "tree-item-self is-clickable tappable lv-nav-row lv-new",
+	});
 	const addIcon = add.createDiv({ cls: "lv-nav-icon" });
 	setIcon(addIcon, "plus");
-	add.createDiv({ cls: "lv-nav-label", text: "New list" });
+	add.createDiv({ cls: "tree-item-inner lv-nav-label", text: "New list" });
 	add.setAttribute("tabindex", "0");
 	const create = () => void newList(ctx);
 	add.addEventListener("click", create);
@@ -110,13 +112,36 @@ interface RowOpts {
  */
 const renamers = new Map<string, () => void>();
 
+/**
+ * One picker row, built on Obsidian's own tree vocabulary.
+ *
+ * `tree-item` / `tree-item-self` / `tree-item-inner` / `tree-item-flair` is the
+ * generic tree markup behind the file explorer, the tag pane, the outline,
+ * backlinks, search and bookmarks — and behind Obsidian's own first-party
+ * Importer plugin, which builds its tree from exactly these classes. Themes
+ * style it, so we inherit their treatment instead of approximating it.
+ *
+ * Every element is **dual-classed**: Obsidian's class for the theming, ours for
+ * our own CSS and our own JS. Nothing in this plugin ever selects on a core
+ * class. If Obsidian renames one we lose inherited polish and keep a working
+ * view, which is the whole point of carrying both.
+ *
+ * `is-clickable` is not decoration either — core's hover rule is gated on it,
+ * so without it a row has no hover state at all. `is-active` is used rather
+ * than `is-selected`: it is the older, more conservative treatment, and there
+ * is only ever one open list to highlight.
+ */
 function row(parent: HTMLElement, o: RowOpts): void {
-	const el = parent.createDiv({ cls: "lv-nav-row" });
+	const item = parent.createDiv({ cls: "tree-item lv-nav-item" });
+	const el = item.createDiv({
+		cls: "tree-item-self is-clickable tappable lv-nav-row",
+	});
 	if (o.cls) el.addClass(o.cls);
 	if (o.color) el.addClass(`lv-color-${o.color}`);
 	// Every list gets the bar. Without its own colour it inherits the accent
 	// from the user's Obsidian appearance settings.
 	el.toggleClass("is-coloured", !!o.accented);
+	el.toggleClass("is-active", o.selected);
 	el.toggleClass("is-selected", o.selected);
 	// Lets the highlight move between rows without repainting the picker.
 	if (o.selKey) el.dataset.lvSel = o.selKey;
@@ -127,7 +152,10 @@ function row(parent: HTMLElement, o: RowOpts): void {
 	if (o.emoji) icon.setText(o.emoji);
 	else if (o.icon) setIcon(icon, o.icon);
 
-	const label = el.createDiv({ cls: "lv-nav-label", text: o.label });
+	const label = el.createDiv({
+		cls: "tree-item-inner lv-nav-label",
+		text: o.label,
+	});
 	if (o.onRename) {
 		// Renaming is armed by double-click, F2 or the menu — never by the click
 		// that opens the list, which is what the row is primarily for.
@@ -144,10 +172,17 @@ function row(parent: HTMLElement, o: RowOpts): void {
 			}
 		});
 	}
-	if (o.count > 0) el.createDiv({ cls: "lv-nav-count", text: String(o.count) });
+	if (o.count > 0) {
+		// Both elements are required: the outer one supplies `margin-inline-start:
+		// auto`, so the count alone would not push right.
+		el.createDiv({ cls: "tree-item-flair-outer" }).createSpan({
+			cls: "tree-item-flair lv-nav-count",
+			text: String(o.count),
+		});
+	}
 
 	if (o.onMenu) {
-		const more = el.createDiv({ cls: "lv-nav-more" });
+		const more = el.createDiv({ cls: "clickable-icon lv-nav-more" });
 		setIcon(more, "more-horizontal");
 		more.setAttribute("aria-label", `Options for ${o.label}`);
 		more.setAttribute("tabindex", "0");

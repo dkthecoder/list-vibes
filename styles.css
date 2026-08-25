@@ -23,6 +23,16 @@
 	--lv-radius: var(--radius-m);
 	--lv-radius-s: var(--radius-s);
 
+	/* Checkboxes default to --font-text-size, which is sized for editor body
+	   text and far too big in a UI pane. Obsidian narrows it the same way for
+	   modals. */
+	--checkbox-size: var(--font-ui-medium);
+
+	/* How much room the mobile navbar needs. Self-declared with a safe default
+	   so every calc() below stays valid on desktop and tablet, where Obsidian
+	   never defines the variable it is built from. */
+	--lv-navbar-clearance: 0px;
+
 	padding: 0;
 	height: 100%;
 	overflow: hidden;
@@ -71,32 +81,43 @@
 	overflow-y: auto;
 	overflow-x: hidden;
 	-webkit-overflow-scrolling: touch;
-	padding: 4px 0 8px;
+	padding: var(--size-4-1) 0 var(--size-4-2);
 }
 
 /* ---------------- nav pane ---------------- */
 
 .lv-nav-group {
-	padding: 4px var(--lv-gutter);
+	padding: var(--size-4-1) var(--size-4-2);
 }
 
 .lv-nav-divider {
 	height: var(--divider-width, 1px);
 	background: var(--divider-color);
-	margin: 6px var(--lv-gutter);
+	margin: var(--size-2-3) var(--size-4-2);
 }
 
+/*
+ * Core already supplies the row's colour, radius, padding, hover and active
+ * states through `.tree-item-self`. What is left here is the geometry a to-do
+ * picker needs and core's file rows do not: a comfortable touch height, and
+ * centre alignment rather than the baseline alignment `.tree-item-self` uses,
+ * which would misalign our leading icon.
+ */
 .lv-nav-row {
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
 	min-height: var(--lv-row-min);
-	padding: 0 10px;
-	border-radius: var(--lv-radius);
+	padding: var(--size-4-1) var(--size-4-2);
 	cursor: var(--cursor);
-	color: var(--text-normal);
 	-webkit-touch-callout: none;
 	user-select: none;
+}
+
+/* `.tree-item-self` pins the baseline with a zero-width space; a flex row with
+   an icon in it wants neither that nor baseline alignment. */
+.lv-nav-row::before {
+	content: none;
 }
 
 .lv-nav-row:hover {
@@ -109,9 +130,7 @@
 	outline-offset: -2px;
 }
 
-.lv-nav-row.is-selected {
-	background: var(--nav-item-background-selected, var(--background-modifier-active-hover));
-	color: var(--nav-item-color-selected, var(--text-normal));
+.lv-nav-row.is-active {
 	font-weight: var(--nav-item-weight-active, var(--font-medium));
 }
 
@@ -126,7 +145,7 @@
 	font-size: var(--font-ui-medium);
 }
 
-.lv-nav-row.is-selected .lv-nav-icon,
+.lv-nav-row.is-active .lv-nav-icon,
 .lv-smart-myday .lv-nav-icon {
 	color: var(--interactive-accent);
 }
@@ -145,18 +164,15 @@
 	line-height: var(--line-height-tight);
 }
 
+/* `.tree-item-flair` supplies the colour and size; only the numerals are ours. */
 .lv-nav-count {
-	flex: 0 0 auto;
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
 	font-variant-numeric: tabular-nums;
-	padding-left: 6px;
 }
 
 .lv-nav-foot {
 	flex: 0 0 auto;
 	padding: 6px var(--lv-gutter);
-	padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+	padding-bottom: calc(var(--size-2-3) + var(--lv-navbar-clearance));
 	border-top: var(--border-width) solid var(--divider-color);
 }
 
@@ -167,53 +183,46 @@
 
 /* ---------------- header ---------------- */
 
+/* `.nav-header` brings core's padding; the row layout is ours. Obsidian's own
+   `--safe-area-inset-*` is used rather than `env()` directly, because Obsidian
+   overrides those in desktop mobile-emulation and `env()` is always 0 there. */
 .lv-header {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 10px var(--lv-gutter);
-	padding-top: calc(10px + env(safe-area-inset-top, 0px));
+	gap: var(--size-4-2);
+	padding-top: calc(var(--size-4-2) + var(--safe-area-inset-top, 0px));
 	border-bottom: var(--border-width) solid var(--divider-color);
+}
+
+.lv-header-actions {
+	flex: 0 0 auto;
+	gap: var(--size-2-1);
 }
 
 .lv-header-title {
 	flex: 1 1 auto;
-	font-size: var(--font-ui-large);
-	font-weight: var(--font-bold);
+	min-width: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
 	color: var(--text-normal);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.lv-back,
-.lv-header-action {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 32px;
-	height: 32px;
-	flex: 0 0 32px;
-	border-radius: var(--lv-radius);
-	color: var(--text-muted);
-	cursor: var(--cursor);
-}
+/* `.clickable-icon` supplies size, colour, hover, focus and the `is-active`
+   treatment, and puts these buttons in the selector core uses for mobile tap
+   feedback. Nothing is left to declare. */
 
-.lv-back:hover,
-.lv-header-action:hover {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
-}
-
-.lv-header-action.is-active {
-	color: var(--interactive-accent);
+.lv-header-spacer {
+	flex: 1 1 auto;
 }
 
 /* ---------------- task rows ---------------- */
 
 .lv-section {
-	padding: 12px var(--lv-gutter) 4px;
+	padding: var(--size-4-3) var(--size-4-2) var(--size-4-1);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
 	text-transform: uppercase;
@@ -222,66 +231,66 @@
 }
 
 .lv-group {
-	padding: 0 var(--lv-gutter);
+	padding: 0 var(--size-4-2);
 }
 
+/*
+ * Flat, like every list Obsidian draws.
+ *
+ * These rows used to carry `background: var(--background-secondary)` and a
+ * radius, which made them read as cards. No core list row has a resting
+ * background — the file explorer, search results, backlinks and the outline all
+ * paint one only on hover, active or selected. That single difference was the
+ * biggest reason the plugin looked foreign, and it is worth more than any
+ * amount of token discipline elsewhere.
+ */
 .lv-task {
 	display: flex;
 	align-items: flex-start;
-	gap: 10px;
+	gap: var(--size-4-2);
 	min-height: var(--lv-row-min);
-	padding: 8px 10px;
-	margin-bottom: 2px;
-	border-radius: var(--lv-radius);
-	background: var(--background-secondary);
+	padding: var(--size-4-1) var(--size-4-2);
+	margin-bottom: var(--nav-item-margin-bottom, var(--size-2-1));
+	border-radius: var(--nav-item-radius, var(--lv-radius-s));
+	color: var(--nav-item-color, var(--text-normal));
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
 }
 
 .lv-task:hover {
-	background: var(--background-modifier-hover);
+	background: var(--nav-item-background-hover, var(--background-modifier-hover));
 }
 
+/* The same treatment core gives its own current item, rather than a ring. */
 .lv-task.is-selected {
-	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+	background: var(--nav-item-background-active, var(--background-modifier-hover));
+	color: var(--nav-item-color-active, var(--text-normal));
 }
 
+/*
+ * A real checkbox now, so Obsidian's own styling and the theme's alternate
+ * markers apply. Almost nothing is needed here — core sizes and paints it from
+ * --checkbox-size and friends, and themes hang `[data-task="X"]:checked` off
+ * it. Only layout is ours.
+ */
 .lv-check {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 24px;
-	height: 24px;
-	flex: 0 0 24px;
-	margin-top: 1px;
-	color: var(--text-muted);
+	flex: 0 0 auto;
+	margin: 0;
+	margin-top: 2px;
 	cursor: var(--cursor);
-	border-radius: 50%;
-}
-
-.lv-check:hover {
-	color: var(--interactive-accent);
-}
-
-.lv-check:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 1px;
-}
-
-.lv-task.is-complete .lv-check {
-	color: var(--interactive-accent);
 }
 
 .lv-check-sm {
-	width: 20px;
-	height: 20px;
-	flex: 0 0 20px;
+	--checkbox-size: var(--font-ui-small);
 }
 
-.lv-check-sm .svg-icon {
-	width: 16px;
-	height: 16px;
+/* Core applies this inside a <ul>; our rows are flex, so it must not. */
+.lv-task > .task-list-item-checkbox,
+.lv-step > .task-list-item-checkbox,
+.lv-card-step > .task-list-item-checkbox,
+.lv-detail-title > .task-list-item-checkbox {
+	margin-inline-start: 0;
 }
 
 .lv-task-body {
@@ -291,6 +300,8 @@
 
 .lv-task-title {
 	font-size: var(--font-ui-small);
+	/* Explicit, because the row now inherits core's muted nav colour and a task
+	   title is the content rather than a label for it. */
 	color: var(--text-normal);
 	line-height: 1.35;
 	overflow-wrap: anywhere;
@@ -415,7 +426,7 @@
 	align-items: center;
 	gap: 10px;
 	margin: 8px var(--lv-gutter);
-	margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+	margin-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	padding: 0 12px;
 	min-height: var(--lv-row-min);
 	background: var(--background-secondary);
@@ -457,7 +468,7 @@
 	align-items: center;
 	gap: 4px;
 	padding: 10px var(--lv-gutter);
-	padding-top: calc(10px + env(safe-area-inset-top, 0px));
+	padding-top: calc(var(--size-4-2) + var(--safe-area-inset-top, 0px));
 	border-bottom: var(--border-width) solid var(--divider-color);
 }
 
@@ -681,7 +692,7 @@
 	justify-content: space-between;
 	gap: 8px;
 	padding: 8px var(--lv-gutter);
-	padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	border-top: var(--border-width) solid var(--divider-color);
 }
 
@@ -1451,4 +1462,125 @@ body.lv-is-dragging .lv-step:hover {
 	outline: none;
 	background: var(--background-primary);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/* ------------------------------------------------------------------
+   Obsidian's mobile navigation bar
+
+   On a phone, Obsidian's back / forward / search / new / tabs / menu
+   bar is a fixed-position pill that OVERLAYS the view — both
+   "floating navigation" and "auto full screen" are on by default —
+   so it sat on top of the add box and cut it in half.
+
+   `--view-bottom-spacing` is Obsidian's own answer to this. It is
+   correct in all four combinations of those two settings, including
+   the case where the bar is docked and reserves real layout space (it
+   is 0 there), and it already subtracts the keyboard height. Obsidian
+   uses it for the Bases view.
+
+   It is undocumented, and it is only defined under `.is-phone`, so
+   every use carries a fallback: an unresolvable variable inside a
+   calc() invalidates the whole declaration, which is how one popular
+   plugin's navbar clearance silently became zero.
+   ------------------------------------------------------------------ */
+
+body.is-phone .lv-root {
+	/* The extra step covers a shortfall on devices reporting no bottom
+	   safe-area inset, where the bar's own offset puts it ~10px taller
+	   than the variable accounts for. */
+	--lv-navbar-clearance: calc(var(--view-bottom-spacing, 0px) + var(--size-4-2));
+}
+
+/* While the keyboard is up the bar is detached from the DOM entirely, so
+   reserving room for it would strand the add box above the keyboard. */
+body.is-phone .lv-root.is-keyboard-open {
+	--lv-navbar-clearance: 0px;
+}
+
+/* Let the last rows scroll clear of the bar rather than hiding behind it. */
+body.is-phone .lv-scroll,
+body.is-phone .lv-nav-scroll {
+	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
+}
+
+/* ------------------------------------------------------------------
+   Add box: metadata chips
+
+   The same fields the detail panel offers, minus steps — a step has
+   to hang beneath a task that exists. Nothing here writes on tap: it
+   stages onto the draft and lands in one edit with the task.
+   ------------------------------------------------------------------ */
+
+.lv-add-chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding: var(--size-2-2) 0 0;
+}
+
+.lv-add-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-height: var(--size-4-6);
+	padding: 0 var(--size-2-3);
+	border-radius: var(--radius-s);
+	border: var(--border-width) solid var(--divider-color);
+	background: transparent;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: var(--cursor);
+	-webkit-touch-callout: none;
+	user-select: none;
+}
+
+.lv-add-chip:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.lv-add-chip:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Set chips carry the accent, so what the task will be created with reads at
+   a glance rather than needing each chip to be inspected. */
+.lv-add-chip.is-set {
+	border-color: transparent;
+	background: var(--background-modifier-active-hover);
+	color: var(--text-accent);
+}
+
+.lv-add-chip-icon {
+	display: flex;
+	align-items: center;
+}
+
+.lv-add-chip-icon .svg-icon {
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
+}
+
+.lv-add-chip-clear {
+	display: flex;
+	align-items: center;
+	opacity: 0.6;
+}
+
+.lv-add-chip-clear:hover {
+	opacity: 1;
+}
+
+.lv-add-chip-clear .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.lv-add-picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-2);
+	padding: var(--size-2-2) 0 0;
 }

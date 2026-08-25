@@ -73,6 +73,7 @@ const state: ViewState = {
 	completedOpen: false,
 	composing: false,
 	openAction: null,
+	draft: {},
 };
 
 let sortKey: SortKey = "custom";
@@ -107,6 +108,7 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		state,
 		wide,
 		listOnly: false,
+		chromeTitle: false,
 		showPicker: () => undefined,
 		render: () => paint(),
 		save: noop,

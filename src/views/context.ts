@@ -2,7 +2,7 @@ import { App } from "obsidian";
 import { ListStore, SmartView } from "../model/store";
 import { Mutator } from "../model/mutate";
 import { ListsSettings } from "../settings";
-import { ListColor, Task, ViewMode } from "../model/types";
+import { ListColor, Task, TaskMeta, ViewMode } from "../model/types";
 import type { RenderScope } from "./ListsView";
 import { SortKey } from "../model/sort";
 
@@ -23,6 +23,15 @@ export interface ViewState {
 	composing: boolean;
 	/** Which detail action row is expanded, so only one opens at a time. */
 	openAction: string | null;
+	/**
+	 * Metadata staged on the add box before the task exists.
+	 *
+	 * A new task has no line to splice into yet, so the chips cannot write as
+	 * they are tapped the way the detail panel's do. They collect here and are
+	 * written once, with the task, in a single edit — which also means an
+	 * abandoned compose leaves nothing behind.
+	 */
+	draft: Partial<TaskMeta>;
 }
 
 export interface ViewContext {
@@ -35,6 +44,16 @@ export interface ViewContext {
 	wide: boolean;
 	/** True when this pane is a list on its own, with the picker in the sidebar. */
 	listOnly: boolean;
+	/**
+	 * True when Obsidian is already rendering the view's title in its own
+	 * header, so this pane must not render one of its own.
+	 *
+	 * `.view-header` is shown for a main-area tab on every platform, and on a
+	 * phone it is always shown. Rendering our own title underneath produced two
+	 * stacked titles on mobile. In a sidebar `.view-header` is hidden, so there
+	 * the pane does need its own.
+	 */
+	chromeTitle: boolean;
 	/** Bring the sidebar picker into view. Only meaningful when `listOnly`. */
 	showPicker: () => void;
 	/** Repaint everything. */

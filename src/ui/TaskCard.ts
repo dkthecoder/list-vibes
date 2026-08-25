@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { renderCheckbox } from "./checkbox";
 import { Task, isComplete } from "../model/types";
 import { formatDate, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
@@ -31,24 +32,11 @@ export function renderTaskCard(
 	/* --- title row --- */
 	const head = card.createDiv({ cls: "lv-card-head" });
 
-	const box = head.createDiv({ cls: "lv-check" });
-	box.setAttribute("role", "checkbox");
-	box.setAttribute("aria-checked", String(isComplete(task)));
-	box.setAttribute("aria-label", isComplete(task) ? "Mark not done" : "Mark done");
-	box.setAttribute("tabindex", "0");
-	setIcon(box, isComplete(task) ? "check-circle-2" : "circle");
-
-	const toggle = (e: Event) => {
+	renderCheckbox(head, task, (e) => {
 		e.stopPropagation();
 		void ctx.mutator.toggle(task);
-	};
-	box.addEventListener("click", toggle);
-	box.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" || e.key === " ") {
-			e.preventDefault();
-			toggle(e);
-		}
 	});
+
 
 	const titleEl = head.createDiv({ cls: "lv-card-title" });
 	renderInline(titleEl, task.title, ctx);
@@ -67,14 +55,15 @@ export function renderTaskCard(
 			const row = steps.createDiv({ cls: "lv-card-step" });
 			row.toggleClass("is-complete", isComplete(child));
 
-			const cb = row.createDiv({ cls: "lv-check lv-check-sm" });
-			setIcon(cb, isComplete(child) ? "check-circle-2" : "circle");
-			cb.setAttribute("role", "checkbox");
-			cb.setAttribute("aria-checked", String(isComplete(child)));
-			cb.addEventListener("click", (e) => {
-				e.stopPropagation();
-				void ctx.mutator.toggle(child);
-			});
+			renderCheckbox(
+				row,
+				child,
+				(e) => {
+					e.stopPropagation();
+					void ctx.mutator.toggle(child);
+				},
+				{ small: true }
+			);
 
 			const label = row.createDiv({ cls: "lv-card-step-label" });
 			renderInline(label, child.title, ctx);

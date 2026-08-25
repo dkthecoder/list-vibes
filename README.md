@@ -24,9 +24,11 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   reorder the same way, within their own parent. On touch it takes a long press
   to start, because a vertical swipe on a list has to stay a scroll.
 - **The add box expands upward.** Collapsed it is a single line — type a title,
-  press Enter, keep going. Click it and it opens into a title plus a description,
-  with Cancel and Add task. The description is written as an indented line
-  beneath the task, so it is the same field the detail panel edits.
+  press Enter, keep going. Click it and it opens into a title, a description, and
+  the same metadata a task has: My Day, due, reminder, repeat and importance.
+  Steps are the one omission — a step has to hang beneath a task that exists.
+  Nothing is written as you tap: the chips stage a draft that lands in one edit
+  with the task, so an abandoned compose leaves the file untouched.
 
 ## Lists
 
@@ -141,6 +143,50 @@ parser and a view over `TaskList[]` rebuilt from disk whenever a file changes.
 
 The trade is real and worth stating: **Bases can't drive this.** We render our
 own view instead.
+
+## Looking like Obsidian
+
+The plugin builds on Obsidian's own UI vocabulary rather than approximating it.
+Picker rows are `tree-item` / `tree-item-self` / `tree-item-inner` /
+`tree-item-flair` — the generic tree markup behind the file explorer, the tag
+pane, the outline and backlinks, and behind Obsidian's own first-party Importer.
+Icon buttons are `clickable-icon`, which also puts them in the selector core uses
+for press feedback on touch. The toolbar is `nav-header` > `nav-buttons-container`.
+
+Task checkboxes are real `<input type="checkbox" class="task-list-item-checkbox">`
+elements carrying `data-task`, the same markup Obsidian Tasks and Dataview emit.
+That is the interop contract themes hang their alternate markers off, so `[/]`,
+`[-]` and `[!]` render with **your** theme's glyph and colour rather than ours.
+
+Every element is **dual-classed**: Obsidian's class for the theming, ours for our
+own CSS and JS. Nothing here ever selects on a core class. Those names are not
+public API — they appear nowhere in `obsidian.d.ts`, and Obsidian's theme
+guidelines note that new versions may change class names. Carrying both means a
+rename costs inherited polish, never a working view.
+
+The single biggest change was the smallest: task rows lost their card background.
+No core list row has a resting background — the file explorer, search results,
+backlinks and the outline all paint one only on hover or when active. That one
+difference did more than every token elsewhere put together.
+
+## On mobile
+
+Obsidian's phone navigation bar is a fixed-position pill that overlays the view —
+floating navigation and auto full screen are both on by default — so a
+bottom-anchored bar sits underneath it. The add box reserves
+`--view-bottom-spacing`, Obsidian's own answer to this, which is correct whether
+the bar floats or docks and already accounts for the keyboard. Rows scroll clear
+of it rather than stopping above it, and the reserve is released while the
+keyboard is up, because the bar is detached from the DOM then.
+
+That variable is undocumented and only defined under `.is-phone`, so every use
+carries a fallback — an unresolvable variable inside a `calc()` invalidates the
+whole declaration, which is how at least one popular plugin's navbar clearance
+silently became zero.
+
+Obsidian's `--safe-area-inset-*` is used rather than `env()` directly, because
+Obsidian overrides those in desktop mobile-emulation and `env()` always reports
+zero there — so the layout can actually be tested without a phone.
 
 ## Storage format
 

@@ -315,6 +315,23 @@ export default class ListsPlugin extends Plugin {
 		await workspace.revealLeaf(leaf);
 	}
 
+	/**
+	 * Point every open view that was showing `from` at `to`.
+	 *
+	 * A list's name is its filename, so renaming one moves it. Views hold a path,
+	 * and a view that is not the one doing the renaming never hears about it —
+	 * so renaming from the sidebar picker used to leave a tab pointing at a path
+	 * that no longer existed. It rendered empty, under the old name, and the
+	 * rename looked like it had half worked.
+	 */
+	private followRename(from: string, to: string): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS)) {
+			const view = leaf.view as ListsView;
+			if (!view?.showsList?.(from)) continue;
+			void view.retarget({ kind: "list", path: to });
+		}
+	}
+
 	/** Our leaves in the main workspace, in layout order. Sidebar ones excluded. */
 	private listTabs(): WorkspaceLeaf[] {
 		const { workspace } = this.app;

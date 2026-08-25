@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { renderCheckbox } from "./checkbox";
 import { Task, isComplete } from "../model/types";
 import { formatDate, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
@@ -25,20 +26,9 @@ export function renderTaskRow(
 	}
 
 	/* --- checkbox --- */
-	const box = row.createDiv({ cls: "lv-check lv-no-drag" });
-	box.setAttribute("role", "checkbox");
-	box.setAttribute("aria-checked", String(isComplete(task)));
-	box.setAttribute("aria-label", isComplete(task) ? "Mark not done" : "Mark done");
-	box.setAttribute("tabindex", "0");
-	setIcon(box, isComplete(task) ? "check-circle-2" : "circle");
-
-	const toggle = async (e: Event) => {
+	renderCheckbox(row, task, (e) => {
 		e.stopPropagation();
-		await ctx.mutator.toggle(task);
-	};
-	box.addEventListener("click", toggle);
-	box.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" || e.key === " ") void toggle(e);
+		void ctx.mutator.toggle(task);
 	});
 
 	/* --- body --- */

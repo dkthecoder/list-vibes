@@ -1,6 +1,12 @@
 import { ItemView, Scope, ViewStateResult, WorkspaceLeaf } from "obsidian";
 import type ListsPlugin from "../main";
-import { PaneName, Selection, ViewContext, ViewState } from "./context";
+import {
+	PaneName,
+	Selection,
+	ViewContext,
+	ViewState,
+	sameSelection,
+} from "./context";
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
@@ -61,6 +67,7 @@ export class ListsView extends ItemView {
 			completedOpen: plugin.settings.showCompleted === "expanded",
 			composing: false,
 			openAction: null,
+			draft: {},
 		};
 	}
 
@@ -114,6 +121,24 @@ export class ListsView extends ItemView {
 		return "list-todo";
 	}
 
+	/** True if this view is currently showing the list at `path`. */
+	showsList(path: string): boolean {
+		const sel = this.state.selection;
+		return sel.kind === "list" && sel.path === path;
+	}
+
+	/**
+	 * Move this view to another selection from the outside — used when a list is
+	 * renamed elsewhere and this view was showing it. Repaints and, in a tab,
+	 * refreshes the header so the name follows the file.
+	 */
+	async retarget(sel: Selection): Promise<void> {
+		this.state.selection = sel;
+		this.state.selectedTask = null;
+		this.render();
+		if (this.inMainWorkspace()) await this.persistState();
+	}
+
 	async onOpen(): Promise<void> {
 		// Navigable only as a workspace tab, so it joins back/forward history
 		// there. It must stay false in a sidebar: a navigable sidebar leaf is a
@@ -139,6 +164,23 @@ export class ListsView extends ItemView {
 			this.closeDetail();
 			return false;
 		});
+
+		/*
+		 * Obsidian's mobile navbar is detached from the DOM while the soft
+		 * keyboard is up, so the room reserved for it has to be given back or the
+		 * add box strands itself above the keyboard. These are Capacitor events —
+		 * undocumented, and they simply never fire on desktop, which makes them
+		 * safe to attach unconditionally. registerDomEvent unbinds them with the
+		 * view.
+		 */
+		const keyboard = (open: boolean) =>
+			this.contentEl.toggleClass("is-keyboard-open", open);
+		this.registerDomEvent(window, "keyboardWillShow" as "resize", () =>
+			keyboard(true)
+		);
+		this.registerDomEvent(window, "keyboardWillHide" as "resize", () =>
+			keyboard(false)
+		);
 
 		this.render();
 	}
@@ -213,6 +255,7 @@ export class ListsView extends ItemView {
 			state: this.state,
 			wide: this.wide,
 			listOnly: this.listOnly(),
+			chromeTitle: this.inMainWorkspace(),
 			showPicker: () => void this.plugin.activateView(),
 			render: (scope?: RenderScope) => this.render(scope ?? "all"),
 			save: () => this.plugin.saveSettings(),

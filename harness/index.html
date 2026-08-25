@@ -7,6 +7,123 @@
 		<style>
 			/* Obsidian registers this glyphless face so an unset font hook stays
 			   syntactically valid while contributing nothing. */
+			/* ------------------------------------------------------------
+			   Obsidian's own component CSS, verbatim from 1.13.7's app.css.
+
+			   The plugin now builds on core's tree, icon-button and checkbox
+			   classes, so the harness has to supply what core supplies or the
+			   screenshots show a layout the app never renders. Same rule as
+			   the tokens above: reproduce, do not approximate.
+			   ------------------------------------------------------------ */
+			.tree-item-self {
+				display: flex;
+				align-items: baseline;
+				border-radius: var(--nav-item-radius);
+				color: var(--nav-item-color);
+				font-size: var(--nav-item-size);
+				padding: var(--nav-item-padding);
+				margin-bottom: var(--nav-item-margin-bottom);
+			}
+			body:not(.is-grabbing) .tree-item-self.is-clickable:hover {
+				color: var(--nav-item-color-hover);
+				background-color: var(--nav-item-background-hover);
+			}
+			.tree-item-self.is-active {
+				background-color: var(--nav-item-background-active);
+				color: var(--nav-item-color-active);
+			}
+			.tree-item-self.is-selected {
+				background-color: var(--nav-item-background-selected);
+				color: var(--nav-item-color-selected);
+			}
+			.tree-item-inner {
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.tree-item-flair-outer {
+				margin-inline-start: auto;
+				display: flex;
+				flex-shrink: 0;
+			}
+			.tree-item-flair {
+				color: var(--text-faint);
+				font-size: var(--font-ui-smaller);
+			}
+			.tree-item-self:hover .tree-item-flair {
+				color: var(--text-muted);
+			}
+			.nav-header {
+				padding: var(--size-4-2);
+			}
+			.nav-buttons-container {
+				display: flex;
+				justify-content: center;
+				flex-wrap: wrap;
+				gap: var(--size-2-1);
+			}
+			.clickable-icon {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: var(--size-4-1);
+				border-radius: var(--radius-s);
+				color: var(--icon-color);
+				cursor: var(--cursor);
+				background: transparent;
+				border: none;
+			}
+			.clickable-icon:hover {
+				color: var(--icon-color-hover);
+				background-color: var(--background-modifier-hover);
+			}
+			.clickable-icon.is-active {
+				color: var(--icon-color-active);
+				background-color: var(--background-modifier-active-hover);
+			}
+			.clickable-icon .svg-icon {
+				width: var(--icon-size);
+				height: var(--icon-size);
+			}
+
+			/* Core's checkbox, appearance stripped and repainted. Themes hang
+			   their alternate task markers off `[data-task]:checked`. */
+			input[type="checkbox"] {
+				-webkit-appearance: none;
+				appearance: none;
+				margin: 0;
+				width: var(--checkbox-size);
+				height: var(--checkbox-size);
+				border-radius: var(--checkbox-radius);
+				border: 1px solid var(--checkbox-border-color);
+				background-color: transparent;
+				cursor: var(--cursor);
+				position: relative;
+				flex-shrink: 0;
+			}
+			input[type="checkbox"]:checked {
+				background-color: var(--checkbox-color);
+				border-color: var(--checkbox-color);
+			}
+			input[type="checkbox"]:checked::after {
+				content: "";
+				position: absolute;
+				inset: 0;
+				background-color: var(--checkbox-marker-color);
+				-webkit-mask-position: 52% 52%;
+				-webkit-mask-size: 65%;
+				-webkit-mask-repeat: no-repeat;
+				-webkit-mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>');
+			}
+			.task-list-item-checkbox {
+				width: var(--checkbox-size);
+				height: var(--checkbox-size);
+			}
+			li.task-list-item[data-task="x"] {
+				text-decoration: var(--checklist-done-decoration);
+				color: var(--checklist-done-color);
+			}
+
 			@font-face {
 				font-family: "??";
 				unicode-range: U+0;
@@ -66,6 +183,18 @@
 				--size-4-12: 48px;
 				--size-4-16: 64px;
 				--radius-s: 4px;
+				--checkbox-radius: var(--radius-s);
+				--checkbox-size: var(--font-text-size, 16px);
+				--checkbox-border-color: var(--text-faint);
+				--checkbox-color: var(--interactive-accent);
+				--checkbox-marker-color: var(--background-primary);
+				--checklist-done-color: var(--text-muted);
+				--checklist-done-decoration: line-through;
+				--icon-size: 18px;
+				--icon-s: 16px;
+				--icon-color: var(--text-muted);
+				--icon-color-hover: var(--text-normal);
+				--icon-color-active: var(--interactive-accent);
 				--radius-m: 8px;
 				--radius-l: 12px;
 				--radius-xl: 16px;

@@ -1,12 +1,23 @@
 import { Menu, setIcon } from "obsidian";
 import { SMART_VIEWS, ViewContext } from "../context";
-import { Task, TaskList, ViewMode, isComplete } from "../../model/types";
+import {
+	Priority,
+	Task,
+	TaskList,
+	ViewMode,
+	isComplete,
+} from "../../model/types";
 import { renderTaskRow } from "../../ui/TaskRow";
 import { renderTaskCard } from "../../ui/TaskCard";
 import { makeDragSortable } from "../../ui/dragSort";
 import { editName, makeEditableName } from "../../ui/editableName";
-import { todayISO } from "../../model/store";
-import { SORT_OPTIONS, partitionCompleted, sortTasks } from "../../model/sort";
+import { formatDate, todayISO } from "../../model/store";
+import {
+	SORT_OPTIONS,
+	STARS_BY_PRIORITY,
+	partitionCompleted,
+	sortTasks,
+} from "../../model/sort";
 
 /**
  * The task list for the current selection, with completed tasks grouped into a
@@ -22,17 +33,31 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	// Accent every list, falling back to the theme's own accent colour.
 	pane.toggleClass("is-accented", !!list);
 
-	/* ---------------- header ---------------- */
-	const header = pane.createDiv({ cls: "lv-header" });
+	/* ---------------- header ----------------
+	 *
+	 * `.nav-header` > `.nav-buttons-container` is the toolbar Obsidian's own
+	 * File Explorer, Search, Bookmarks and Outline share, and on a phone core
+	 * moves it to the bottom of a drawer for thumb reach — behaviour we inherit
+	 * by using the same classes.
+	 *
+	 * The title is only ours to draw when Obsidian is not already drawing it.
+	 * In a main-area tab it is, on every platform, and on a phone always — which
+	 * is what put two stacked titles on screen. */
+	const header = pane.createDiv({ cls: "nav-header lv-header" });
 
 	/*
 	 * A way back to the picker. In a narrow pane that is the other half of this
 	 * view; in a tab the picker lives in the sidebar, so the same control reveals
 	 * it. Without this a tab opened from the sidebar is a dead end whenever the
 	 * sidebar itself has been closed.
+	 *
+	 * Created before the title and outside the button group, so it reads as the
+	 * leading control rather than joining the trailing ones.
 	 */
 	if (!ctx.wide || ctx.listOnly) {
-		const back = header.createDiv({ cls: "lv-back" });
+		const back = header.createDiv({
+			cls: "clickable-icon nav-action-button lv-back",
+		});
 		setIcon(back, "chevron-left");
 		back.setAttribute("aria-label", "Back to lists");
 		back.addEventListener("click", () =>
@@ -40,31 +65,43 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		);
 	}
 
-	const titleWrap = header.createDiv({ cls: "lv-header-title" });
-	if (isSmart) {
-		const v = SMART_VIEWS.find((s) => s.id === sel.view);
-		titleWrap.createSpan({ text: v?.label ?? "Tasks" });
-	} else if (list) {
-		if (list.config.icon)
-			titleWrap.createSpan({ cls: "lv-header-icon", text: list.config.icon });
+	if (!ctx.chromeTitle) {
+		const titleWrap = header.createDiv({ cls: "lv-header-title" });
+		if (isSmart) {
+			const v = SMART_VIEWS.find((s) => s.id === sel.view);
+			titleWrap.createSpan({ text: v?.label ?? "Tasks" });
+		} else if (list) {
+			if (list.config.icon)
+				titleWrap.createSpan({ cls: "lv-header-icon", text: list.config.icon });
 
-		// The name IS the filename, so editing it here renames the file. Same
-		// implementation as the picker rows, which are armed on demand instead.
-		const nameEl = titleWrap.createSpan({ cls: "lv-header-name" });
-		makeEditableName(nameEl, {
-			value: list.name,
-			alwaysEditable: true,
-			onCommit: (next) => ctx.renameList(list.path, next),
-		});
+			// The name IS the filename, so editing it here renames the file. Same
+			// implementation as the picker rows, which are armed on demand instead.
+			const nameEl = titleWrap.createSpan({ cls: "lv-header-name" });
+			makeEditableName(nameEl, {
+				value: list.name,
+				alwaysEditable: true,
+				onCommit: (next) => ctx.renameList(list.path, next),
+			});
+		} else {
+			titleWrap.createSpan({ text: "List" });
+		}
 	} else {
-		titleWrap.createSpan({ text: "List" });
+		// Obsidian draws the title; this keeps the buttons pushed to the trailing
+		// edge where they would otherwise bunch up against the back arrow.
+		header.createDiv({ cls: "lv-header-spacer" });
 	}
+
+	const buttons = header.createDiv({
+		cls: "nav-buttons-container lv-header-actions",
+	});
 
 	if (!isSmart && list) {
 		const sortKey = ctx.sortKey();
 		const current = SORT_OPTIONS.find((o) => o.key === sortKey);
 
-		const sortBtn = header.createDiv({ cls: "lv-header-action" });
+		const sortBtn = buttons.createDiv({
+			cls: "clickable-icon nav-action-button lv-header-action",
+		});
 		sortBtn.toggleClass("is-active", sortKey !== "custom");
 		setIcon(sortBtn, "arrow-up-down");
 		sortBtn.setAttribute("aria-label", `Sort: ${current?.label ?? "Custom order"}`);
@@ -83,7 +120,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		});
 
 		const mode = ctx.viewMode();
-		const layout = header.createDiv({ cls: "lv-header-action" });
+		const layout = buttons.createDiv({
+			cls: "clickable-icon nav-action-button lv-header-action",
+		});
 		layout.toggleClass("is-active", mode === "postit");
 		setIcon(layout, mode === "postit" ? "layout-grid" : "list");
 		layout.setAttribute(
@@ -94,7 +133,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			ctx.setViewMode(mode === "postit" ? "list" : "postit")
 		);
 
-		const more = header.createDiv({ cls: "lv-header-action" });
+		const more = buttons.createDiv({
+			cls: "clickable-icon nav-action-button lv-header-action",
+		});
 		setIcon(more, "more-horizontal");
 		more.setAttribute("aria-label", "List options");
 		more.addEventListener("click", (e) => {
@@ -360,8 +401,11 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		title.value = "";
 		if (description) description.value = "";
 
+		const draft = { ...ctx.state.draft };
+		ctx.state.draft = {};
+
 		if (sel.kind === "list") {
-			await ctx.mutator.addTask(sel.path, value, {}, { note });
+			await ctx.mutator.addTask(sel.path, value, draft, { note });
 		} else {
 			// From My Day a task still needs a home list. Use the first one and flag it.
 			const first = ctx.store.getLists()[0];
@@ -369,7 +413,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 			await ctx.mutator.addTask(
 				first.path,
 				value,
-				{ myDay: true, due: todayISO() },
+				{ myDay: true, due: todayISO(), ...draft },
 				{ note }
 			);
 		}
@@ -398,6 +442,8 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 			e.preventDefault();
 			title.value = "";
 			ctx.state.composing = false;
+			ctx.state.draft = {};
+			ctx.state.openAction = null;
 			ctx.render("tasks");
 		}
 	});
@@ -426,6 +472,8 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		}
 	});
 
+	renderDraftChips(box, ctx);
+
 	const actions = box.createDiv({ cls: "lv-add-actions" });
 
 	const cancel = actions.createEl("button", {
@@ -434,9 +482,213 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 	});
 	cancel.addEventListener("click", () => {
 		ctx.state.composing = false;
+		ctx.state.draft = {};
+		ctx.state.openAction = null;
 		ctx.render("tasks");
 	});
 
 	const add = actions.createEl("button", { cls: "mod-cta", text: "Add task" });
 	add.addEventListener("click", () => void commit(false));
+}
+
+/**
+ * The metadata chips on the expanded add box.
+ *
+ * Everything the detail panel can set on an existing task, except steps — a
+ * step has to hang beneath a task that exists, so there is nothing for it to
+ * attach to until the task is added.
+ *
+ * Unlike the detail panel's rows, these write nothing as they are tapped. There
+ * is no line to splice yet, so each one stages a value on `state.draft` and the
+ * whole lot is written in one edit when the task is added. Abandoning the
+ * compose leaves the file untouched.
+ */
+function renderDraftChips(box: HTMLElement, ctx: ViewContext): void {
+	const draft = ctx.state.draft;
+	const row = box.createDiv({ cls: "lv-add-chips" });
+
+	const repaint = () => ctx.render("tasks");
+
+	/** A chip that is either off, or on and showing its value. */
+	const chip = (o: {
+		id: string;
+		icon: string;
+		label: string;
+		value?: string;
+		onClick: () => void;
+		onClear?: () => void;
+	}) => {
+		const el = row.createDiv({ cls: "lv-add-chip" });
+		el.toggleClass("is-set", !!o.value);
+		el.setAttribute("role", "button");
+		el.setAttribute("tabindex", "0");
+		el.setAttribute("aria-label", o.value ? `${o.label}: ${o.value}` : o.label);
+		const ic = el.createDiv({ cls: "lv-add-chip-icon" });
+		setIcon(ic, o.icon);
+		el.createSpan({ cls: "lv-add-chip-text", text: o.value ?? o.label });
+		el.addEventListener("click", (e) => {
+			e.stopPropagation();
+			o.onClick();
+		});
+		if (o.value && o.onClear) {
+			const x = el.createDiv({ cls: "lv-add-chip-clear" });
+			setIcon(x, "x");
+			x.setAttribute("aria-label", `Clear ${o.label.toLowerCase()}`);
+			x.addEventListener("click", (e) => {
+				e.stopPropagation();
+				o.onClear?.();
+			});
+		}
+		return el;
+	};
+
+	/** Open one inline picker at a time, keyed apart from the detail panel's. */
+	const toggleOpen = (id: string) => {
+		const key = `add:${id}`;
+		ctx.state.openAction = ctx.state.openAction === key ? null : key;
+		repaint();
+	};
+	const isOpen = (id: string) => ctx.state.openAction === `add:${id}`;
+
+	/* --- My Day: a plain toggle, no picker --- */
+	chip({
+		id: "myday",
+		icon: "sun",
+		label: "My Day",
+		value: draft.myDay ? "My Day" : undefined,
+		onClick: () => {
+			if (draft.myDay) delete draft.myDay;
+			else draft.myDay = true;
+			repaint();
+		},
+		onClear: () => {
+			delete draft.myDay;
+			repaint();
+		},
+	});
+
+	chip({
+		id: "due",
+		icon: "calendar",
+		label: "Due",
+		value: draft.due ? formatDate(draft.due) : undefined,
+		onClick: () => toggleOpen("due"),
+		onClear: () => {
+			delete draft.due;
+			repaint();
+		},
+	});
+
+	chip({
+		id: "reminder",
+		icon: "bell",
+		label: "Remind",
+		value: draft.reminder,
+		onClick: () => toggleOpen("reminder"),
+		onClear: () => {
+			delete draft.reminder;
+			repaint();
+		},
+	});
+
+	chip({
+		id: "repeat",
+		icon: "repeat",
+		label: "Repeat",
+		value: draft.repeat,
+		onClick: () => toggleOpen("repeat"),
+		onClear: () => {
+			delete draft.repeat;
+			repaint();
+		},
+	});
+
+	chip({
+		id: "important",
+		icon: "star",
+		label: "Important",
+		value: draft.priority ? starLabel(draft.priority) : undefined,
+		onClick: () => toggleOpen("important"),
+		onClear: () => {
+			delete draft.priority;
+			repaint();
+		},
+	});
+
+	/* --- the inline picker for whichever chip is open --- */
+	const pick = (
+		options: { label: string; apply: () => void }[],
+		current?: string
+	) => {
+		const opts = box.createDiv({ cls: "lv-add-picker" });
+		for (const o of options) {
+			const b = opts.createDiv({ cls: "lv-chip" });
+			b.toggleClass("is-on", o.label === current);
+			b.setText(o.label);
+			b.setAttribute("role", "button");
+			b.setAttribute("tabindex", "0");
+			b.addEventListener("click", (e) => {
+				e.stopPropagation();
+				o.apply();
+				ctx.state.openAction = null;
+				repaint();
+			});
+		}
+	};
+
+	if (isOpen("due")) {
+		pick([
+			{ label: "Today", apply: () => (draft.due = todayISO()) },
+			{ label: "Tomorrow", apply: () => (draft.due = addDays(1)) },
+			{ label: "Next week", apply: () => (draft.due = addDays(7)) },
+		]);
+	}
+
+	if (isOpen("reminder")) {
+		pick(
+			["09:00", "12:00", "17:00", "20:00"].map((t) => ({
+				label: t,
+				apply: () => (draft.reminder = t),
+			})),
+			draft.reminder
+		);
+	}
+
+	if (isOpen("repeat")) {
+		pick(
+			["every day", "every week", "every month", "every year"].map((r) => ({
+				label: r,
+				apply: () => (draft.repeat = r),
+			})),
+			draft.repeat
+		);
+	}
+
+	if (isOpen("important")) {
+		const stars: Priority[] = ["lowest", "low", "medium", "high", "highest"];
+		pick(
+			(ctx.settings.importanceMode === "stars5"
+				? stars
+				: (["high"] as Priority[])
+			).map((p) => ({
+				label: starLabel(p),
+				apply: () => (draft.priority = p),
+			})),
+			draft.priority ? starLabel(draft.priority) : undefined
+		);
+	}
+}
+
+/** "★★★★" for a rating, or just "Important" in single-star mode. */
+function starLabel(p: Priority): string {
+	const n = STARS_BY_PRIORITY[p];
+	return "\u2605".repeat(n);
+}
+
+/** An ISO date `n` days from today. */
+function addDays(n: number): string {
+	const d = new Date();
+	d.setDate(d.getDate() + n);
+	const p = (v: number) => String(v).padStart(2, "0");
+	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

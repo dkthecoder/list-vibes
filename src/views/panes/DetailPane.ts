@@ -4,6 +4,7 @@ import { Task, isComplete } from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
 import { makeDragSortable } from "../../ui/dragSort";
+import { renderCheckbox } from "../../ui/checkbox";
 import { renderImportance } from "../../ui/Importance";
 
 const REPEATS = [
@@ -39,12 +40,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	/* ---------------- title card ---------------- */
 	const card = scroll.createDiv({ cls: "lv-card lv-detail-title" });
 
-	const box = card.createDiv({ cls: "lv-check" });
-	setIcon(box, isComplete(task) ? "check-circle-2" : "circle");
-	box.setAttribute("role", "checkbox");
-	box.setAttribute("aria-checked", String(isComplete(task)));
-	box.setAttribute("aria-label", isComplete(task) ? "Mark not done" : "Mark done");
-	box.addEventListener("click", () => void ctx.mutator.toggle(task));
+	renderCheckbox(card, task, () => void ctx.mutator.toggle(task));
 
 	const titleEl = card.createDiv({ cls: "lv-detail-title-text" });
 	titleEl.toggleClass("is-complete", isComplete(task));
@@ -81,11 +77,15 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 			row.toggleClass("is-complete", isComplete(child));
 			stepRows.push(row);
 
-			const cb = row.createDiv({ cls: "lv-check lv-check-sm lv-no-drag" });
-			setIcon(cb, isComplete(child) ? "check-circle-2" : "circle");
-			cb.setAttribute("role", "checkbox");
-			cb.setAttribute("aria-checked", String(isComplete(child)));
-			cb.addEventListener("click", () => void ctx.mutator.toggle(child));
+			renderCheckbox(
+				row,
+				child,
+				(e) => {
+					e.stopPropagation();
+					void ctx.mutator.toggle(child);
+				},
+				{ small: true }
+			);
 
 			const label = row.createDiv({ cls: "lv-step-label" });
 			renderInline(label, child.title, ctx);
