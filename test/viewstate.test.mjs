@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import { sameSelection } from "./build/views/context.js";
 import assert from "node:assert/strict";
 import {
@@ -8,6 +8,8 @@ import {
 	widerScope,
 	chooseTab,
 	selectionKey,
+	encodeTaskRef,
+	decodeTaskRef,
 } from "./build/views/viewState.js";
 
 /* A tab only remembers its own list if this round-trips exactly. */
@@ -269,6 +271,61 @@ test("selectionKey", async (t) => {
 					`${JSON.stringify(a)} vs ${JSON.stringify(b)}`
 				);
 			}
+		}
+	});
+});
+
+/**
+ * The open task, as part of the view's state.
+ *
+ * This is what makes back close the detail panel: Obsidian records the previous
+ * state in the leaf's history, and both back buttons on mobile — the one in the
+ * navigation bar and Android's own — walk that history. It is also written into
+ * `workspace.json` and read back on restart, so it has to survive a blob written
+ * by a version that had never heard of it.
+ */
+describe("encodeTaskRef / decodeTaskRef", () => {
+	test("nothing selected writes no keys at all", () => {
+		// Absent rather than null: an absent key reads the same in every version
+		// that ever existed, including the ones before this feature.
+		assert.deepEqual(encodeTaskRef(null), {});
+	});
+
+	test("a selected task round-trips", () => {
+		const ref = { filePath: "lists/Work.md", line: 12 };
+		assert.deepEqual(decodeTaskRef(encodeTaskRef(ref)), ref);
+	});
+
+	test("line zero is a real line", () => {
+		// The first line of a file. A truthiness check here would silently drop
+		// the selection for exactly one task in every list.
+		const ref = { filePath: "lists/Work.md", line: 0 };
+		assert.deepEqual(decodeTaskRef(encodeTaskRef(ref)), ref);
+	});
+
+	test("it rides alongside the selection without disturbing it", () => {
+		const blob = { ...encodeSelection({ kind: "list", path: "lists/Work.md" }), ...encodeTaskRef({ filePath: "lists/Work.md", line: 3 }) };
+		assert.deepEqual(decodeSelection(blob), { kind: "list", path: "lists/Work.md" });
+		assert.deepEqual(decodeTaskRef(blob), { filePath: "lists/Work.md", line: 3 });
+	});
+
+	describe("a blob that says nothing usable means nothing is open", () => {
+		const cases = [
+			[undefined, "undefined"],
+			[null, "null"],
+			["lists/Work.md", "a bare string"],
+			[{}, "an empty object"],
+			[{ kind: "list", path: "lists/Work.md" }, "a state from before this existed"],
+			[{ taskPath: "lists/Work.md" }, "a path with no line"],
+			[{ taskLine: 4 }, "a line with no path"],
+			[{ taskPath: "", taskLine: 4 }, "an empty path"],
+			[{ taskPath: "lists/Work.md", taskLine: -1 }, "a negative line"],
+			[{ taskPath: "lists/Work.md", taskLine: 1.5 }, "a fractional line"],
+			[{ taskPath: "lists/Work.md", taskLine: "4" }, "a line as a string"],
+			[{ taskPath: 4, taskLine: 4 }, "a path that is not a string"],
+		];
+		for (const [blob, what] of cases) {
+			test(what, () => assert.equal(decodeTaskRef(blob), null));
 		}
 	});
 });

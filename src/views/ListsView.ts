@@ -11,13 +11,15 @@ import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { bindSwipeDismiss } from "../ui/swipeDismiss";
-import { keyboardOverlap, visibleCap } from "./keyboard";
+import { keyboardOverlap, visibleBottomOf, visibleCap } from "./keyboard";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import {
 	RenderScope,
 	decodeSelection,
+	decodeTaskRef,
 	encodeSelection,
+	encodeTaskRef,
 	selectionKey,
 	selectionTitle,
 	widerScope,
@@ -234,7 +236,10 @@ export class ListsView extends ItemView {
 
 	/** Persisted by Obsidian per leaf, so every tab keeps its own list. */
 	getState(): Record<string, unknown> {
-		return encodeSelection(this.state.selection) as Record<string, unknown>;
+		return {
+			...(encodeSelection(this.state.selection) as Record<string, unknown>),
+			...encodeTaskRef(this.state.selectedTask),
+		};
 	}
 
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
@@ -242,14 +247,40 @@ export class ListsView extends ItemView {
 		this.navigation = this.inMainWorkspace();
 
 		const sel = decodeSelection(state);
+		const task = decodeTaskRef(state);
+		const movedList = !!sel && !sameSelection(sel, this.state.selection);
+		const opening = !!task && !this.state.selectedTask;
+
 		if (sel) {
 			this.state.selection = sel;
-			this.state.selectedTask = null;
-			this.state.composing = false;
-			// Opening a list in a tab starts you in the list, not the picker.
-			this.state.pane = "tasks";
+			if (movedList) {
+				this.state.composing = false;
+				// Opening a list in a tab starts you in the list, not the picker.
+				this.state.pane = "tasks";
+			}
 		}
-		result.history = true;
+
+		/*
+		 * The detail panel follows the state rather than only the view's own
+		 * memory, which is what makes back close it.
+		 *
+		 * On a narrow pane the panel and the list are the same screen, so the
+		 * pane has to move with it — otherwise back would close the panel and
+		 * leave you looking at a list you had already navigated away from.
+		 */
+		this.state.selectedTask = task;
+		if (!this.wide) this.state.pane = task ? "detail" : "tasks";
+
+		/*
+		 * Only a real move earns a history entry.
+		 *
+		 * `result.history = true` asks Obsidian to remember the state we are
+		 * leaving. Changing list and opening a task are both places you would
+		 * expect back to return from. *Closing* a task is not — recording that
+		 * would make back re-open the panel you had just dismissed — and neither
+		 * is the round trip `persistState` makes to refresh the tab's title.
+		 */
+		result.history = movedList || opening;
 		this.render();
 	}
 
@@ -288,8 +319,14 @@ export class ListsView extends ItemView {
 	}
 
 	private closeDetail(): void {
+		const had = !!this.state.selectedTask;
 		this.state.selectedTask = null;
 		this.render();
+		// Keep the leaf's state honest about what is on screen, so a later
+		// restore does not bring the panel back. `setState` deliberately does not
+		// record this one in history: back should not re-open a panel you just
+		// dismissed.
+		if (had && this.inMainWorkspace()) void this.persistState();
 	}
 
 	private buildContext(): ViewContext {
@@ -348,11 +385,18 @@ export class ListsView extends ItemView {
 			},
 
 			selectTask: (task: Task | null) => {
+				const had = !!this.state.selectedTask;
 				this.state.selectedTask = task
 					? { filePath: task.filePath, line: task.line }
 					: null;
 				this.state.openAction = null;
 				this.render();
+				// Push the state so the panel joins the leaf's history and back
+				// closes it. Only when something changed, or every repaint of an
+				// already-open panel would stack another entry to walk back
+				// through. A sidebar leaf is not navigable, so there is no
+				// history there and nothing to push into.
+				if (this.inMainWorkspace() && had !== !!task) void this.persistState();
 			},
 
 			showPane: (pane: PaneName) => {
@@ -547,25 +591,35 @@ export class ListsView extends ItemView {
 			 */
 			this.contentEl.style.removeProperty("max-height");
 			const rect = this.contentEl.getBoundingClientRect();
-			const visibleBottom = vv ? vv.offsetTop + vv.height : win.innerHeight;
+			const visibleBottom = visibleBottomOf({
+				innerHeight: win.innerHeight,
+				native,
+				viewportOffsetTop: vv?.offsetTop,
+				viewportHeight: vv?.height,
+			});
 			const cap =
 				keyboard > 0
 					? visibleCap({ top: rect.top, bottom: rect.bottom, visibleBottom })
 					: null;
 
-			if (cap !== null) {
-				this.contentEl.style.maxHeight = `${cap}px`;
-				/*
-				 * And put the page back where it belongs.
-				 *
-				 * Obsidian pins `document.documentElement.scrollTop` at startup,
-				 * but nothing pins the window or the body, and on iOS the visual
-				 * viewport can be shifted without either. Undoing that is only
-				 * safe now — the view has just been made short enough that the
-				 * browser has no reason to shift it again, whereas resetting the
-				 * scroll without making room would leave the caret under the
-				 * keyboard, which is worse than a pushed-up screen.
-				 */
+			if (cap !== null) this.contentEl.style.maxHeight = `${cap}px`;
+
+			/*
+			 * And put the page back where it belongs.
+			 *
+			 * Obsidian pins `document.documentElement.scrollTop` at startup, but
+			 * nothing pins the window or the body, and on iOS the visual viewport
+			 * can be shifted without either — which is what "the whole screen gets
+			 * pushed up" is: the browser scrolling the page to reach a field it
+			 * could not reveal any other way.
+			 *
+			 * Whenever the keyboard is up and the caret is in this view, not only
+			 * when a cap was applied. A cap is not applied when the view already
+			 * fits, and a view that already fits is exactly the case where the
+			 * page had no business being scrolled at all.
+			 */
+			const active = this.contentEl.doc.activeElement;
+			if (keyboard > 0 && active instanceof HTMLElement && this.contentEl.contains(active)) {
 				if (win.scrollY !== 0 || (vv && vv.offsetTop !== 0)) win.scrollTo(0, 0);
 				if (win.document.body.scrollTop !== 0) win.document.body.scrollTop = 0;
 			}
@@ -724,8 +778,37 @@ export class ListsView extends ItemView {
 		].join("|");
 	}
 
+	/**
+	 * Forget a selected task that is no longer in its file.
+	 *
+	 * The detail panel has no empty state — a task is what it is for — so when
+	 * the task it was told to show cannot be found it renders as a blank panel
+	 * standing open over the list. Reordering used to produce exactly that: the
+	 * drop rewrote the file, every line below moved, and the panel was pointed at
+	 * a line that had become something else.
+	 *
+	 * The click that opened it is suppressed now, so this is the second guard
+	 * rather than the fix. It is worth having anyway, because a file can change
+	 * underneath a selection for reasons that have nothing to do with this view —
+	 * an edit in a pane next door, a sync landing — and a panel that closes is
+	 * always better than one that goes blank.
+	 *
+	 * Only when the file is actually loaded. On a cold start the store is empty
+	 * for a moment, and pruning then would throw away the selection restored from
+	 * the last session before there was anything to check it against.
+	 */
+	private pruneSelection(): void {
+		const ref = this.state.selectedTask;
+		if (!ref) return;
+		if (!this.plugin.store.getList(ref.filePath)) return;
+		if (!this.plugin.store.findTask(ref.filePath, ref.line)) {
+			this.state.selectedTask = null;
+		}
+	}
+
 	private paint(scope: RenderScope = "all"): void {
 		this.wide = this.contentEl.clientWidth >= WIDE_BREAKPOINT;
+		this.pruneSelection();
 
 		const shape = this.shape();
 		const reuse = scope !== "all" && shape === this.lastShape && !!this.shellEl;

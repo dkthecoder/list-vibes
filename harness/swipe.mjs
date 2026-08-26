@@ -129,6 +129,28 @@ check(
 const optOut = await page.$eval(PANEL, (e) => e.dataset.ignoreSwipe ?? null);
 check("the panel opts out of Obsidian's own drawer swipe", optOut === "true", String(optOut));
 
+/*
+ * And it has to be claimed on the scroller too, not only on the panel.
+ *
+ * `touch-action` is per-element. Declared on the panel alone, the browser still
+ * owned the gesture everywhere the scroller covers — which is the whole panel
+ * below its header — so the swipe worked from the top strip and nowhere else.
+ *
+ * Asserted as a declaration rather than as behaviour on purpose: the drags
+ * below are synthetic pointer events, and synthetic events ignore
+ * `touch-action` entirely. They would pass either way, which is exactly why
+ * this check has to exist separately and say what it is.
+ */
+const scrollerAction = await page.$eval(
+	`${PANEL} .lv-scroll`,
+	(e) => getComputedStyle(e).touchAction
+);
+check(
+	"the scroller inside the panel claims the horizontal gesture too",
+	scrollerAction === "pan-y",
+	scrollerAction
+);
+
 const start = await box(PANEL);
 check("the panel is on screen to begin with", start.w > 0 && start.h > 0, JSON.stringify(start));
 

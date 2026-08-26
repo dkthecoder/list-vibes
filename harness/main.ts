@@ -128,6 +128,10 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			markSelected();
 		},
 		selectTask: (t: Task | null) => {
+			// Recorded as well as applied: a drag that ends in an unwanted tap
+			// shows up here and nowhere else, since the panel it opens is empty
+			// and an empty panel is hard to tell from no panel.
+			calls.push(["selectTask", t ? t.title : null]);
 			state.selectedTask = t ? { filePath: t.filePath, line: t.line } : null;
 			paint();
 		},

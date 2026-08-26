@@ -55,6 +55,36 @@ export function keyboardOverlap({ native, visual, viewHeight }: Reading): number
 	return Math.round(Math.min(measured, room * MAX_FRACTION));
 }
 
+/**
+ * Where the bottom of what can actually be seen is, in layout coordinates.
+ *
+ * Two sources again, for the same reason as the height: on iOS the visual
+ * viewport shrinks or slides and reports it honestly; on Android the webview
+ * is usually not resized at all, so the visual viewport says the screen is as
+ * tall as ever and only the platform's own inset knows better. Taking the
+ * higher of the two — the more pessimistic — means the answer is right on both
+ * without having to know which platform this is.
+ *
+ * This being wrong in the Android direction is why an earlier version did
+ * nothing there: the visual viewport reported a full-height screen, so the view
+ * looked like it fitted, and the browser went on scrolling the page to reach
+ * the field.
+ */
+export function visibleBottomOf(opts: {
+	innerHeight: number;
+	native: number;
+	viewportOffsetTop?: number;
+	viewportHeight?: number;
+}): number {
+	const { innerHeight, native, viewportOffsetTop, viewportHeight } = opts;
+	const fromViewport =
+		Number.isFinite(viewportHeight) && (viewportHeight as number) > 0
+			? (viewportOffsetTop ?? 0) + (viewportHeight as number)
+			: innerHeight;
+	const fromInset = native > 0 ? innerHeight - native : innerHeight;
+	return Math.min(fromViewport, fromInset);
+}
+
 export interface Fit {
 	/** Top of the view, in layout-viewport coordinates. */
 	top: number;

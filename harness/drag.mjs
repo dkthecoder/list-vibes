@@ -95,6 +95,21 @@ check("drag state is cleared on drop", cleared === 0, `${cleared} left over`);
 const bodyClass = await page.evaluate(() => document.body.className);
 check("the body drag class is cleared", !bodyClass.includes("lv-is-dragging"), bodyClass);
 
+/* ---- and a drag must not be read as a click ----
+
+   The other half of the same coin, and the one that actually shipped broken.
+   `pointerup` is not the end of the gesture: the browser goes on to dispatch
+   `mouseup` and then `click` on the same row, and a task row's click opens the
+   detail panel. So reordering a list also opened the editor — on a task whose
+   line the drop had just moved, so it opened empty. Real mouse events here, not
+   synthetic ones, because the click is the browser's and only the browser can
+   send it. */
+check(
+	"the drag did not also open the task it moved",
+	!calls.some((c) => c[0] === "selectTask"),
+	JSON.stringify(calls.map((c) => c[0]))
+);
+
 /* ---- a click must not be read as a drag ---- */
 await page.evaluate(() => (window.lvCalls.length = 0));
 await page.mouse.move(first.x, first.y);
@@ -108,6 +123,11 @@ check(
 	!calls.some((c) => c[0] === "reorder"),
 	JSON.stringify(calls.map((c) => c[0]))
 );
+check(
+	"and still opens the task, because suppressing every click would be worse",
+	calls.some((c) => c[0] === "selectTask"),
+	JSON.stringify(calls.map((c) => c[0]))
+);
 
 /* ---- dropping a row back where it started writes nothing ---- */
 await page.evaluate(() => (window.lvCalls.length = 0));
@@ -118,6 +138,11 @@ for (let y = first.y + 20; y >= first.y; y -= 5) await page.mouse.move(first.x, 
 await page.mouse.up();
 await page.waitForTimeout(50);
 calls = await page.evaluate(() => window.lvCalls);
+check(
+	"an abandoned drag does not open the task either",
+	!calls.some((c) => c[0] === "selectTask"),
+	JSON.stringify(calls.map((c) => c[0]))
+);
 check(
 	"a drag that returns to its start writes nothing",
 	!calls.some((c) => c[0] === "reorder"),

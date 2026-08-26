@@ -29,7 +29,21 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   watches for the same gesture to open its own sidebar, and `touch-action` does
   not stop a gesture implemented in JavaScript, so the panel carries
   `data-ignore-swipe` — core's own opt-out, the one it puts on its sliders,
-  canvas and resize handles.
+  canvas and resize handles. `touch-action` is per-element, so it is declared on
+  the panel's scroller as well as the panel; declared on the panel alone, the
+  browser still owned the gesture everywhere the scroller covered, and the swipe
+  worked from the header strip and nowhere else.
+- **Back closes the detail panel.** Opening a task is a navigation, so it goes
+  into the leaf's history — which is what both of Obsidian's back buttons run,
+  the one in the mobile navigation bar and Android's own. Back closes the panel
+  instead of leaving the plugin or the app. Closing it yourself is deliberately
+  *not* recorded, or back would re-open the panel you had just dismissed.
+- **A drag is not a tap.** `pointerup` is not the end of a gesture: the browser
+  goes on to dispatch `click` on the same row, and a task row's click opens the
+  detail panel — so reordering a list also popped the editor open, on a task
+  whose line the drop had just moved, which is why it opened empty. The click a
+  drag leaves behind is swallowed, and a selected task that is no longer in its
+  file is dropped rather than rendered as a blank panel.
 - **A task's note shows on the row.** One faint line under the title, cut off
   where the row runs out, however long the note is. It used to be a chip reading
   "Note", which told you a note existed and nothing about whether it mattered.
@@ -332,6 +346,14 @@ nothing else** — `scrollIntoView` walks every ancestor looking for something
 that can move, and since ours deliberately cannot, it kept walking until it
 reached the page. And where the view genuinely hangs past the visible area, it
 is capped to fit.
+
+Where the visible bottom *is* takes two readings for the same reason the
+keyboard's height does. On iOS the visual viewport shrinks or slides and says so;
+on Android the webview is usually not resized, so the visual viewport reports a
+full-height screen and only the platform's own inset knows better. The more
+pessimistic of the two wins. An earlier version read the viewport alone, which
+is why it did nothing at all on Android: the view looked like it fitted, and the
+browser went on scrolling the page to reach the field.
 
 That cap is the part worth being careful about. It is not the keyboard's height
 subtracted from the view — that is what the three earlier attempts did, and it

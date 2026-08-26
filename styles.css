@@ -957,7 +957,21 @@
  * still works exactly as it did — and keeps the horizontal one for us. Without
  * it the browser claims both, and the swipe never produces a pointermove.
  */
-.lv-overlay:not(.is-pinned) {
+/*
+ * The swipe has to work from anywhere on the panel, the way a sheet does in any
+ * other app — not just from the strip of bar across the top.
+ *
+ * `touch-action` is per-element, and the scroller inside the panel is its own
+ * touch target with its own default. Declaring it only on the panel left the
+ * browser owning the gesture everywhere the scroller covers, which is all of it
+ * below the header — so the swipe appeared to work only at the top. The
+ * scroller is named explicitly, and `pan-y` still leaves it scrolling exactly
+ * as it did: the vertical gesture is the browser's, the horizontal one is ours.
+ */
+.lv-overlay:not(.is-pinned),
+.lv-overlay:not(.is-pinned) .lv-scroll,
+.lv-overlay:not(.is-pinned) .lv-card,
+.lv-overlay:not(.is-pinned) .lv-detail-bar {
 	touch-action: pan-y;
 }
 

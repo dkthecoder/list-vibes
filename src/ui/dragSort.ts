@@ -59,6 +59,56 @@ export function dropIndex(centres: number[], from: number, y: number): number {
 	return Math.max(0, Math.min(centres.length - 1, to));
 }
 
+/**
+ * How long to keep watching for the click a finished drag leaves behind.
+ *
+ * A mouse dispatches it immediately after `pointerup`; touch can take a moment.
+ * Long enough to catch the straggler, short enough that a real tap afterwards is
+ * never the one that gets eaten.
+ */
+const CLICK_SUPPRESS_MS = 400;
+
+/**
+ * Swallow the click that follows a drag.
+ *
+ * `pointerup` is not the end of the gesture as far as the browser is concerned:
+ * it goes on to dispatch `mouseup` and then `click` on the same element. So a
+ * row that was dragged into a new position also gets clicked, and a task row's
+ * click opens the detail panel — which is why reordering a list popped the
+ * editor open, and popped it open *empty*, because the drop had just rewritten
+ * the file and the line the panel was told to show had moved.
+ *
+ * On the document in the capture phase, deliberately. Listeners on the row
+ * itself all run in the at-target phase in registration order, so one added here
+ * would run *after* the row's own handler and `stopPropagation` would be too
+ * late — it would take `stopImmediatePropagation` and an ordering guarantee
+ * nobody should depend on. Capturing at the document is simply earlier than the
+ * target, whatever the target has registered.
+ */
+function suppressNextClick(el: HTMLElement): void {
+	const doc = el.ownerDocument;
+	const win = doc.defaultView ?? window;
+	let timer = 0;
+
+	const swallow = (e: Event): void => {
+		// Only this row's click. Anything else is someone else's tap and is left
+		// alone; the timer takes care of standing down.
+		const target = e.target;
+		if (!(target instanceof Node) || !el.contains(target)) return;
+		e.stopPropagation();
+		e.preventDefault();
+		done();
+	};
+
+	const done = (): void => {
+		win.clearTimeout(timer);
+		doc.removeEventListener("click", swallow, true);
+	};
+
+	doc.addEventListener("click", swallow, true);
+	timer = win.setTimeout(done, CLICK_SUPPRESS_MS);
+}
+
 /** Make one row draggable among its siblings. */
 export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void {
 	const grab = opts.handle ?? row;
@@ -132,6 +182,14 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 		if (!live) return;
 		live = false;
+
+		/*
+		 * Whether or not the order changed, and whether or not it was committed.
+		 * A gesture that dragged a row is not a tap on it — an abandoned drag
+		 * that put the row back where it started should leave the list exactly as
+		 * it was, not open the task.
+		 */
+		suppressNextClick(row);
 
 		row.removeClass("lv-dragging");
 		row.style.transform = "";

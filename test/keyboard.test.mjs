@@ -1,6 +1,12 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { keyboardOverlap, visibleCap, MAX_FRACTION, MIN_KEYBOARD } from "./build/views/keyboard.js";
+import {
+	keyboardOverlap,
+	visibleBottomOf,
+	visibleCap,
+	MAX_FRACTION,
+	MIN_KEYBOARD,
+} from "./build/views/keyboard.js";
 
 /**
  * How much of the view the keyboard is covering.
@@ -177,5 +183,74 @@ describe("visibleCap", () => {
 	test("the cap is a whole number of pixels", () => {
 		const got = visibleCap({ top: 10.4, bottom: 900, visibleBottom: 500.9 });
 		assert.equal(got, Math.floor(got));
+	});
+});
+
+/**
+ * Where the bottom of what can be seen actually is.
+ *
+ * This is the reading the cap is measured against, and getting it wrong in the
+ * Android direction is why an earlier version quietly did nothing there: the
+ * visual viewport reported a full-height screen because the webview was never
+ * resized, the view therefore looked like it fitted, and the browser went on
+ * scrolling the page to reach the field.
+ */
+describe("visibleBottomOf", () => {
+	const H = 844;
+
+	test("with no keyboard it is the bottom of the window", () => {
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 0, viewportOffsetTop: 0, viewportHeight: H }),
+			H
+		);
+	});
+
+	test("iOS: the visual viewport shrank, and it is believed", () => {
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 0, viewportOffsetTop: 0, viewportHeight: 500 }),
+			500
+		);
+	});
+
+	test("iOS: the visual viewport slid instead of shrinking", () => {
+		// Offset and height together, not height alone — the visible strip has
+		// moved down the layout viewport as well as got shorter.
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 0, viewportOffsetTop: 100, viewportHeight: 500 }),
+			600
+		);
+	});
+
+	test("Android: the webview was not resized, so the platform inset decides", () => {
+		// The case that mattered. The visual viewport says nothing is wrong.
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 320, viewportOffsetTop: 0, viewportHeight: H }),
+			H - 320
+		);
+	});
+
+	test("with both reporting, the more pessimistic wins", () => {
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 320, viewportOffsetTop: 0, viewportHeight: 600 }),
+			H - 320
+		);
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 200, viewportOffsetTop: 0, viewportHeight: 500 }),
+			500
+		);
+	});
+
+	test("no visual viewport at all falls back to the window", () => {
+		assert.equal(visibleBottomOf({ innerHeight: H, native: 0 }), H);
+		assert.equal(visibleBottomOf({ innerHeight: H, native: 320 }), H - 320);
+	});
+
+	test("a zero-height viewport reading is ignored rather than believed", () => {
+		// Reported mid-animation on some engines; believed, it would say nothing
+		// on screen is visible and cap the view to nothing.
+		assert.equal(
+			visibleBottomOf({ innerHeight: H, native: 0, viewportOffsetTop: 0, viewportHeight: 0 }),
+			H
+		);
 	});
 });

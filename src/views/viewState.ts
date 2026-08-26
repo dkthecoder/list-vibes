@@ -22,6 +22,43 @@ export interface SerialisedSelection {
 	[key: string]: unknown;
 }
 
+/**
+ * The task whose detail panel is open, as part of the view's state.
+ *
+ * It is here rather than in the view's own memory so that opening a task is a
+ * *navigation*. Obsidian records the previous state in the leaf's history, and
+ * both its back buttons — the one in the mobile navigation bar and Android's
+ * own — run that history backwards. Without this, back from an open detail
+ * panel had nothing of ours to undo and went straight past the plugin to
+ * whatever was before it, or out of the app.
+ *
+ * A line number is a weak identifier and deliberately so: it is what the rest
+ * of the plugin uses to point at a task, and a stale one resolves to nothing
+ * and closes the panel, which is the right failure.
+ */
+export interface TaskRef {
+	filePath: string;
+	line: number;
+}
+
+export function encodeTaskRef(ref: TaskRef | null): Record<string, unknown> {
+	// Absent rather than null: a state blob is persisted into workspace.json,
+	// and an absent key reads the same in every version that ever existed.
+	return ref ? { taskPath: ref.filePath, taskLine: ref.line } : {};
+}
+
+export function decodeTaskRef(state: unknown): TaskRef | null {
+	if (!state || typeof state !== "object") return null;
+	const s = state as { taskPath?: unknown; taskLine?: unknown };
+	if (typeof s.taskPath !== "string" || !s.taskPath.length) return null;
+	// A line must be a real index. `0` is valid — the first line of a file —
+	// so this cannot be a truthiness check.
+	if (typeof s.taskLine !== "number" || !Number.isInteger(s.taskLine) || s.taskLine < 0) {
+		return null;
+	}
+	return { filePath: s.taskPath, line: s.taskLine };
+}
+
 export function encodeSelection(sel: Selection): SerialisedSelection {
 	return sel.kind === "list"
 		? { kind: "list", path: sel.path }
