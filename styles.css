@@ -146,7 +146,15 @@
 	flex: 1 1 auto;
 	overflow-y: auto;
 	overflow-x: hidden;
-	-webkit-overflow-scrolling: touch;
+	/*
+	 * No `-webkit-overflow-scrolling: touch`. It was here as momentum-scroll
+	 * insurance and it buys nothing: WebKit's own source shows its compositing
+	 * branch is unreachable once `asyncOverflowScrollingEnabled` is on, which is
+	 * the default in every WKWebView, and Blink removed the property entirely so
+	 * on Android it is dropped at parse time. Its one surviving effect on iOS is
+	 * silently forcing `z-index: 0` and a stacking context nobody asked for.
+	 * Core uses it zero times.
+	 */
 	padding: var(--size-4-1) 0 var(--size-4-2);
 }
 
@@ -627,6 +635,27 @@ body.is-phone .lv-header {
 	white-space: nowrap;
 }
 
+/*
+ * One leading column for the whole panel.
+ *
+ * Every row in here — the title's checkbox, the step's +, each action's icon —
+ * used to be positioned by its own rule, with its own padding and its own slot
+ * width. They landed on three different vertical lines a few pixels apart,
+ * which is not something the eye names but is exactly what "disjointed" means.
+ * Two variables, one place, and they line up by construction rather than by
+ * three rules happening to agree.
+ */
+.lv-detail {
+	/* Width of the leading slot: icon, checkbox or button, whichever the row has. */
+	--lv-lead: var(--size-4-6);
+	/* Space between that slot and the text after it. */
+	--lv-lead-gap: var(--size-4-2);
+	/* The row's own horizontal padding, inside the card's. */
+	--lv-row-pad: var(--size-4-3);
+	/* Where the text starts, and therefore where a divider starts too. */
+	--lv-text-start: calc(var(--lv-row-pad) + var(--lv-lead) + var(--lv-lead-gap));
+}
+
 .lv-card {
 	margin: var(--size-4-2) var(--lv-gutter);
 	padding: var(--size-4-1);
@@ -634,11 +663,18 @@ body.is-phone .lv-header {
 	border-radius: var(--lv-radius);
 }
 
+/*
+ * The title is the card *and* the row, which is why it was 4px out.
+ *
+ * Every other row sits inside a `.lv-card` and is inset by the card's padding
+ * plus its own. This element is both, so it only ever got one of them, and its
+ * checkbox sat four pixels left of every icon below it.
+ */
 .lv-detail-title {
 	display: flex;
 	align-items: flex-start;
-	gap: var(--size-4-2);
-	padding: var(--size-4-3);
+	gap: var(--lv-lead-gap);
+	padding: var(--lv-row-pad) calc(var(--size-4-1) + var(--lv-row-pad));
 }
 
 .lv-detail-title-text {
@@ -667,9 +703,9 @@ body.is-phone .lv-header {
 .lv-step {
 	display: flex;
 	align-items: center;
-	gap: var(--size-4-2);
+	gap: var(--lv-lead-gap);
 	min-height: var(--size-4-10);
-	padding: 0 var(--size-4-2);
+	padding: 0 var(--lv-row-pad);
 	border-radius: var(--lv-radius-s);
 }
 
@@ -737,11 +773,12 @@ body.is-phone .lv-header {
 /* actions */
 
 .lv-action {
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: var(--size-4-3);
+	gap: var(--lv-lead-gap);
 	min-height: var(--lv-row-min);
-	padding: 0 var(--size-4-3);
+	padding: 0 var(--lv-row-pad);
 	border-radius: var(--lv-radius-s);
 	cursor: var(--cursor);
 	color: var(--text-muted);
@@ -749,10 +786,7 @@ body.is-phone .lv-header {
 	user-select: none;
 }
 
-.lv-action + .lv-action {
-	border-top: var(--border-width) solid var(--divider-color);
-	border-radius: 0;
-}
+
 
 .lv-action:hover {
 	background: var(--background-modifier-hover);
@@ -771,10 +805,14 @@ body.is-phone .lv-header {
 	color: var(--text-error);
 }
 
+/* The leading slot. Centred inside it, so a 16px icon and an 18px one still
+   share a centre line rather than both hugging the left edge at their own
+   widths. */
 .lv-action-icon {
 	display: flex;
 	align-items: center;
-	flex: 0 0 var(--size-4-5);
+	justify-content: center;
+	flex: 0 0 var(--lv-lead);
 }
 
 .lv-action-text {
@@ -1311,9 +1349,26 @@ body.is-phone .lv-header {
    nothing to anchor to on touch.
    ------------------------------------------------------------------ */
 
+/*
+ * The divider starts where the text starts, not where the row does.
+ *
+ * As a `border-top` it ran the row's full width — beginning left of the icon
+ * and ending flush with the card — so it lined up with neither. Drawn as a
+ * pseudo-element it is inset to the text on one side and the row's own padding
+ * on the other, which is the convention the reference UI uses and the reason
+ * its rows read as one group rather than as stacked strips.
+ */
 .lv-action-wrap + .lv-action-wrap .lv-action {
-	border-top: var(--border-width) solid var(--divider-color);
 	border-radius: 0;
+}
+
+.lv-action-wrap + .lv-action-wrap .lv-action::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	inset-inline-start: var(--lv-text-start);
+	inset-inline-end: var(--lv-row-pad);
+	border-top: var(--border-width) solid var(--divider-color);
 }
 
 .lv-action.is-open {
@@ -1748,9 +1803,38 @@ body.is-phone .lv-nav-scroll {
  * `scroll-padding` on top so that when the browser scrolls a focused field into
  * view it stops short of the keyboard rather than flush against it.
  */
+/*
+ * On touch the scroller always has room to scroll into, keyboard or not.
+ *
+ * This is the sixth attempt at the mobile keyboard and the first one grounded
+ * in the documented mechanism rather than in a guess. iOS shrinks the *visual*
+ * viewport but not the layout one, then scroll-into-views the focused field. If
+ * a scroll container can absorb that, it does and nothing else moves. If none
+ * can, the browser scrolls the page itself — and a `height: 100vh` app shell
+ * scrolled to a region with nothing painted is a blank screen that comes back
+ * when the keyboard closes. That is precisely the reported symptom, and it is
+ * why a markdown note never does it: the caret there lives inside `.cm-scroller`,
+ * which can always scroll.
+ *
+ * The previous version reserved `--lv-keyboard-height`, which is only known
+ * *after* the keyboard has been measured — after focus, after the browser has
+ * already decided nothing could absorb the reveal. It lost that race every
+ * time. A short list had no overflow at the moment it mattered and the page
+ * moved instead.
+ *
+ * So the room is unconditional. `40vh` is about a keyboard's worth, and it is
+ * the same trick core plays in the editor, where `updateBottomPadding` reserves
+ * roughly half the view beneath the note.
+ *
+ * What would falsify this: the view still blanks with the scroller scrollable
+ * before focus. Then the reveal is not what is escalating and the answer is a
+ * real workspace screen, not more padding.
+ */
 body.is-mobile .lv-scroll,
 body.is-mobile .lv-nav-scroll {
-	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance) + var(--lv-keyboard-height));
+	padding-bottom: calc(
+		var(--size-4-2) + var(--lv-navbar-clearance) + max(40vh, var(--lv-keyboard-height))
+	);
 	scroll-padding-bottom: calc(var(--lv-keyboard-height) + var(--size-4-4));
 	/* Keep a swipe or a flick inside the list instead of handing it to the
 	   drawer behind once the ends are reached. */

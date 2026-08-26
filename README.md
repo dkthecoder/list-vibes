@@ -386,6 +386,52 @@ covers emulation, the `Platform` API, remote inspection and `isDesktopOnly`, and
 does not mention the keyboard, the viewport or safe areas. Checking was worth
 doing; it is recorded here so nobody has to check again.
 
+### What the research actually said
+
+Two things were searched exhaustively after the fifth failure, and both results
+are worth keeping because they stop the same ground being covered again.
+
+**Nobody has reported this symptom.** Not the Obsidian forum, not any plugin
+repository. Obsidian's core has no issue tracker — [obsidian-releases refuses
+them](https://github.com/obsidianmd/obsidian-releases) — so the forum is the
+only venue, and it is not there. There is precedent for a plugin causing an
+app-level keyboard fault, though: the [Commander plugin broke Obsidian's
+keyboard layout](https://forum.obsidian.md/t/empty-space-on-top-of-mobile-app-after-1-9-0-update/104621)
+in exactly this shape, restored on dismiss, and was fixed in the plugin.
+
+**`-webkit-overflow-scrolling: touch` was a dead end, and it was mine.** It sat
+on every scroller here as momentum-scroll insurance, and core uses it zero
+times, which looked significant. It is not: WebKit's own source shows the
+compositing branch is unreachable once `asyncOverflowScrollingEnabled` is on,
+which is the default in every WKWebView, and Blink removed the property outright
+so on Android it is dropped at parse time. Its one surviving effect on iOS is
+silently forcing `z-index: 0`. Removed as dead weight, not as a fix.
+
+What the literature does support, and support well, is the mechanism — and it
+finally explains the asymmetry that matters. iOS shrinks the *visual* viewport
+but not the layout one, then scroll-into-views the focused field
+([Apple 723420](https://developer.apple.com/forums/thread/723420),
+[WebKit 207049](https://bugs.webkit.org/show_bug.cgi?id=207049),
+[192564](https://bugs.webkit.org/show_bug.cgi?id=192564)). If a scroll container
+can absorb that, it does and nothing else moves. If none can, the browser
+scrolls the page — and a `height: 100vh` app shell scrolled to a region with
+nothing painted is a blank screen that comes back when the keyboard closes.
+A markdown note never triggers it because its caret lives inside `.cm-scroller`,
+which can always scroll.
+
+Which is why the scroller now reserves room **unconditionally** rather than when
+the keyboard is measured. The measurement arrives after focus, by which time the
+browser has already looked for somewhere to reveal the field, found nothing, and
+moved the page instead. A short list had no overflow at the moment it mattered.
+The harness pins that directly: shrink the pane to a phone's height and the
+scroller must already be scrollable with nothing tapped — reserve only on
+measurement and it reports `scrollHeight 450 > clientHeight 450: false`, which
+is the race, in numbers.
+
+**What would falsify this:** the view still blanks with the scroller demonstrably
+scrollable before focus. Then the reveal is not what is escalating, and the
+answer is a real workspace screen rather than more padding.
+
 ### When it still misbehaves
 
 A soft keyboard does not exist on a desktop, and no harness reproduces one, so a

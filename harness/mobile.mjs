@@ -169,20 +169,52 @@ check(
 	`padding-bottom=${scrollerRoom}px, keyboard=${KEYBOARD}px`
 );
 
-// And with the keyboard down that room goes back to clearing the navbar only.
+/*
+ * And it keeps that room with the keyboard down, which is the change.
+ *
+ * Reserving only when the keyboard has been measured lost a race it could not
+ * win: the measurement arrives after focus, and by then the browser has already
+ * looked for a scroll container that could reveal the field, found none, and
+ * scrolled the page instead. A short list has no overflow at the moment it
+ * matters. So the room is unconditional now — the scroller is scrollable before
+ * anything is tapped.
+ */
 await page.evaluate((pane) => {
 	const root = document.querySelector(`${pane} .lv-root`);
 	root.style.setProperty("--lv-keyboard-height", "0px");
 	root.classList.remove("is-keyboard-open");
 }, PANE);
 await page.waitForTimeout(100);
-const roomDown = await page.$eval(`${PANE} .lv-scroll`, (e) =>
-	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
+const idle = await page.evaluate((pane) => {
+	// The frame here is taller than a phone pane, and a scroller with more room
+	// than content is not scrollable however much padding it carries — which
+	// would make this check pass without meaning anything. So the pane is cut
+	// down to a plausible height first, which is the situation being tested:
+	// a short list, nothing typed yet, and the browser about to look for
+	// somewhere to reveal a field.
+	const frame = document.querySelector(pane);
+	const was = frame.style.height;
+	frame.style.height = "500px";
+	const e = frame.querySelector(".lv-scroll");
+	const out = {
+		pad: Math.round(parseFloat(getComputedStyle(e).paddingBottom)),
+		client: e.clientHeight,
+		scroll: e.scrollHeight,
+		scrollable: e.scrollHeight > e.clientHeight,
+		viewport: window.innerHeight,
+	};
+	frame.style.height = was;
+	return out;
+}, PANE);
+check(
+	"a short list is scrollable before anything is tapped",
+	idle.scrollable,
+	`scrollHeight ${idle.scroll} > clientHeight ${idle.client}: ${idle.scrollable}`
 );
 check(
-	"which it gives back when the keyboard closes",
-	roomDown < KEYBOARD && roomDown > 0,
-	`padding-bottom=${roomDown}px`
+	"and the room it holds is about a keyboard's worth",
+	idle.pad >= idle.viewport * 0.4,
+	`padding-bottom=${idle.pad}px against 40vh of ${idle.viewport}px`
 );
 
 /* ------------------------------------------------------------------

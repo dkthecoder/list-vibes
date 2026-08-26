@@ -164,6 +164,87 @@ check(
 	emphasis.meta ? `${emphasis.meta.colour} vs ${emphasis.note.colour}` : "(no metadata on this row)"
 );
 
+/* ------------------------------------------------------------------
+   4. The detail panel's rows line up
+
+   Reported as "the lines and that aren't adding up... disjointed". Each
+   row in the panel used to be positioned by its own rule with its own
+   padding and its own slot width, and they landed a few pixels apart —
+   which is not something the eye can name but is exactly what that
+   complaint is. A few pixels is also not something a screenshot settles,
+   so it is measured.
+   ------------------------------------------------------------------ */
+
+const DETAIL = "#picker .lv-detail";
+
+const lead = await page.evaluate((sel) => {
+	const panel = document.querySelector(sel);
+	if (!panel) return null;
+	const at = (el) => (el ? Math.round(el.getBoundingClientRect().left) : null);
+	return {
+		title: at(panel.querySelector(".lv-detail-title .lv-check, .lv-detail-title input")),
+		step: at(panel.querySelector(".lv-step .lv-check, .lv-step input")),
+		stepAdd: at(panel.querySelector(".lv-step-add .lv-check, .lv-step-add .lv-add-icon")),
+		actions: Array.from(panel.querySelectorAll(".lv-action-icon")).map((e) =>
+			Math.round(e.getBoundingClientRect().left)
+		),
+	};
+}, DETAIL);
+
+check("the detail panel is on screen to measure", lead !== null, JSON.stringify(lead));
+
+if (lead) {
+	// Every action icon on one line — these are siblings in one card, so any
+	// disagreement here is a rule contradicting itself.
+	const spread = lead.actions.length
+		? Math.max(...lead.actions) - Math.min(...lead.actions)
+		: 0;
+	check(
+		"every action icon starts on the same vertical line",
+		lead.actions.length > 1 && spread === 0,
+		`${lead.actions.length} icons, spread ${spread}px`
+	);
+
+	// And the rows in the cards above it agree with them, within a pixel of
+	// rounding. This is the one that was actually wrong.
+	const all = [lead.title, lead.step, lead.stepAdd, ...lead.actions].filter(
+		(n) => typeof n === "number"
+	);
+	const across = Math.max(...all) - Math.min(...all);
+	check(
+		"and the title, steps and actions all share it",
+		all.length >= 3 && across <= 1,
+		`title=${lead.title} step=${lead.step} stepAdd=${lead.stepAdd} actions=${JSON.stringify(lead.actions)} spread=${across}px`
+	);
+}
+
+// The dividers between actions have to start where the text starts and stop at
+// the row's own padding — as a full-width border they began left of the icon
+// and ended flush with the card, lining up with neither.
+const divider = await page.evaluate((sel) => {
+	const rows = Array.from(document.querySelectorAll(`${sel} .lv-action`));
+	if (rows.length < 2) return null;
+	const second = rows[1];
+	const before = getComputedStyle(second, "::before");
+	const text = second.querySelector(".lv-action-text");
+	const row = second.getBoundingClientRect();
+	return {
+		drawn: before.content !== "none",
+		startsAt: before.insetInlineStart || before.left,
+		textStart: text ? Math.round(text.getBoundingClientRect().left - row.left) : null,
+	};
+}, DETAIL);
+
+if (divider) {
+	check("a divider is drawn between actions", divider.drawn, JSON.stringify(divider));
+	check(
+		"and it starts where the row's text starts",
+		divider.textStart !== null &&
+			Math.abs(parseFloat(divider.startsAt) - divider.textStart) <= 1,
+		`divider at ${divider.startsAt}, text at ${divider.textStart}px`
+	);
+}
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 
 await browser.close();
