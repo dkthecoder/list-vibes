@@ -12,6 +12,7 @@ import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { bindSwipeDismiss } from "../ui/swipeDismiss";
 import { keyboardOverlap } from "./keyboard";
+import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import {
@@ -206,8 +207,7 @@ export class ListsView extends ItemView {
 		 * what kept breaking the view.
 		 */
 		this.trackKeyboard();
-		this.pinScroll(this.contentEl);
-		this.pinScroll(this.contentEl.closest(".workspace-leaf-content"));
+		this.pinAncestors();
 
 		// A held-back repaint runs the moment the field is done with.
 		this.registerDomEvent(this.contentEl, "focusout", () =>
@@ -666,24 +666,36 @@ export class ListsView extends ItemView {
 	}
 
 	/**
-	 * Stop the browser scrolling the view out of sight to reveal a focused field.
+	 * Stop the browser scrolling this view out of sight to reveal a focused field.
 	 *
-	 * This is what made the detail panel vanish. An `overflow: hidden` box is a
-	 * scroll container — it just has no scrollbar — so when the keyboard covers a
-	 * focused input, the browser walks up the ancestors and scrolls one of them.
-	 * Ours are exactly one viewport tall with nothing beneath, so the whole view
-	 * slides up and leaves blank space, and because there is no scrollbar the
-	 * user cannot bring it back.
+	 * An `overflow: hidden` box is still a scroll container — it merely has no
+	 * scrollbar. So when the keyboard covers a focused input the browser walks up
+	 * the ancestors looking for something that can be scrolled to reveal it, and
+	 * an `overflow: hidden` ancestor answers yes. Everything inside it then slides
+	 * up together, and because there is no scrollbar nobody can bring it back
+	 * until the keyboard closes and the overflow disappears.
 	 *
-	 * `overflow: clip` in the stylesheet prevents it; this pins the containers we
-	 * do not own, and is the same guard Obsidian runs on the document root.
+	 * Which ancestor answers decides how much vanishes. `.view-content` takes the
+	 * view with it; `.app-container` takes Obsidian's own header and navigation
+	 * bar too, which is the whole screen going blank. Guarding two named boxes
+	 * left every other link in that chain unguarded, so this walks the chain.
+	 *
+	 * Pinning is safe precisely because these boxes have no scrollbar: a scroll
+	 * offset the user cannot see and cannot undo is never something they asked
+	 * for. It is the same guard core runs on the document root, one level down.
 	 */
-	private pinScroll(el: HTMLElement | null): void {
-		if (!el) return;
-		this.registerDomEvent(el, "scroll", () => {
-			if (el.scrollTop !== 0) el.scrollTop = 0;
-			if (el.scrollLeft !== 0) el.scrollLeft = 0;
-		});
+	private pinAncestors(): void {
+		for (const el of unscrollableAncestors(this.contentEl, this.contentEl.win)) {
+			this.registerDomEvent(el, "scroll", () => {
+				if (!resetIfScrolled(el)) return;
+				/*
+				 * Left in deliberately. If this view ever blanks again, this line
+				 * names the box that did it — the difference between knowing the
+				 * mechanism and guessing at it a seventh time.
+				 */
+				console.debug("[List Vibes] put back a scrolled ancestor:", el.className || el.tagName);
+			});
+		}
 	}
 
 	/** Run a repaint that was held back while the user was typing. */

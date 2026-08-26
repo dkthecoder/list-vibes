@@ -341,6 +341,17 @@ closes. ([Apple 723420](https://developer.apple.com/forums/thread/723420),
 A markdown note never triggers it, which is the clue that matters: its caret
 lives inside `.cm-scroller`, which can always scroll.
 
+Android arrives at the same place by a different road. The WebView there is
+generally *not* resized when the keyboard opens — `window.innerHeight` and the
+visual viewport both stay put, which is why the keyboard has to be measured from
+Obsidian's own `--keyboard-height` rather than inferred. What shrinks instead is
+`.app-container`, clamped by core the instant the keyboard's animation ends.
+The focused field is then below the fold, something scrolls to reveal it, and
+the rest follows identically. Worth stating plainly because it rules a fix out:
+`100dvh` does **not** help, on either platform — the on-screen keyboard is
+[explicitly not part of any viewport unit](https://web.dev/blog/viewport-units),
+`dvh` included.
+
 So two rules here, and they are the whole answer:
 
 **Every field you can type into is inside a scroller.** On touch the add box is
@@ -356,6 +367,29 @@ the moment it mattered. `40vh` is about a keyboard's worth, and the same trick
 core plays in the editor, where `updateBottomPadding` reserves roughly half the
 view beneath the note. The harness pins the race directly: shrink the pane to a
 phone's height and the scroller must already be scrollable with nothing tapped.
+
+**And every ancestor that could be scrolled behind your back is put back.** An
+`overflow: hidden` box is still a scroll container — it merely has no scrollbar.
+So when the keyboard covers a focused input, the browser walks up the ancestors
+looking for something it can scroll to reveal the field, and an `overflow:
+hidden` ancestor answers yes. Everything inside slides up together, with no
+scrollbar to bring it back until the keyboard closes.
+
+*Which* ancestor answers decides how much disappears, and this is the part that
+took longest to see. `.view-content` takes the plugin's view with it.
+`.app-container` takes Obsidian's own header and navigation bar too — which is a
+whole screen going blank, in an app where nothing else that day went wrong. The
+guard used to name two boxes by hand and left every other link in the chain
+free; it now walks the chain from the view to the body. `harness/vanish.mjs`
+builds a real app shell and asserts that scrolling it is undone and that the
+chrome above the view does not move — remove the app shell from the walk and it
+reports `chrome top 950 -> 810`, which is the bug in one number.
+
+Pinning is safe precisely because these boxes have no scrollbar: an offset
+nobody can see and nobody can undo is never one they asked for. It is the guard
+core already runs on the document root, applied one level down. When it fires it
+logs which box it caught, so a recurrence names its own cause instead of
+starting another round of guessing.
 
 **And nothing else.** The view does not shorten itself, lift anything, or reset
 the page scroll for the keyboard. The webview slides the whole app upward when

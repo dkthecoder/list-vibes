@@ -38,6 +38,21 @@ const setup = await page.evaluate(() => {
 	document.body.className = "is-mobile is-tablet";
 
 	// The real ancestry, including the sidebar's scrolling .view-content.
+	// The app shell, which is the box that takes Obsidian's own header and
+	// navigation bar with it when something scrolls it. Guarding the two boxes
+	// nearest the view left this one free to be scrolled, and scrolling this one
+	// is what "the whole screen goes blank" is.
+	const app = document.createElement("div");
+	app.className = "app-container";
+	// Shorter than what it holds, which is the situation the keyboard creates:
+	// the shell is clamped, its contents are not, and now it has somewhere to
+	// scroll to. Sized to fit exactly and there would be no overflow, so the
+	// check below would pass without meaning anything.
+	app.style.cssText = "position:relative;height:500px;width:700px;overflow:hidden;";
+	const chrome = document.createElement("div");
+	chrome.className = "app-chrome-probe";
+	chrome.style.cssText = "height:40px;width:100%;background:var(--background-secondary);";
+
 	const leaf = document.createElement("div");
 	leaf.className = "workspace-leaf";
 	leaf.style.cssText =
@@ -58,11 +73,21 @@ const setup = await page.evaluate(() => {
 	view.appendChild(clone);
 	content.appendChild(view);
 	leaf.appendChild(content);
-	document.body.appendChild(leaf);
-	leaf.scrollIntoView({ block: "center" });
-	return true;
+	app.appendChild(chrome);
+	app.appendChild(leaf);
+	document.body.appendChild(app);
+
+	// Arm the guard the view arms, over the chain the view would walk.
+	window.lvPinnedChain = window.lvPinAncestors(view.querySelector(".lv-root") ?? view);
+	app.scrollIntoView({ block: "center" });
+	return window.lvPinnedChain;
 });
-check("the tablet ancestry is built", setup);
+check("the tablet ancestry is built", Array.isArray(setup) && setup.length > 0, JSON.stringify(setup));
+check(
+	"and the guard walked as far as the app shell",
+	Array.isArray(setup) && setup.some((c) => String(c).includes("app-container")),
+	JSON.stringify(setup)
+);
 
 const STEP = "#vanish .lv-step-input";
 const OVERLAY = "#vanish .lv-overlay";
@@ -202,6 +227,58 @@ check(
 	"and nothing is reserved for a navbar Obsidian has already hidden",
 	compensation.reserve === "0px" || compensation.reserve === "0",
 	`clearance=${compensation.reserve}`
+);
+
+/* ------------------------------------------------------------------
+   The app shell being scrolled is the whole screen going blank
+
+   Whichever ancestor answers "yes, I can scroll to reveal that field"
+   decides how much disappears. `.view-content` takes the view; the app
+   shell takes Obsidian's own header and navigation bar with it, and
+   because it has no scrollbar nobody can bring any of it back until the
+   keyboard closes. Guarding two named boxes left this one free.
+   ------------------------------------------------------------------ */
+
+const shell = await page.evaluate(() => {
+	const app = document.querySelector(".app-container");
+	const chrome = document.querySelector(".app-chrome-probe");
+	const before = Math.round(chrome.getBoundingClientRect().top);
+
+	// Exactly what the browser does to reveal a field it cannot otherwise
+	// reach — an offset on a box with no scrollbar.
+	app.scrollTop = 300;
+	const moved = app.scrollTop;
+
+	return new Promise((resolve) =>
+		requestAnimationFrame(() =>
+			setTimeout(
+				() =>
+					resolve({
+						moved,
+						after: app.scrollTop,
+						chromeBefore: before,
+						chromeAfter: Math.round(chrome.getBoundingClientRect().top),
+					}),
+				30
+			)
+		)
+	);
+});
+
+check(
+	"the app shell can be scrolled at all — otherwise this proves nothing",
+	shell.moved > 0,
+	`scrollTop reached ${shell.moved}`
+);
+check(
+	"but it is put straight back",
+	shell.after === 0,
+	`scrollTop ${shell.moved} -> ${shell.after}`
+);
+check(
+	"so Obsidian's own chrome stays where it was",
+	shell.chromeAfter === shell.chromeBefore,
+	`chrome top ${shell.chromeBefore} -> ${shell.chromeAfter}`
 );
 
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));

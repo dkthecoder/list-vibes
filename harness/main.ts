@@ -15,6 +15,7 @@ import { todayISO } from "../src/model/store";
 import { SortKey } from "../src/model/sort";
 import { ListColor, ViewMode } from "../src/model/types";
 import { keyboardOverlap } from "../src/views/keyboard";
+import { resetIfScrolled, unscrollableAncestors } from "../src/views/pinScroll";
 import { makeEditableName } from "../src/ui/editableName";
 import { bindSwipeDismiss } from "../src/ui/swipeDismiss";
 
@@ -299,3 +300,16 @@ paint();
  */
 (window as unknown as { lvKeyboardOverlap: typeof keyboardOverlap }).lvKeyboardOverlap =
 	keyboardOverlap;
+
+/*
+ * The real ancestor guard, so a suite can arm it exactly as the view does.
+ * Naming boxes by hand is what left the chain half-guarded, so what is checked
+ * is the walk, not a list.
+ */
+(window as unknown as { lvPinAncestors: (el: HTMLElement) => string[] }).lvPinAncestors = (el) => {
+	const pinned = unscrollableAncestors(el, window);
+	for (const node of pinned) {
+		node.addEventListener("scroll", () => void resetIfScrolled(node));
+	}
+	return pinned.map((n) => n.className || n.tagName);
+};
