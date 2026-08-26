@@ -245,6 +245,113 @@ if (divider) {
 	);
 }
 
+/* ------------------------------------------------------------------
+   Alignment: one column down each edge of the list
+
+   The checkbox, the title's first line and the star are three things
+   that read as a column, so any disagreement between them shows. Two
+   were found by eye on a tablet: the star sat six pixels low, because a
+   32px tap target top-aligned against a 20px line does, and the
+   completed rows were inset four pixels further than the open ones,
+   because the group and the completed section carried different
+   paddings.
+   ------------------------------------------------------------------ */
+
+/*
+ * The completed section starts collapsed, and collapsed is exactly where the
+ * misalignment hid: half the rows in the list were never on screen to be
+ * compared with the other half. So it is opened first, by clicking the header
+ * the user clicks rather than by reaching into state.
+ */
+await page.click(`${PANE} .lv-completed-head`);
+await page.waitForTimeout(120);
+
+const columns = await page.evaluate((pane) => {
+	const frame = document.querySelector(pane);
+	const mid = (el) => {
+		const r = el.getBoundingClientRect();
+		return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+	};
+	const row = (r) => {
+		const box = r.querySelector(".lv-check, input[type=checkbox]");
+		const title = r.querySelector(".lv-task-title");
+		const star = r.querySelector(".lv-star");
+		if (!box || !title || !star) return null;
+		// The first line of the title, not the whole (possibly wrapped) block.
+		const line = title.getClientRects()[0];
+		return {
+			box: mid(box),
+			star: mid(star),
+			line: Math.round(line.top + line.height / 2),
+			left: Math.round(r.getBoundingClientRect().left),
+			right: Math.round(r.getBoundingClientRect().right),
+		};
+	};
+	const open = [...frame.querySelectorAll(".lv-group .lv-task")].map(row).filter(Boolean);
+	const done = [...frame.querySelectorAll(".lv-completed .lv-task")].map(row).filter(Boolean);
+	return { open, done };
+}, PANE);
+
+const all = [...columns.open, ...columns.done];
+check(
+	"there are rows on both sides of the divide to compare",
+	columns.open.length > 0 && columns.done.length > 0,
+	`${columns.open.length} open, ${columns.done.length} completed`
+);
+
+const offBox = all.filter((r) => Math.abs(r.box.y - r.line) > 2);
+check(
+	"every checkbox is centred on its title's first line",
+	offBox.length === 0,
+	offBox.map((r) => `box ${r.box.y} vs line ${r.line}`).join(", ")
+);
+
+const offStar = all.filter((r) => Math.abs(r.star.y - r.line) > 2);
+check(
+	"and so is every star",
+	offStar.length === 0,
+	offStar.map((r) => `star ${r.star.y} vs line ${r.line}`).join(", ")
+);
+
+const boxX = new Set(all.map((r) => r.box.x));
+const starX = new Set(all.map((r) => r.star.x));
+check(
+	"the checkboxes share one column, completed rows included",
+	boxX.size === 1,
+	`x positions: ${[...boxX].join(", ")}`
+);
+check(
+	"and so do the stars",
+	starX.size === 1,
+	`x positions: ${[...starX].join(", ")}`
+);
+
+/* ------------------------------------------------------------------
+   Corners: rounded, not lozenges
+   ------------------------------------------------------------------ */
+
+const corners = await page.evaluate((pane) => {
+	const frame = document.querySelector(pane);
+	// A theme that draws its nav items as pills, which is where this came from.
+	frame.querySelector(".lv-root").style.setProperty("--radius-m", "999px");
+	frame.querySelector(".lv-root").style.setProperty("--radius-s", "999px");
+	frame.querySelector(".lv-root").style.setProperty("--nav-item-radius", "999px");
+	const read = (sel) => {
+		const el = frame.querySelector(sel);
+		return el ? Math.round(parseFloat(getComputedStyle(el).borderTopLeftRadius)) : -1;
+	};
+	return { row: read(".lv-task"), head: read(".lv-completed-head"), add: read(".lv-add-input") };
+}, PANE);
+
+for (const [what, r] of Object.entries(corners)) {
+	if (r < 0) continue;
+	check(
+		`the ${what} keeps a corner radius, not a pill`,
+		r <= 10,
+		`border-radius=${r}px against a theme asking for 999px`
+	);
+}
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 
 await browser.close();

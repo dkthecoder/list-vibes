@@ -1,7 +1,7 @@
 import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
 import { Task, isComplete } from "../model/types";
-import { formatDate, isOverdue, isToday } from "../model/store";
+import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
 import { renderInline } from "./inline";
 import { renderImportance } from "./Importance";
@@ -91,7 +91,7 @@ export function renderTaskCard(
 	}
 	if (task.meta.repeat) bits.push({ text: task.meta.repeat, icon: "repeat" });
 	if (task.meta.done) {
-		bits.push({ text: formatDate(task.meta.done), icon: "check-check" });
+		bits.push({ text: formatStamp(task.meta.done), icon: "check-check" });
 	}
 
 	if (bits.length) {

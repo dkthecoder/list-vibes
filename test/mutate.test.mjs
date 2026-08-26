@@ -8,6 +8,10 @@ const OPTS = {
 	dialect: () => "emoji",
 	addDoneDate: () => true,
 	addCreatedDate: () => false,
+	// Date-only, which is what every existing line in a vault looks like. The
+	// with-a-time path is exercised separately below rather than by changing
+	// what these assert.
+	stampTime: () => false,
 };
 
 function today() {
@@ -808,5 +812,53 @@ describe("promote", () => {
 		assert.equal(path, "tasks/Plan the big trip.md");
 		// The displayed title is untouched — only the filename is cleaned.
 		assert.ok(s.lines()[0].includes('|Plan: the "big" trip?]]'), s.lines()[0]);
+	});
+});
+
+/**
+ * A completion stamp that carries a time.
+ *
+ * `✅ 2026-08-26` tells you a task was finished today, which by tomorrow tells
+ * you nothing. The time is what makes a day's completions readable as a
+ * sequence, and it is written with a `T` because the emoji dialect is parsed by
+ * splitting on whitespace — a stamp with a space in it reads as a date followed
+ * by a stray word, here and in every other tool that reads these files.
+ */
+describe("stamping the time", () => {
+	const withTime = { ...OPTS, stampTime: () => true };
+
+	test("a completed task gets a date and a time", async () => {
+		const s = setup("- [ ] Cake\n", { opts: withTime });
+		await s.mutator.toggle(s.task(0));
+		assert.match(s.read(), /✅ \d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, s.read());
+	});
+
+	test("and the stamp stays one whitespace-free token", async () => {
+		// The property the `T` exists for. A space here would be parsed as a
+		// date followed by a word, and the word would land in the title.
+		const s = setup("- [ ] Cake\n", { opts: withTime });
+		await s.mutator.toggle(s.task(0));
+		assert.equal(s.root(0).title, "Cake", s.read());
+	});
+
+	test("turning it off writes a bare date, as before", async () => {
+		const s = setup("- [ ] Cake\n");
+		await s.mutator.toggle(s.task(0));
+		assert.doesNotMatch(s.read(), /T\d{2}:\d{2}/, s.read());
+	});
+
+	test("and an existing bare date is still read", () => {
+		// Nothing in a vault gets rewritten by this. Every line already there
+		// keeps its shape and keeps parsing.
+		const t = parseFile("- [x] Cake ✅ 2026-08-20\n", "lists/Test.md").tasks[0];
+		assert.equal(t.meta.done, "2026-08-20");
+		assert.equal(t.title, "Cake");
+	});
+
+	test("and a hand-typed space between date and time is accepted", () => {
+		// Written with a `T`, but somebody editing markdown will type a space,
+		// and being strict about that would silently drop their edit.
+		const t = parseFile("- [x] Cake ✅ 2026-08-20 14:32\n", "lists/Test.md").tasks[0];
+		assert.equal(t.meta.done, "2026-08-20T14:32");
 	});
 });

@@ -21,6 +21,8 @@ export interface ListsSettings {
 	addDoneDate: boolean;
 	/** Stamp a ➕ date on newly created tasks. */
 	addCreatedDate: boolean;
+	/** Write a time alongside the completed and created dates. */
+	stampTime: boolean;
 	/**
 	 * How importance is shown and edited.
 	 * Both modes read and write the same priority field, so switching is free
@@ -70,6 +72,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	showCompleted: "collapsed",
 	addDoneDate: true,
 	addCreatedDate: true,
+	stampTime: true,
 	importanceMode: "star",
 	defaultSort: "custom",
 	sortByList: {},
@@ -315,6 +318,18 @@ export class ListsSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.addCreatedDate).onChange(async (v) => {
 					this.plugin.settings.addCreatedDate = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Include the time")
+			.setDesc(
+				"Stamp completed and created dates with the time as well: ✅ 2026-08-26T14:32 rather than ✅ 2026-08-26. Existing dates are left alone and both forms are always read, so this can be turned off again at any time. Off is what the Tasks plugin expects."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.stampTime).onChange(async (v) => {
+					this.plugin.settings.stampTime = v;
 					await this.plugin.saveSettings();
 				})
 			);

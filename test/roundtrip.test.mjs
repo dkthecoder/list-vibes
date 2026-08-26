@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -413,4 +413,57 @@ test("blockRange covers a task, its note and its descendants", async () => {
 	const list = parseFile(md, "x.md");
 	assert.deepEqual(blockRange(list.tasks[0]), { start: 0, end: 4 });
 	assert.deepEqual(blockRange(list.tasks[1]), { start: 4, end: 5 });
+});
+
+/**
+ * A stamp that carries a time, through the parser and back out.
+ *
+ * The risk this guards is not the parse but the round trip: the emoji dialect
+ * is split on whitespace, so anything the serialiser writes with a space in it
+ * comes back as a date followed by a word, and the word lands in the title
+ * where the user can see it.
+ */
+describe("datetime stamps", () => {
+	// The real write path: rewriting a field is what the app does when a box is
+	// ticked, so a round trip through it is the thing worth asserting.
+	const rewrite = (line) => {
+		const t = parseFile(line + "\n", "lists/a.md").tasks[0];
+		const field = t.meta.done !== undefined ? "done" : "created";
+		return { task: t, out: setField(t, field, t.meta[field], "emoji") };
+	};
+
+	test("a stamp with a time survives a round trip unchanged", () => {
+		const line = "- [x] Cake ✅ 2026-08-26T14:32";
+		const { task, out } = rewrite(line);
+		assert.equal(task.meta.done, "2026-08-26T14:32");
+		assert.equal(task.title, "Cake");
+		assert.equal(out, line);
+	});
+
+	test("as does a bare date, which is what a vault is full of", () => {
+		const line = "- [x] Cake ✅ 2026-08-26";
+		const { task, out } = rewrite(line);
+		assert.equal(task.meta.done, "2026-08-26");
+		assert.equal(out, line);
+	});
+
+	test("a hand-typed space is normalised on the way in", () => {
+		// Accepted, because somebody editing markdown will type it — but it is
+		// not what gets written back, or the next parse would read the time as
+		// a word and put it in the title.
+		const { task, out } = rewrite("- [x] Cake ✅ 2026-08-26 14:32");
+		assert.equal(task.meta.done, "2026-08-26T14:32");
+		assert.equal(out, "- [x] Cake ✅ 2026-08-26T14:32");
+	});
+
+	test("and the title never picks up the time", () => {
+		const t = parseFile("- [x] Cake ✅ 2026-08-26T14:32\n", "lists/a.md").tasks[0];
+		assert.equal(t.title, "Cake");
+	});
+
+	test("and a created stamp works the same way", () => {
+		const t = parseFile("- [ ] Cake ➕ 2026-08-26T09:05\n", "lists/a.md").tasks[0];
+		assert.equal(t.meta.created, "2026-08-26T09:05");
+		assert.equal(t.title, "Cake");
+	});
 });

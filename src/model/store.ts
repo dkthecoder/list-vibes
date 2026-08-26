@@ -1,4 +1,5 @@
 import { App, TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
+import { datePart, timePart } from "./datetime";
 import { parseFile } from "./parse";
 import { Task, TaskList, isComplete } from "./types";
 
@@ -147,7 +148,22 @@ export function todayISO(): string {
 }
 
 export function isToday(iso?: string): boolean {
-	return !!iso && iso === todayISO();
+	return !!iso && datePart(iso) === todayISO();
+}
+
+/**
+ * A stamp as a person reads it: "Today at 14:32", or just the day when there is
+ * no time in it.
+ *
+ * "Today" on its own is the least informative thing a completed task can say,
+ * and by tomorrow it says less. The time is what makes a day's completions
+ * readable as a sequence.
+ */
+export function formatStamp(stamp?: string): string {
+	if (!stamp) return "";
+	const day = formatDate(stamp);
+	const time = timePart(stamp);
+	return time ? `${day} at ${formatTime(time)}` : day;
 }
 
 export function isOverdue(iso?: string): boolean {
@@ -157,10 +173,12 @@ export function isOverdue(iso?: string): boolean {
 /** "Today", "Tomorrow", "Mon, 25 Aug" — the label style the reference UI uses. */
 export function formatDate(iso?: string): string {
 	if (!iso) return "";
+	// A stamp may carry a time; the day is what this names.
+	const day = datePart(iso);
 	const today = todayISO();
-	if (iso === today) return "Today";
+	if (day === today) return "Today";
 
-	const d = new Date(iso + "T00:00:00");
+	const d = new Date(day + "T00:00:00");
 	const now = new Date(today + "T00:00:00");
 	const days = Math.round((d.getTime() - now.getTime()) / 86400000);
 	if (days === 1) return "Tomorrow";

@@ -1,7 +1,7 @@
 import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
 import { Task, isComplete } from "../model/types";
-import { formatDate, isOverdue, isToday } from "../model/store";
+import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
 import { renderInline } from "./inline";
 import { renderImportance } from "./Importance";
@@ -71,7 +71,7 @@ export function renderTaskRow(
 					: undefined,
 		});
 	}
-	if (task.meta.done) bits.push({ text: `Completed ${formatDate(task.meta.done)}` });
+	if (task.meta.done) bits.push({ text: `Completed ${formatStamp(task.meta.done)}` });
 
 	if (bits.length) {
 		const meta = body.createDiv({ cls: "lv-task-meta" });

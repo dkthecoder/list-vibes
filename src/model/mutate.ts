@@ -2,6 +2,7 @@ import { App, MarkdownView, Notice, TFile } from "obsidian";
 import { parseLine } from "./parse";
 import { setFrontmatterKey } from "./frontmatter";
 import { nextOccurrence } from "./recurrence";
+import { stampNow } from "./datetime";
 import {
 	newTaskLine,
 	setField,
@@ -30,6 +31,7 @@ export class Mutator {
 	private dialect: () => Dialect;
 	private addDoneDate: () => boolean;
 	private addCreatedDate: () => boolean;
+	private stampTime: () => boolean;
 
 	constructor(
 		app: App,
@@ -37,12 +39,27 @@ export class Mutator {
 			dialect: () => Dialect;
 			addDoneDate: () => boolean;
 			addCreatedDate: () => boolean;
+			stampTime: () => boolean;
 		}
 	) {
 		this.app = app;
 		this.dialect = opts.dialect;
 		this.addDoneDate = opts.addDoneDate;
 		this.addCreatedDate = opts.addCreatedDate;
+		this.stampTime = opts.stampTime;
+	}
+
+	/**
+	 * The moment a task was finished or started, as it goes into the file.
+	 *
+	 * Behind a setting because it changes what is written into the user's own
+	 * markdown. `✅ 2026-08-26` is what the Tasks plugin expects and what every
+	 * existing line in the vault already says; `✅ 2026-08-26T14:32` is more
+	 * useful and is ours. Reading copes with both either way, so turning this
+	 * off stops new stamps carrying a time and leaves the old ones alone.
+	 */
+	private stamp(): string {
+		return stampNow(this.stampTime());
 	}
 
 	private fileFor(path: string): TFile | null {
@@ -344,7 +361,7 @@ export class Mutator {
 		const reparsed = parseLine(next, task.line, task.filePath);
 		if (reparsed) {
 			if (becomingDone && this.addDoneDate()) {
-				next = setField(reparsed, "done", today(), this.dialect());
+				next = setField(reparsed, "done", this.stamp(), this.dialect());
 			} else if (!becomingDone) {
 				next = setField(reparsed, "done", null, this.dialect());
 			}
@@ -429,7 +446,7 @@ export class Mutator {
 		if (!dates) return null;
 
 		const meta: Partial<TaskMeta> = { ...task.meta, ...dates, done: undefined };
-		if (this.addCreatedDate()) meta.created = today();
+		if (this.addCreatedDate()) meta.created = this.stamp();
 		else delete meta.created;
 
 		return newTaskLine(task.title, {
@@ -533,7 +550,7 @@ export class Mutator {
 		if (!clean) return;
 
 		const full: Partial<TaskMeta> = { ...meta };
-		if (this.addCreatedDate() && !full.created) full.created = today();
+		if (this.addCreatedDate() && !full.created) full.created = this.stamp();
 
 		const line = newTaskLine(clean, {
 			indent: opts.indent ?? "",

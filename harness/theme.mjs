@@ -116,12 +116,22 @@ check(
 await apply({
 	"--size-4-1": "9px",
 	"--size-4-2": "18px",
-	"--nav-item-radius": "13px",
+	"--radius-s": "9px",
 });
 after = await sample();
 check("padding follows the spacing scale", after.taskPadding !== before.taskPadding,
 	`${before.taskPadding} -> ${after.taskPadding}`);
-check("corners follow the radius scale", after.taskRadius !== before.taskRadius,
+/*
+ * Radius follows the theme, but only up to a point — `--lv-radius-s` is a
+ * `min()`, so a theme drawing pills gets rounded corners here instead. 9px is
+ * under the cap, so this still asserts the scale is being read at all; the
+ * refusal above the cap is checked in `harness/rows.mjs`.
+ *
+ * `--nav-item-radius` is deliberately not what is set here any more. The rows
+ * used to take it, which is how a theme's pill nav items turned a list of tasks
+ * into a list of lozenges.
+ */
+check("corners follow the radius scale, under the cap", after.taskRadius !== before.taskRadius,
 	`${before.taskRadius} -> ${after.taskRadius}`);
 
 /* ---- 4. The accent colour from appearance settings ---- */

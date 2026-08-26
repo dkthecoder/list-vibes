@@ -20,8 +20,19 @@
 	   explorer is, so they scale with zoom. The min-height is only a floor. */
 	--lv-row-min: var(--size-4-9);
 	--lv-gutter: var(--size-4-3);
-	--lv-radius: var(--radius-m);
-	--lv-radius-s: var(--radius-s);
+	/* Shared by every row in the list; see `.lv-group`. */
+	--lv-row-inset: var(--size-4-2);
+	/*
+	 * Rounded corners, capped.
+	 *
+	 * The rest of this view borrows the theme's tokens on purpose, but radius is
+	 * where that stops being right: a theme that draws its nav items as pills
+	 * makes every row here a lozenge, and a list of lozenges is harder to scan
+	 * than a list of lines — the eye follows the left edge, and a pill has none.
+	 * `min()` keeps a modest theme's radius and refuses an extravagant one.
+	 */
+	--lv-radius: min(var(--radius-m, 8px), 10px);
+	--lv-radius-s: min(var(--radius-s, 6px), 8px);
 
 	/* Checkboxes default to --font-text-size, which is sized for editor body
 	   text and far too big in a UI pane. Obsidian narrows it the same way for
@@ -334,8 +345,17 @@ body.is-phone .lv-header {
 	color: var(--text-faint);
 }
 
-.lv-group {
-	padding: 0 var(--size-4-2);
+/*
+ * One inset for every row in the list, open or completed.
+ *
+ * These were `--size-4-2` here and `--lv-gutter` on the completed section,
+ * which is four pixels apart — enough that the checkboxes and the stars in the
+ * two halves of the same list visibly did not line up, and not enough for
+ * anybody to guess why.
+ */
+.lv-group,
+.lv-completed {
+	padding: 0 var(--lv-row-inset);
 }
 
 /*
@@ -353,9 +373,16 @@ body.is-phone .lv-header {
 	align-items: flex-start;
 	gap: var(--size-4-2);
 	min-height: var(--lv-row-min);
-	padding: var(--size-4-1) var(--size-4-2);
-	margin-bottom: var(--nav-item-margin-bottom, var(--size-2-1));
-	border-radius: var(--nav-item-radius, var(--lv-radius-s));
+	/*
+	 * The height of the title's first line, which is what the controls on
+	 * either side of it align to. A row can be one line or four; the checkbox
+	 * and the star belong to the title, so they centre on that line rather than
+	 * on the row.
+	 */
+	--lv-line: calc(var(--font-ui-medium) * 1.4);
+	padding: var(--size-4-2) var(--size-4-2);
+	margin-bottom: var(--size-2-1);
+	border-radius: var(--lv-radius-s);
 	color: var(--nav-item-color, var(--text-normal));
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
@@ -381,7 +408,8 @@ body.is-phone .lv-header {
 .lv-check {
 	flex: 0 0 auto;
 	margin: 0;
-	margin-top: 2px;
+	/* Centred on the title's first line — see `--lv-line`. */
+	margin-top: calc((var(--lv-line) - var(--checkbox-size)) / 2);
 	cursor: var(--cursor);
 	/* An appearance:none checkbox otherwise keeps the browser's default black
 	   `color`. Core paints its tick with a mask and never reads it, but themes
@@ -470,6 +498,14 @@ body.is-phone .lv-header {
 	color: var(--text-faint);
 }
 
+/*
+ * Aligned to the title's first line, not to the top of the row.
+ *
+ * A 32px tap target top-aligned against a 20px line sits six pixels low, which
+ * on a list of six rows reads as six things that are almost but not quite in a
+ * column. The negative margin pulls the box back so its centre and the line's
+ * centre agree; the tap target keeps its full size.
+ */
 .lv-star {
 	display: flex;
 	align-items: center;
@@ -477,6 +513,8 @@ body.is-phone .lv-header {
 	width: var(--size-4-8);
 	height: var(--size-4-8);
 	flex: 0 0 var(--size-4-8);
+	align-self: flex-start;
+	margin-top: calc((var(--lv-line) - var(--size-4-8)) / 2);
 	color: var(--text-faint);
 	cursor: var(--cursor);
 	border-radius: var(--lv-radius);
@@ -513,7 +551,6 @@ body.is-phone .lv-header {
 
 .lv-completed {
 	margin-top: var(--size-4-2);
-	padding: 0 var(--lv-gutter);
 }
 
 .lv-completed-head {
@@ -1406,7 +1443,7 @@ body.is-phone .lv-header {
 	padding: var(--size-2-3) var(--size-4-3);
 	min-height: var(--size-4-8);
 	border: none;
-	border-radius: var(--radius-l);
+	border-radius: var(--lv-radius);
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 	cursor: var(--cursor);

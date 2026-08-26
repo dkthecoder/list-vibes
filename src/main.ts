@@ -33,6 +33,7 @@ export default class ListsPlugin extends Plugin {
 			dialect: () => this.settings.dialect,
 			addDoneDate: () => this.settings.addDoneDate,
 			addCreatedDate: () => this.settings.addCreatedDate,
+			stampTime: () => this.settings.stampTime,
 		});
 
 		this.registerView(VIEW_TYPE_LISTS, (leaf) => new ListsView(leaf, this));
