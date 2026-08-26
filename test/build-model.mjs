@@ -33,6 +33,7 @@ await esbuild.build({
 		"src/ui/prettify.ts",
 		"src/ui/swipeDismiss.ts",
 		"src/views/keyboard.ts",
+		"src/views/doubleKeyboard.ts",
 		"src/views/context.ts",
 		"src/ui/IconModal.ts",
 	],

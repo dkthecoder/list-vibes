@@ -2215,3 +2215,36 @@ body.is-mobile .lv-nav-scroll {
 .is-mobile .lv-icon-modal input[type="text"] {
 	font-size: max(16px, var(--font-ui-medium));
 }
+
+/* ------------------------------------------------------------------
+   A keyboard subtracted twice
+
+   Core shortens the app for the keyboard with one rule:
+
+     body.is-mobile .app-container {
+       max-height: calc(100vh - var(--keyboard-height));
+     }
+
+   That is right when the WebView keeps its full height and the keyboard
+   is drawn over it. On some Android devices the WebView is resized as
+   well — so `100vh` has already lost the keyboard's height, the variable
+   takes it away again, and the app is left `screen - 2 × keyboard` tall.
+   In portrait that is the view squashed into the top of the screen with
+   a keyboard's worth of blank beneath it. In landscape, where a screen is
+   barely two keyboards tall, the result clamps at zero and the whole app
+   disappears until the keyboard closes.
+
+   It is a device behaviour rather than anything a plugin does, and it is
+   easy to miss in the editor, which just shows fewer lines when it is
+   shortened. A fixed layout collapses instead, which is where it shows.
+
+   Reaching over one of core's own rules is not something to do lightly,
+   so the class is only ever set where the viewport has been *measured*
+   to shrink on its own — see src/views/doubleKeyboard.ts. Same
+   specificity as the rule it replaces, and later in the cascade, so no
+   `!important` is needed to win.
+   ------------------------------------------------------------------ */
+
+body.lv-keyboard-counted-twice.is-mobile .app-container {
+	max-height: 100vh;
+}

@@ -391,6 +391,40 @@ core already runs on the document root, applied one level down. When it fires it
 logs which box it caught, so a recurrence names its own cause instead of
 starting another round of guessing.
 
+**And on devices that subtract the keyboard twice, core's own cap is corrected.**
+This turned out to be the actual fault, and it was never a plugin bug at all.
+Core shortens the app with one rule:
+
+```css
+body.is-mobile .app-container { max-height: calc(100vh - var(--keyboard-height)); }
+```
+
+That is right when the WebView keeps its height and the keyboard is drawn over
+it. Some Android devices resize the WebView *as well* — so `100vh` has already
+lost the keyboard's height, the variable takes it away again, and the app is
+left `screen − 2 × keyboard` tall. In portrait that reads as the view squashed
+into the top of the screen with a keyboard's worth of blank beneath it. In
+landscape, where a screen is barely two keyboards tall, the result clamps at
+zero and the whole app vanishes until the keyboard closes.
+
+The arithmetic is checkable against a photograph: a 2000px portrait screen with
+a 645px keyboard left roughly 700px of app and 680px of blank, and
+`2000 − 645 − 645 ≈ 700`.
+
+Two things made it hard to see. It is invisible in Obsidian's own editor, which
+simply shows fewer lines when it is shortened, so it looks like a plugin
+problem. And it does not touch the Quick Switcher, because a modal lives in
+`document.body`, outside `.app-container` — which is why "the search field is
+fine" was the single most useful measurement in the whole investigation.
+
+Reaching over one of core's rules is not something to do on a hunch, so the
+class that does it is only set where `window.innerHeight` has been *measured* to
+shrink on its own by roughly a keyboard's height. See
+`src/views/doubleKeyboard.ts`; the resting height is a running maximum that is
+never learned while a keyboard is up and is forgotten on rotation, both of which
+are tested, because either would silently disable the detection on exactly the
+devices that need it.
+
 **And nothing else.** The view does not shorten itself, lift anything, or reset
 the page scroll for the keyboard. The webview slides the whole app upward when
 the keyboard rises — core's own editor does it too — so it is not a plugin's to

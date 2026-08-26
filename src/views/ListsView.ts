@@ -12,6 +12,7 @@ import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { bindSwipeDismiss } from "../ui/swipeDismiss";
 import { keyboardOverlap } from "./keyboard";
+import { restingHeightAfter, subtractsTwice } from "./doubleKeyboard";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
@@ -71,6 +72,10 @@ export class ListsView extends ItemView {
 	private deferred = false;
 	/** Guards the setViewState round trip from re-entering itself. */
 	private persisting = false;
+	/** Tallest the viewport has been with no keyboard up. See doubleKeyboard.ts. */
+	private restingHeight = 0;
+	/** Viewport width, so a rotation can be told from a keyboard. */
+	private lastWidth = 0;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ListsPlugin) {
 		super(leaf);
@@ -230,6 +235,7 @@ export class ListsView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
+		this.contentEl.doc.body.removeClass("lv-keyboard-counted-twice");
 		this.unsubscribe?.();
 		this.unsubscribe = null;
 		this.observer?.disconnect();
@@ -583,6 +589,30 @@ export class ListsView extends ItemView {
 
 			this.contentEl.style.setProperty("--lv-keyboard-height", `${keyboard}px`);
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
+
+			/*
+			 * Some devices resize the WebView for the keyboard *and* report its
+			 * height, so core's cap on `.app-container` takes it off twice and
+			 * the app is left `screen - 2 × keyboard` tall — squashed in
+			 * portrait, gone entirely in landscape. Detected rather than
+			 * assumed; see doubleKeyboard.ts.
+			 */
+			const rotated = this.lastWidth !== 0 && this.lastWidth !== win.innerWidth;
+			this.lastWidth = win.innerWidth;
+			this.restingHeight = restingHeightAfter(
+				this.restingHeight,
+				win.innerHeight,
+				native,
+				rotated
+			);
+			this.contentEl.doc.body.toggleClass(
+				"lv-keyboard-counted-twice",
+				subtractsTwice({
+					innerHeight: win.innerHeight,
+					restingHeight: this.restingHeight,
+					keyboard: native,
+				})
+			);
 
 			/*
 			 * Nothing is capped, lifted or scrolled back from here, and the
