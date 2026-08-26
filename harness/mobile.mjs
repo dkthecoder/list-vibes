@@ -112,8 +112,11 @@ const clearance = await page.$eval(`${PANE}`, (e) =>
 	getComputedStyle(e).getPropertyValue("--lv-navbar-clearance").trim()
 );
 check(
-	"the reserve becomes the keyboard's height, not the navbar's",
-	clearance.includes("keyboard") || clearance === `${KEYBOARD}px`,
+	"the reserve is dropped, not raised, when the keyboard is up",
+	// Obsidian shortens the app container by the keyboard's height and hides
+	// the navbar, so by the time we lay out there is nothing left to clear.
+	// Reserving anything here double-counts and pushes the content off screen.
+	clearance === "0px" || clearance === "0",
 	`clearance=${clearance || "(unset)"}`
 );
 
@@ -122,9 +125,9 @@ const gap = await page.$eval(`${PANE} .lv-add`, (e) => {
 	return Math.round(parseFloat(cs.paddingBottom));
 });
 check(
-	"the add box reserves room to clear the keyboard",
-	gap >= KEYBOARD,
-	`padding-bottom=${gap}px, keyboard=${KEYBOARD}px`
+	"so the add box adds no padding of its own either",
+	gap < 40,
+	`padding-bottom=${gap}px`
 );
 
 // And with the keyboard down it goes back to clearing the navbar only.
@@ -285,9 +288,9 @@ const stepGap = await page.$eval(`${OVERLAY} .lv-scroll`, (e) =>
 	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
 );
 check(
-	"the panel's scroller reserves room to clear the keyboard",
-	stepGap >= KEYBOARD,
-	`padding-bottom=${stepGap}px, keyboard=${KEYBOARD}px`
+	"the panel's scroller reserves nothing either — Obsidian already did",
+	stepGap < 40,
+	`padding-bottom=${stepGap}px`
 );
 
 void rootBefore;

@@ -516,7 +516,21 @@ export class ListsView extends ItemView {
 				? Math.max(0, Math.round(win.innerHeight - vv.height - vv.offsetTop))
 				: 0;
 
-			const keyboard = Math.max(native, visual > 120 ? visual : 0);
+			const measured = Math.max(native, visual > 120 ? visual : 0);
+
+			/*
+			 * Clamped against this view's own height. The measurement comes from
+			 * the screen and this view may be a fraction of it, so an unclamped
+			 * number is not merely large — it is meaningless here.
+			 *
+			 * Nothing is lifted or padded by this value any more (see the
+			 * stylesheet: Obsidian has already shortened the container). What it
+			 * is still for is knowing the keyboard is up, which is what lets the
+			 * navbar reserve be dropped and the focused field be revealed.
+			 */
+			const room = this.contentEl.clientHeight || win.innerHeight;
+			const keyboard = Math.min(measured, Math.round(room * 0.6));
+
 			this.contentEl.style.setProperty("--lv-keyboard-height", `${keyboard}px`);
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
 
