@@ -583,13 +583,36 @@ body.is-phone .lv-header {
 	color: var(--interactive-accent);
 }
 
-/* Left to Obsidian: an <input> already carries the theme's field styling, its
-   focus ring and its radius. Only the width is ours. */
+/*
+ * The one control in the pane that starts something, so it carries the accent.
+ *
+ * The rest of this view deliberately borrows Obsidian's own surfaces and stays
+ * quiet — which left the footer indistinguishable from an empty row, and a
+ * footer nobody can find is a list nobody adds to. Accent on the border and the
+ * caret rather than on a filled background: filled reads as "selected", and a
+ * theme's accent is not guaranteed to have readable text on it.
+ *
+ * `color-mix` against the pane's own surface so it tints in a light theme and
+ * in a dark one from the same declaration, with a plain accent border as the
+ * fallback where `color-mix` is unavailable.
+ */
 .lv-add-input {
 	flex: 1 1 auto;
 	min-width: 0;
 	font-size: var(--font-ui-small);
+	border: var(--border-width) solid var(--interactive-accent);
+	border-radius: var(--radius-m);
+	background: transparent;
+	caret-color: var(--interactive-accent);
+	padding: var(--size-2-3) var(--size-4-2);
 }
+
+.lv-add-input::placeholder {
+	color: var(--text-muted);
+}
+
+/* Core already draws a focus ring; the border is already the accent, so there
+   is nothing for hover or focus to change here. */
 
 /* ---------------- detail pane ---------------- */
 

@@ -26,11 +26,11 @@ import { Notice } from "obsidian";
 /** What each reading would mean, so the screenshot needs no interpretation. */
 const LEGEND =
 	[
-		"app h=0 → the container collapsed",
-		"kb=0 but short>0 → the variable is not on :root",
-		"short ≈ inner/2 → the keyboard is off twice",
-		"scrolled=… → something scrolled it",
-	].join(" · ");
+		"inner drops & gap stays 0 → the window resized (nothing to subtract)",
+		"inner holds & gap grows → the visual viewport resized (subtract once)",
+		"inner drops AND gap grows → both did it: the double count",
+		"chain=none → nothing is capped, and the CSS theory is wrong",
+	].join("\n");
 
 export class KeyboardReadout {
 	private el: HTMLElement | null = null;
@@ -161,12 +161,32 @@ export class KeyboardReadout {
 			? `${active.tagName.toLowerCase()}.${String(active.className || "").split(" ")[0].slice(0, 20)}`
 			: "none";
 
+		/*
+		 * A `100vh` and a `100dvh` box, measured rather than assumed.
+		 *
+		 * These are the two readings that separate the explanations. On a WebView
+		 * the Activity has resized, `vh` shrinks with the window and equals
+		 * `inner`. If instead the WebView has resized only the *visual* viewport
+		 * — which every WebView does from M139, independently of the Activity —
+		 * then `vh` stays at its resting value and `vv` is the one that drops.
+		 * Both dropping by a keyboard each is the double-count fingerprint.
+		 */
+		const probe = doc.createElement("div");
+		probe.style.cssText =
+			"position:fixed;top:0;left:0;width:1px;height:100vh;pointer-events:none;visibility:hidden;";
+		doc.body.appendChild(probe);
+		const vh = Math.round(probe.getBoundingClientRect().height);
+		probe.style.height = "100dvh";
+		const dvh = Math.round(probe.getBoundingClientRect().height);
+		probe.remove();
+
 		this.el.setText(
 			[
 				`app h=${px(app)} cap=${app ? win.getComputedStyle(app).maxHeight : "—"}`,
-				`kb=${kb} peak=${this.peak} short=${short} inner=${win.innerHeight}`,
+				`kb=${kb} peak=${this.peak} short=${short}`,
+				`inner=${win.innerHeight} client=${de.clientHeight} vh=${vh} dvh=${dvh}`,
 				vv
-					? `vv=${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale}`
+					? `vv=${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale} gap=${Math.round(win.innerHeight - vv.height)}`
 					: "vv=(none)",
 				`body=${doc.body.className.slice(0, 140)}`,
 				`chain=${chain}`,
