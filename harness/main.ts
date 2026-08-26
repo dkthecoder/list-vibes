@@ -101,6 +101,7 @@ const mutator = new Proxy(
 void noop;
 
 let importanceMode: "star" | "stars5" = "star";
+let listOnly = false;
 
 function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 	return {
@@ -110,7 +111,10 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		settings: { ...DEFAULT_SETTINGS, importanceMode },
 		state,
 		wide,
-		listOnly: false,
+		// A list opened as its own tab, with the picker left in the sidebar. It
+		// changes which controls the header owns — on a phone core draws the
+		// drawer button itself — so a suite has to be able to ask for it.
+		listOnly,
 		detailPinned: pinned,
 		setDetailPinned: () => undefined,
 		showPicker: () => undefined,
@@ -277,6 +281,10 @@ function paint(): void {
 
 paint();
 (window as unknown as { paint: () => void }).paint = paint;
+(window as unknown as { lvSetListOnly: (v: boolean) => void }).lvSetListOnly = (v) => {
+	listOnly = v;
+	paint();
+};
 
 /*
  * The real measurement code, exposed so a suite can apply the same number the

@@ -68,6 +68,28 @@ function scrolledAncestors(active: Element | null, win: Window): string {
 	return out.length ? out.join("; ") : "(none scrolled)";
 }
 
+/**
+ * Any ancestor carrying a transform, and what it is.
+ *
+ * A scale or a translate anywhere above the view moves everything inside it,
+ * and unlike a scroll it can move it sideways — which is how the fault was
+ * described. Nothing here should normally have one.
+ */
+function transformedAncestors(root: HTMLElement | null, win: Window): string {
+	if (!root) return "—";
+	const out: string[] = [];
+	let node: Element | null = root;
+	while (node) {
+		const t = win.getComputedStyle(node).transform;
+		if (t && t !== "none") {
+			const name = node.className?.toString().slice(0, 40) || node.tagName;
+			out.push(`${name}: ${t}`);
+		}
+		node = node.parentElement;
+	}
+	return out.length ? out.join("; ") : "(none)";
+}
+
 /** One reading of everything that could be responsible. */
 export function measure(win: Window, root: HTMLElement | null): Record<string, string | number> {
 	const doc = win.document;
@@ -85,8 +107,26 @@ export function measure(win: Window, root: HTMLElement | null): Record<string, s
 	const values: Record<string, string | number> = {
 		"window.inner": `${win.innerWidth}×${win.innerHeight}`,
 		"visualViewport": vv
-			? `${Math.round(vv.width)}×${Math.round(vv.height)} offset=${Math.round(vv.offsetTop)} pageTop=${Math.round(vv.pageTop)} scale=${vv.scale}`
+			? `${Math.round(vv.width)}×${Math.round(vv.height)} offset=${Math.round(vv.offsetLeft)},${Math.round(vv.offsetTop)} page=${Math.round(vv.pageLeft)},${Math.round(vv.pageTop)}`
 			: "(unsupported)",
+		/*
+		 * The scale, on its own line because it is the discriminating one.
+		 *
+		 * The symptom was described as everything moving up *and away to the
+		 * sides*. A scroll cannot do that; a zoom can. iOS zooms a WKWebView to a
+		 * focused field whose font is under 16px unless the page's viewport meta
+		 * forbids it, and that meta belongs to Obsidian, not to a plugin. A scale
+		 * above 1 here settles it in one reading.
+		 */
+		"visualViewport.scale": vv ? vv.scale : "(unsupported)",
+		"devicePixelRatio": win.devicePixelRatio,
+		"window.scroll": `${Math.round(win.scrollX)},${Math.round(win.scrollY)}`,
+		"--zoom-factor": cssVar(de, "--zoom-factor", win),
+		// Under 16px is what iOS zooms in order to reach. Recorded beside the
+		// scale so the two can be read together rather than guessed at apart.
+		"focused font-size":
+			active instanceof HTMLElement ? win.getComputedStyle(active).fontSize : "—",
+		"transformed ancestors": transformedAncestors(root, win),
 		"--keyboard-height": cssVar(de, "--keyboard-height", win),
 		"--safe-area-inset-bottom": cssVar(de, "--safe-area-inset-bottom", win),
 		"--navbar-height": cssVar(doc.body, "--navbar-height", win),

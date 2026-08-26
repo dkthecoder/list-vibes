@@ -258,9 +258,34 @@
 	align-items: center;
 	gap: var(--size-4-2);
 	min-height: var(--size-4-12);
+	/*
+	 * No safe-area padding, and that is a correction.
+	 *
+	 * This used to add `--safe-area-inset-top`, on the assumption that the
+	 * header was the topmost thing on screen. On a phone it never is: core
+	 * always draws its own `.view-header` above us and clears the notch there
+	 * (`--view-header-top-offset: max(var(--safe-area-inset-top), …)`), and in
+	 * the drawer `.workspace-drawer-inner` does the same. Adding it again put a
+	 * second notch's worth of empty space between the top of Obsidian and the
+	 * list's name — which is exactly what it looked like.
+	 */
 	padding: var(--size-4-2) var(--size-4-3);
-	padding-top: calc(var(--size-4-2) + var(--safe-area-inset-top, 0px));
 	border-bottom: var(--border-width) solid var(--divider-color);
+}
+
+/*
+ * Tighter still on a phone.
+ *
+ * Core's header is `position: fixed` there once floating navigation is on —
+ * which it is by default — so it reserves room for itself by pushing
+ * `.view-content` down with
+ * `margin-top: calc(var(--safe-area-inset-top) + var(--view-header-height) + 8px)`.
+ * By the time this header is laid out the notch and core's own bar are both
+ * already cleared and there is 8px of air besides. Anything more here reads as
+ * a band of nothing between the top of Obsidian and the name of the list.
+ */
+body.is-phone .lv-header {
+	padding-top: var(--size-2-3);
 }
 
 .lv-header-actions {
@@ -2080,4 +2105,36 @@ body.is-mobile .lv-nav-scroll {
 /* Promoted-note button sits beside the delete one in the detail footer. */
 .lv-detail-promote {
 	margin-inline-start: auto;
+}
+
+/* ------------------------------------------------------------------
+   Fields on touch are never under 16px
+
+   A hypothesis with a cheap price. iOS zooms a WKWebView in on a focused
+   field whose font is smaller than 16px, and a zoom moves everything up
+   *and sideways* — which is how the remaining fault was described, and is
+   something no scroll can do. Whether Obsidian's own viewport meta already
+   forbids it is not knowable from here; the layout report records
+   `visualViewport.scale`, which settles it in one reading.
+
+   Either way this is not a gamble. Obsidian's `--font-ui-medium` is already
+   `--font-text-size` on mobile, so at the default settings this changes
+   nothing at all; the `max()` only bites when a smaller reading size would
+   have taken a field under the threshold. And a 16px field on a phone is
+   better than a 15px one regardless of what the zoom turns out to be doing.
+   ------------------------------------------------------------------ */
+
+.is-mobile .lv-root input[type="text"],
+.is-mobile .lv-root input[type="search"],
+.is-mobile .lv-root input[type="date"],
+.is-mobile .lv-root input[type="time"],
+.is-mobile .lv-root textarea,
+.is-mobile .lv-root [contenteditable="true"] {
+	font-size: max(16px, var(--font-ui-medium));
+}
+
+/* The icon picker is a modal rather than part of the view, so it is not
+   inside `.lv-root` and needs saying separately. */
+.is-mobile .lv-icon-modal input[type="text"] {
+	font-size: max(16px, var(--font-ui-medium));
 }

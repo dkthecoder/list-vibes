@@ -55,10 +55,13 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   open the gap, and nothing is written until you let go. Steps inside a task
   reorder the same way, within their own parent. On touch it takes a long press
   to start, because a vertical swipe on a list has to stay a scroll.
-- **The add box expands upward.** Collapsed it is a single line — type a title,
-  press Enter, keep going. On a desktop it is pinned below the list; on touch it
-  is the last row *inside* the list, which is what lets it be scrolled clear of
-  the keyboard (see **Typing on mobile**). Click it and it opens into a title, a description, and
+- **The add box expands upward — on a desktop.** Collapsed it is a single line;
+  click it and it opens into a title, a description and the same metadata a task
+  has. On touch it is the last row *inside* the list instead, and it stays one
+  line: expanding it in place put a description, five chips and a second, greener
+  "add" button beside the + that already adds, into the middle of the scroll
+  under a keyboard covering half the screen. Everything it offered is on the task
+  itself once it exists, one tap away, on a panel built for it. Click it and it opens into a title, a description, and
   the same metadata a task has: My Day, due, reminder, repeat and importance.
   Steps are the one omission — a step has to hang beneath a task that exists.
   Nothing is written as you tap: the chips stage a draft that lands in one edit
@@ -289,6 +292,30 @@ harness, and a checkbox left on the browser's default black.
 
 The one deliberate exception is the card-wall breakpoint, which is a layout
 threshold rather than a spacing step.
+
+## Fitting into a phone
+
+Core draws its own header above the view and, once floating navigation is on —
+which is the default — makes room for itself by pushing `.view-content` down
+with `margin-top: calc(var(--safe-area-inset-top) + var(--view-header-height) +
+8px)`. This plugin's header was also adding `--safe-area-inset-top`, on the
+assumption that it was the topmost thing on screen. It never is, so the notch
+was cleared twice and the result was a band of nothing between the top of
+Obsidian and the name of the list — 55px of it, which is what the harness now
+measures when the rule is put back.
+
+The same duplication in a different place: core's header carries a drawer
+button, and this plugin's header carried a back arrow that revealed the same
+sidebar. In a *narrow pane* that arrow does something nothing else does — it
+moves between the picker and the list — so it stays there and is gone from a
+tab on a phone. Both halves are asserted.
+
+Every field you can type into is at least 16px on touch. iOS zooms a WKWebView
+in on a focused field with a smaller font, and a zoom moves the page up *and
+sideways*, which is one description of the remaining keyboard fault and is
+something no scroll can do. At Obsidian's default reading size this changes
+nothing — `--font-ui-medium` is already `--font-text-size` on mobile — so it is
+a floor rather than a change of scale.
 
 ## Typing on mobile
 

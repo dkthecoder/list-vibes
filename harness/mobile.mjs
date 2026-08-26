@@ -33,6 +33,11 @@ await page.evaluate(() => {
 	document.body.classList.add("is-phone", "is-mobile");
 	// Obsidian defines this only on a phone; the navbar is ~48px plus inset.
 	document.documentElement.style.setProperty("--view-bottom-spacing", "48px");
+	// A notch. Obsidian sets these from `env()` on a real device; Chromium
+	// reports zero for all of them, and a zero inset would make the check that
+	// the header does not clear the notch twice pass without meaning anything.
+	document.documentElement.style.setProperty("--safe-area-inset-top", "47px");
+	document.documentElement.style.setProperty("--safe-area-inset-bottom", "34px");
 	// Repaint, because where the add box goes is decided at render time from
 	// this very class. Painting before setting it would test the desktop layout
 	// under a phone viewport, which is nobody's configuration.
@@ -178,6 +183,120 @@ check(
 	"which it gives back when the keyboard closes",
 	roomDown < KEYBOARD && roomDown > 0,
 	`padding-bottom=${roomDown}px`
+);
+
+/* ------------------------------------------------------------------
+   2a. What the header does and does not carry on a phone
+
+   Two things the screenshot showed. Core draws its own header above the
+   view with a drawer button in it, and reserves room for itself by
+   pushing `.view-content` down past the notch — so a second back arrow
+   and a second helping of safe-area padding were both duplicates, and
+   the padding read as a band of nothing above the list's name.
+   ------------------------------------------------------------------ */
+
+const headerPad = await page.$eval(`${PANE} .lv-header`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).paddingTop))
+);
+check(
+	"the header does not clear the notch a second time",
+	headerPad < 16,
+	`padding-top=${headerPad}px`
+);
+
+/*
+ * Which needs the configuration core's drawer button exists in: a list opened
+ * as its own tab, with the picker left in the sidebar. In the other one — the
+ * whole view inside a narrow pane — the arrow moves between the picker and the
+ * list, a job nothing else does, and it has to stay.
+ */
+await page.evaluate(() => window.lvSetListOnly(true));
+await page.waitForTimeout(120);
+const asTab = await page.$$eval(`${PANE} .lv-back`, (e) => e.length);
+check(
+	"a list in its own tab offers no back arrow, because core already draws one",
+	asTab === 0,
+	`${asTab} found`
+);
+
+await page.evaluate(() => window.lvSetListOnly(false));
+await page.waitForTimeout(120);
+const asPane = await page.$$eval(`#m-tasks .lv-back`, (e) => e.length);
+check(
+	"but a narrow pane keeps the one that goes back to the picker",
+	asPane === 1,
+	`${asPane} found`
+);
+
+/* ------------------------------------------------------------------
+   2c. The in-list add box is one line and nothing else
+
+   Expanding it in place put a description field, five chips and two
+   buttons — one of them a second, greener "add" beside the + that
+   already adds — into the middle of the scroll, under a keyboard
+   covering half the screen. What was wanted was to type a task.
+   ------------------------------------------------------------------ */
+
+const inlineExtras = await page.evaluate((pane) => {
+	const box = document.querySelector(`${pane} .lv-add`);
+	const shown = (sel) => {
+		const el = box.querySelector(sel);
+		return !!el && getComputedStyle(el).display !== "none";
+	};
+	return {
+		inline: box.classList.contains("lv-add-inline"),
+		description: shown(".lv-add-note"),
+		chips: shown(".lv-add-chips"),
+		actions: shown(".lv-add-actions"),
+	};
+}, PANE);
+check("the in-list box knows it is inline", inlineExtras.inline);
+check(
+	"and shows no description, chips or second add button",
+	!inlineExtras.description && !inlineExtras.chips && !inlineExtras.actions,
+	JSON.stringify(inlineExtras)
+);
+
+// Even after focusing it, which is what used to open the whole thing.
+await page.click(INPUT);
+await page.waitForTimeout(150);
+const afterFocus = await page.evaluate((pane) => {
+	const box = document.querySelector(`${pane} .lv-add`);
+	return {
+		expanded: box.classList.contains("is-expanded"),
+		actions: getComputedStyle(box.querySelector(".lv-add-actions")).display !== "none",
+	};
+}, PANE);
+check(
+	"and tapping it does not open them either",
+	!afterFocus.expanded && !afterFocus.actions,
+	JSON.stringify(afterFocus)
+);
+
+/* ------------------------------------------------------------------
+   2b. Fields on touch are never under 16px
+
+   iOS zooms a WKWebView in on a focused field whose font is smaller than
+   that, and a zoom moves the page up *and sideways* — which is how the
+   remaining fault was described and is something no scroll can do. Cheap
+   to hold to, and at Obsidian's default reading size it changes nothing.
+   ------------------------------------------------------------------ */
+
+const fieldSizes = await page.evaluate((pane) => {
+	const out = {};
+	for (const el of document.querySelectorAll(
+		`${pane} input[type="text"], ${pane} textarea`
+	)) {
+		const cls = (el.className || el.tagName).toString().slice(0, 30);
+		out[cls] = parseFloat(getComputedStyle(el).fontSize);
+	}
+	return out;
+}, PANE);
+const tooSmall = Object.entries(fieldSizes).filter(([, size]) => size < 16);
+check(
+	"every field you can type into is at least 16px on touch",
+	tooSmall.length === 0,
+	tooSmall.length ? JSON.stringify(Object.fromEntries(tooSmall)) : JSON.stringify(fieldSizes)
 );
 
 /* ------------------------------------------------------------------

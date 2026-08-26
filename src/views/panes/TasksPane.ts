@@ -55,7 +55,19 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	 * Created before the title and outside the button group, so it reads as the
 	 * leading control rather than joining the trailing ones.
 	 */
-	if (!ctx.wide || ctx.listOnly) {
+	/*
+	 * Not on a phone in a tab, where core already draws one.
+	 *
+	 * The job of this control depends on where the view is. In a narrow pane it
+	 * moves between the two halves of the view; in a tab it reveals the sidebar
+	 * that holds the picker. On a phone that second job is already done by the
+	 * drawer button core puts in the top-left of its own header, two rows above
+	 * — so ours was a second back arrow doing the same thing, in a bar that is
+	 * short of room to begin with. The first job has no equivalent, so it stays.
+	 */
+	const coreHasDrawerButton =
+		ctx.listOnly && parent.ownerDocument.body.classList.contains("is-mobile");
+	if ((!ctx.wide || ctx.listOnly) && !coreHasDrawerButton) {
 		const back = header.createDiv({
 			cls: "clickable-icon nav-action-button lv-back",
 		});
@@ -335,8 +347,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		 */
 		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
 		const host = touch ? scroll : pane;
-		host.toggleClass("lv-has-inline-add", touch);
-		renderAddBox(host, ctx);
+		renderAddBox(host, ctx, touch);
 	}
 }
 
@@ -431,11 +442,14 @@ async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
  * task; the expanded one just writes a note line beneath it.
  * ------------------------------------------------------------------ */
 
-function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
+function renderAddBox(pane: HTMLElement, ctx: ViewContext, inline = false): void {
 	const sel = ctx.state.selection;
-	const expanded = ctx.state.composing;
+	// An inline box never expands, so it is never in the expanded state either —
+	// including on the paint right after a desktop layout became a touch one.
+	const expanded = ctx.state.composing && !inline;
 
 	const box = pane.createDiv({ cls: "lv-add" });
+	box.toggleClass("lv-add-inline", inline);
 	// Set from state on every render, and toggled live by expand() without one,
 	// so a repaint that does land while composing keeps the box open.
 	box.toggleClass("is-expanded", expanded);
@@ -511,8 +525,18 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext): void {
 		})
 	);
 
+	/*
+	 * Focusing the field opens the rich compose — on a desktop.
+	 *
+	 * On touch it stays one line. The box lives inside the list there, and
+	 * expanding it in place shoves a description field, a row of chips and two
+	 * buttons into the middle of the scroll under a keyboard that is already
+	 * covering half the screen. What you wanted was to type a task. Everything
+	 * the expanded box offers is on the task itself once it exists, one tap
+	 * away, on a panel built for it.
+	 */
 	const expand = () => {
-		if (ctx.state.composing) return;
+		if (inline || ctx.state.composing) return;
 		ctx.state.composing = true;
 		box.addClass("is-expanded");
 	};
