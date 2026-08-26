@@ -167,6 +167,88 @@ check(
 );
 
 /* ------------------------------------------------------------------
+   The screen being pushed up.
+
+   The reported symptom, in the user's words: "the whole screen gets
+   pushed up when the keyboard rises". That is what a browser does when
+   a focused field is under the keyboard and nothing can scroll to reveal
+   it — it gives up and scrolls the page, chrome and all, leaving blank
+   space behind.
+
+   The answer is not to subtract the keyboard's height; three attempts
+   did that and each one subtracted it a second time on top of the one
+   Obsidian had already made, which is what collapsed the pane. It is to
+   ask whether the view actually hangs past what is visible. Here it is
+   made to: the visible bottom is put well above the pane's own bottom,
+   as it would be with a keyboard up and no room made.
+   ------------------------------------------------------------------ */
+
+const fit = await page.evaluate(() => {
+	const root = document.querySelector("#vanish .lv-root");
+	// A keyboard is up and nothing has made room for it: the bottom of what
+	// can be seen is 300px above the bottom of the window.
+	const visibleBottom = window.innerHeight - 300;
+
+	root.style.removeProperty("max-height");
+	const before = root.getBoundingClientRect();
+	const cap = window.lvVisibleCap({
+		top: before.top,
+		bottom: before.bottom,
+		visibleBottom,
+	});
+	if (cap !== null) root.style.maxHeight = `${cap}px`;
+
+	const after = root.getBoundingClientRect();
+	// Measured again with the cap in place, and *not* cleared first — this is
+	// the pass that would shrink it a second time if the cap were a reduction
+	// rather than an absolute height.
+	const again = window.lvVisibleCap({
+		top: after.top,
+		bottom: after.bottom,
+		visibleBottom,
+	});
+	return { visibleBottom, cap, beforeBottom: Math.round(before.bottom), afterBottom: Math.round(after.bottom), again, height: Math.round(after.height) };
+});
+
+check(
+	"a view hanging past the fold is recognised as hanging past it",
+	fit.cap !== null,
+	`natural bottom ${fit.beforeBottom}, visible to ${fit.visibleBottom}`
+);
+check(
+	"capping it brings it back on screen",
+	fit.afterBottom <= fit.visibleBottom + 1,
+	`bottom ${fit.beforeBottom} -> ${fit.afterBottom}, visible to ${fit.visibleBottom}`
+);
+check(
+	"and the view still has a usable height rather than collapsing",
+	fit.height > 100,
+	`${fit.height}px`
+);
+check(
+	"a second pass takes nothing more off — the cap does not compound",
+	fit.again === null,
+	`second answer ${fit.again}`
+);
+
+// And it is given back when the keyboard goes.
+const restored = await page.evaluate(() => {
+	const root = document.querySelector("#vanish .lv-root");
+	const cap = window.lvVisibleCap({
+		top: root.getBoundingClientRect().top,
+		bottom: root.getBoundingClientRect().bottom,
+		visibleBottom: window.innerHeight,
+	});
+	if (cap === null) root.style.removeProperty("max-height");
+	return { cap, height: Math.round(root.getBoundingClientRect().height) };
+});
+check(
+	"with the keyboard gone the cap is dropped, not merely raised",
+	restored.cap === null && restored.height > 400,
+	`cap=${restored.cap} height=${restored.height}px`
+);
+
+/* ------------------------------------------------------------------
    And the rule underneath both of those.
 
    Obsidian shortens `.app-container` by the keyboard's height before our

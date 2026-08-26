@@ -11,7 +11,7 @@ import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { bindSwipeDismiss } from "../ui/swipeDismiss";
-import { keyboardOverlap } from "./keyboard";
+import { keyboardOverlap, visibleCap } from "./keyboard";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import {
@@ -538,13 +538,46 @@ export class ListsView extends ItemView {
 			this.contentEl.style.setProperty("--lv-keyboard-height", `${keyboard}px`);
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
 
-			// Once the box is the right size the field may still be scrolled out
-			// of its own panel. "nearest" is deliberate: it does nothing when the
-			// field is already visible, so this cannot oscillate.
+			/*
+			 * Keep the view inside the part of the screen that is on screen.
+			 *
+			 * The cap is cleared before measuring, so what is measured is the
+			 * view's natural size rather than the last answer — see `visibleCap`
+			 * for why that is what stops it walking itself down to nothing.
+			 */
+			this.contentEl.style.removeProperty("max-height");
+			const rect = this.contentEl.getBoundingClientRect();
+			const visibleBottom = vv ? vv.offsetTop + vv.height : win.innerHeight;
+			const cap =
+				keyboard > 0
+					? visibleCap({ top: rect.top, bottom: rect.bottom, visibleBottom })
+					: null;
+
+			if (cap !== null) {
+				this.contentEl.style.maxHeight = `${cap}px`;
+				/*
+				 * And put the page back where it belongs.
+				 *
+				 * Obsidian pins `document.documentElement.scrollTop` at startup,
+				 * but nothing pins the window or the body, and on iOS the visual
+				 * viewport can be shifted without either. Undoing that is only
+				 * safe now — the view has just been made short enough that the
+				 * browser has no reason to shift it again, whereas resetting the
+				 * scroll without making room would leave the caret under the
+				 * keyboard, which is worse than a pushed-up screen.
+				 */
+				if (win.scrollY !== 0 || (vv && vv.offsetTop !== 0)) win.scrollTo(0, 0);
+				if (win.document.body.scrollTop !== 0) win.document.body.scrollTop = 0;
+			}
+
+			// Now the box is the right size, the field may still be scrolled out
+			// of its own list. Only its own scroller is moved: `scrollIntoView`
+			// walks every ancestor and, with ours unable to scroll, ends up
+			// asking the page to move — which is the fault this is here to avoid.
 			win.requestAnimationFrame(() => {
 				const active = this.contentEl.doc.activeElement;
 				if (active instanceof HTMLElement && this.contentEl.contains(active)) {
-					active.scrollIntoView({ block: "nearest", inline: "nearest" });
+					this.revealInScroller(active);
 				}
 			});
 		};
@@ -579,6 +612,32 @@ export class ListsView extends ItemView {
 		this.registerDomEvent(win, "orientationchange", measure);
 
 		measure();
+	}
+
+	/**
+	 * Bring a focused field into view by moving its own scroller and nothing else.
+	 *
+	 * `scrollIntoView` would be shorter, and it is what was here before. The
+	 * trouble is that it walks every ancestor looking for something that can
+	 * move, and ours deliberately cannot — so it keeps walking, reaches the page,
+	 * and scrolls that instead. On a phone that means the whole app slides up and
+	 * leaves blank space, which is exactly the symptom being chased.
+	 */
+	private revealInScroller(active: HTMLElement): void {
+		const scroller = active.closest<HTMLElement>(".lv-scroll, .lv-nav-scroll");
+		// A field outside every scroller — the add box, say — cannot be revealed
+		// this way at all. Making the view fit the screen is what saves that one.
+		if (!scroller || !this.contentEl.contains(scroller)) return;
+
+		const field = active.getBoundingClientRect();
+		const box = scroller.getBoundingClientRect();
+		const margin = 8;
+
+		if (field.top < box.top) {
+			scroller.scrollTop -= box.top - field.top + margin;
+		} else if (field.bottom > box.bottom) {
+			scroller.scrollTop += field.bottom - box.bottom + margin;
+		}
 	}
 
 	/**

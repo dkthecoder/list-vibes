@@ -80,28 +80,56 @@ export class IconModal extends Modal {
 				});
 			});
 
+		/*
+		 * The preselection.
+		 *
+		 * A row of sixteen was a shortcut on the assumption that the system
+		 * picker was the real mechanism. On a phone it is not: focusing the field
+		 * raises the keyboard on its letters, and there is no way to ask for the
+		 * emoji panel — no web API offers one and neither platform exposes one —
+		 * so reaching an emoji still costs a tap on the emoji key and a hunt.
+		 * A grid you can see is faster than that, and it is what every other app
+		 * that offers an icon does.
+		 *
+		 * It is deliberately a *selection*, not a catalogue. A complete picker
+		 * needs names, search, skin tones and a data file that goes stale; this
+		 * needs to cover the lists people actually keep, and the field beside it
+		 * still takes anything at all.
+		 */
 		const quick = contentEl.createDiv({ cls: "lv-icon-quick" });
-		for (const e of SUGGESTIONS) {
-			const b = quick.createDiv({ cls: "lv-icon-choice", text: e });
-			b.setAttribute("role", "button");
-			b.setAttribute("tabindex", "0");
-			b.setAttribute("aria-label", `Use ${e}`);
-			b.toggleClass("is-on", e === this.value);
-			const use = () => {
-				this.value = e;
-				if (field) field.value = e;
-				quick.findAll(".lv-icon-choice").forEach((el) =>
-					el.toggleClass("is-on", el.getText() === e)
-				);
-				paint();
-			};
-			b.addEventListener("click", use);
-			b.addEventListener("keydown", (ev) => {
-				if (ev.key === "Enter" || ev.key === " ") {
-					ev.preventDefault();
-					use();
-				}
-			});
+		const mark = () =>
+			quick
+				.findAll(".lv-icon-choice")
+				.forEach((el) => el.toggleClass("is-on", el.getText() === this.value));
+
+		for (const group of SUGGESTIONS) {
+			quick.createDiv({ cls: "lv-icon-group", text: group.name });
+			const row = quick.createDiv({ cls: "lv-icon-row" });
+			for (const e of group.icons) {
+				const b = row.createDiv({ cls: "lv-icon-choice", text: e });
+				b.setAttribute("role", "button");
+				b.setAttribute("tabindex", "0");
+				b.setAttribute("aria-label", `Use ${e}`);
+				b.toggleClass("is-on", e === this.value);
+				const use = () => {
+					this.value = e;
+					if (field) field.value = e;
+					mark();
+					paint();
+				};
+				// `pointerdown` rather than `click`, and prevented: on a phone the
+				// field may have the keyboard up, and letting the tap move focus
+				// first closes it and shifts the grid out from under the finger
+				// between press and release.
+				b.addEventListener("pointerdown", (ev) => ev.preventDefault());
+				b.addEventListener("click", use);
+				b.addEventListener("keydown", (ev) => {
+					if (ev.key === "Enter" || ev.key === " ") {
+						ev.preventDefault();
+						use();
+					}
+				});
+			}
 		}
 
 		new Setting(contentEl)
@@ -126,24 +154,19 @@ export class IconModal extends Modal {
 		paint();
 
 		/*
-		 * Bring the keyboard up by hand on a phone.
+		 * The caret goes in the field on a desktop and stays out of it on a phone.
 		 *
-		 * There is no way to ask for the *emoji* keyboard specifically — no web
-		 * API offers it, and neither iOS nor Android exposes one — so the emoji
-		 * key is still a tap. What can be saved is the tap before it: opening
-		 * the modal already puts the caret in the field, so the keyboard is up
-		 * and the emoji key is on it.
+		 * The previous version focused it everywhere, on the theory that a
+		 * raised keyboard puts the emoji key within reach. In practice the
+		 * keyboard comes up on its letters — there is no way to ask for the
+		 * emoji panel, no web API offers one and neither platform exposes one —
+		 * so all it did was cover the grid with a keyboard nobody wanted, and
+		 * reaching an emoji still cost a tap on the emoji key and a hunt.
 		 *
-		 * Focused synchronously, not on a timer. iOS only raises the keyboard
-		 * for a focus that happens while the user's tap is still being handled;
-		 * a `setTimeout`, however short, is a new task and the tap is over by
-		 * then. The timer stays as a second attempt for the desktop, where
-		 * focus is not gated on a gesture and the modal may still be settling.
+		 * So the grid is what greets you, and the field is still there for the
+		 * system picker: tap it and the keyboard comes up, emoji key and all.
 		 */
-		field?.focus();
-		window.setTimeout(() => {
-			if (field && field.doc.activeElement !== field) field.focus();
-		}, 0);
+		if (!Platform.isMobile) window.setTimeout(() => field?.focus(), 0);
 	}
 
 	private commit(): void {
@@ -180,8 +203,55 @@ export function firstGlyph(value: string): string {
 	return [...trimmed][0] ?? "";
 }
 
-/** A shortcut, not a substitute for the system picker. */
-const SUGGESTIONS = [
-	"📋", "✅", "⭐", "🔥", "💼", "🏠", "🛒", "🎯",
-	"📚", "💡", "🎮", "🎬", "🍽️", "✈️", "💪", "🎵",
+/**
+ * The preselection, grouped the way lists tend to be.
+ *
+ * Chosen for what a to-do list gets called rather than for coverage: work,
+ * home, money, travel, food, health, study, projects. Anything not here is a
+ * paste or a tap of the emoji key away, which is the point of keeping the field.
+ *
+ * Everything is a single grapheme with no skin tone and no variation selector
+ * beyond the ones the glyph needs, so what is stored is what was shown.
+ */
+const SUGGESTIONS: { name: string; icons: string[] }[] = [
+	{
+		name: "Everyday",
+		icons: ["📋", "✅", "⭐", "🔥", "📌", "🗒️", "🔖", "📝", "⏰", "🔔", "🎯", "💡"],
+	},
+	{
+		name: "Work and study",
+		icons: ["💼", "🏢", "📊", "📈", "💻", "🖥️", "📞", "✉️", "📚", "🎓", "🔬", "✏️"],
+	},
+	{
+		name: "Home and errands",
+		icons: ["🏠", "🛒", "🧺", "🧹", "🔧", "🪛", "🧾", "📦", "🐕", "🐈", "🪴", "🚗"],
+	},
+	{
+		name: "Money",
+		icons: ["💰", "💳", "🏦", "💸", "🧮", "📉"],
+	},
+	{
+		name: "Health and sport",
+		icons: ["💪", "🏃", "🚴", "🧘", "⚽", "🏋️", "💊", "🩺", "🦷", "😴"],
+	},
+	{
+		name: "Food and drink",
+		icons: ["🍽️", "🍳", "🥗", "🍕", "🍜", "☕", "🍰", "🍎"],
+	},
+	{
+		name: "Travel and places",
+		icons: ["✈️", "🧳", "🗺️", "🏖️", "⛰️", "🏕️", "🚆", "🎡"],
+	},
+	{
+		name: "Fun",
+		icons: ["🎮", "🎬", "🎵", "🎨", "📷", "🎧", "🕹️", "🎲", "🎸", "🃏"],
+	},
+	{
+		name: "People and moments",
+		icons: ["🎁", "🎉", "❤️", "👶", "👨‍👩‍👧", "💍", "🎂", "🕯️"],
+	},
+	{
+		name: "Signals",
+		icons: ["🚀", "⚡", "🌟", "🌈", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣"],
+	},
 ];

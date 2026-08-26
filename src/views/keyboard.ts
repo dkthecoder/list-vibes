@@ -54,3 +54,47 @@ export function keyboardOverlap({ native, visual, viewHeight }: Reading): number
 	if (!room) return Math.round(measured);
 	return Math.round(Math.min(measured, room * MAX_FRACTION));
 }
+
+export interface Fit {
+	/** Top of the view, in layout-viewport coordinates. */
+	top: number;
+	/** Its bottom **with no cap applied** — see below, this matters. */
+	bottom: number;
+	/** Bottom of the part of the page that is actually on screen. */
+	visibleBottom: number;
+	/** Sub-pixel rounding is not a fault. */
+	slack?: number;
+}
+
+/**
+ * The height the view has to be capped to in order to stay on screen, or null
+ * if it already is.
+ *
+ * This exists because "the whole screen gets pushed up when the keyboard rises"
+ * — which is what a browser does when a focused field is under the keyboard and
+ * no scroll container can bring it into view: it gives up and scrolls the page
+ * itself, taking the app's own chrome with it and leaving blank space behind.
+ *
+ * The previous three attempts all tried to prevent that by shortening the view
+ * by the keyboard's height. That is wrong whenever Obsidian has already
+ * shortened `.app-container` for the same keyboard, because then it is
+ * subtracted twice and the pane collapses. So this does not ask how tall the
+ * keyboard is at all. It asks whether the view currently extends past the
+ * visible area — which is zero when Obsidian has made room, and exactly the
+ * shortfall when it has not, with no way to double-count either.
+ *
+ * The result is an absolute height, not a reduction, and `bottom` must be
+ * measured with any previous cap removed. Both together are what make applying
+ * it idempotent: capping the view makes its bottom equal `visibleBottom`, and
+ * measuring again returns the same number rather than a smaller one. A cap
+ * expressed as a delta would shrink the view on every pass.
+ */
+export function visibleCap({ top, bottom, visibleBottom, slack = 4 }: Fit): number | null {
+	if (![top, bottom, visibleBottom].every((n) => Number.isFinite(n))) return null;
+	if (bottom <= visibleBottom + slack) return null;
+
+	const cap = Math.floor(visibleBottom - top);
+	// A view whose top is already below the fold cannot be rescued by making it
+	// shorter, and capping it to nothing would hide what is still visible.
+	return cap > 0 ? cap : null;
+}

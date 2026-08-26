@@ -25,7 +25,11 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   from. Drag it a third of the way across and it goes; flick it and it goes
   without travelling far; let go short of either and it springs back. A scroll
   that wanders sideways stays a scroll — the horizontal movement has to clearly
-  beat the vertical before the panel starts following your finger.
+  beat the vertical before the panel starts following your finger. Obsidian
+  watches for the same gesture to open its own sidebar, and `touch-action` does
+  not stop a gesture implemented in JavaScript, so the panel carries
+  `data-ignore-swipe` — core's own opt-out, the one it puts on its sliders,
+  canvas and resize handles.
 - **A task's note shows on the row.** One faint line under the title, cut off
   where the row runs out, however long the note is. It used to be a chip reading
   "Note", which told you a note existed and nothing about whether it mattered.
@@ -204,20 +208,24 @@ clients and filesystems. An emoji at the *start* of a filename is still read as
 a fallback, since plenty of vaults are named that way, but new ones are never
 written there.
 
-The picker is a plain text field on purpose. Obsidian has no public emoji
-picker, and rather than ship a hardcoded grid pretending to be one, the field
+The picker is a grid of about a hundred emoji, grouped the way lists tend to be
+named — work, home, money, travel, food, health, study — with a text field
+beside it. The grid is a *selection*, not a catalogue: a complete picker needs
+names, search, skin tones and a data file that goes stale, whereas this needs to
+cover what people actually call a list. The field takes anything at all, and
 lets the operating system's own picker do the work — the emoji key on a phone
 keyboard, Ctrl+Cmd+Space on macOS, Win+. on Windows. Always current, nothing to
-maintain. The row of suggestions beneath is a shortcut, not the mechanism.
+maintain.
 
-On a phone the field takes the caret as the modal opens, so the keyboard is
-already up with its emoji key on it. That focus happens synchronously, while the
-tap that opened the modal is still being handled — iOS raises the keyboard only
-for a focus inside a user gesture, and a `setTimeout`, however short, is a new
-task by which time the tap is over. There is no way to ask for the *emoji*
-keyboard specifically; no web API offers one and neither platform exposes one,
-so that key remains a tap. The desktop shortcuts are not shown there, where they
-would only cost a line of a small screen.
+On a phone the grid is what greets you and the field does **not** take the
+caret. Raising the keyboard there was tried and was worse: there is no way to
+ask for the *emoji* keyboard specifically — no web API offers one and neither
+platform exposes one — so the keyboard comes up on its letters, covers the grid,
+and reaching an emoji still costs a tap on the emoji key and a hunt. Tap the
+field and the keyboard comes up as it always did, emoji key and all; the
+difference is that it is now a choice rather than the only route. The desktop
+shortcuts are not shown there either, where they would only cost a line of a
+small screen.
 
 Only the first glyph is kept, counted as a person would count it: "👍🏽" is four
 code units and "🇬🇧" is two code points, and half of either is a replacement
@@ -309,6 +317,33 @@ order, focus survives it, nothing scrolls the view out of sight, the panel is
 *not* lifted, and the scroller reserves the room and gives it back afterwards —
 the two are asserted separately, because they look like the same thing and are
 not.
+
+### The screen being pushed up
+
+The remaining fault reported was that the whole screen slid upward when the
+keyboard rose. That is what a browser does when a focused field is under the
+keyboard and nothing can scroll to bring it into view: it gives up and scrolls
+the page itself, chrome and all, leaving blank space behind. Obsidian pins
+`document.documentElement.scrollTop` at startup for exactly this reason, but
+nothing pins the window or the visual viewport.
+
+Two changes. The field is brought into view by moving **its own scroller and
+nothing else** — `scrollIntoView` walks every ancestor looking for something
+that can move, and since ours deliberately cannot, it kept walking until it
+reached the page. And where the view genuinely hangs past the visible area, it
+is capped to fit.
+
+That cap is the part worth being careful about. It is not the keyboard's height
+subtracted from the view — that is what the three earlier attempts did, and it
+is wrong whenever Obsidian has already subtracted the same keyboard from
+`.app-container`, which is how the pane ended up collapsing to nothing. `visibleCap`
+never asks how tall the keyboard is. It asks whether the view currently extends
+past what can be seen, which is zero when room has already been made and exactly
+the shortfall when it has not, and cannot be double-counted either way. It
+returns an absolute height rather than a reduction, measured with any previous
+cap cleared, so applying it twice gives the same answer instead of a smaller one
+— and the harness asserts precisely that, because a cap that compounds looks
+like the view collapsing, which is the symptom this whole section is about.
 
 ### When it still misbehaves
 

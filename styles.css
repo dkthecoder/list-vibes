@@ -1988,22 +1988,53 @@ body.is-mobile .lv-nav-scroll {
 	font-size: var(--font-ui-smaller);
 }
 
+/*
+ * The grid scrolls; the preview, the field and the buttons around it do not.
+ * A modal that grows with its contents ends up taller than a phone, and then
+ * the Save button is the part that falls off the bottom.
+ */
 .lv-icon-quick {
+	padding: var(--size-2-2) 0 var(--size-4-2);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	max-height: min(22em, 45vh);
+}
+
+.lv-icon-group {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	padding: var(--size-4-2) var(--size-2-1) var(--size-2-1);
+}
+
+.lv-icon-group:first-child {
+	padding-top: 0;
+}
+
+.lv-icon-row {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--size-2-2);
-	padding: var(--size-2-2) 0 var(--size-4-2);
 }
 
 .lv-icon-choice {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: var(--size-4-9);
-	height: var(--size-4-9);
+	/* A comfortable target on touch, and the same square everywhere so the rows
+	   stay rows whatever glyph is in them. */
+	width: var(--lv-icon-choice, var(--size-4-9));
+	height: var(--lv-icon-choice, var(--size-4-9));
 	border-radius: var(--radius-s);
 	cursor: var(--cursor);
 	font-size: var(--font-ui-medium);
+	line-height: 1;
+	-webkit-touch-callout: none;
+	user-select: none;
+}
+
+.is-mobile .lv-icon-choice {
+	--lv-icon-choice: var(--size-4-12);
+	font-size: var(--font-ui-large);
 }
 
 .lv-icon-choice:hover {

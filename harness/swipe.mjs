@@ -112,6 +112,23 @@ check(
 	touchAction
 );
 
+/*
+ * Obsidian's own drawer swipe.
+ *
+ * This is the fault the gesture actually had in Obsidian and could never have
+ * had here: core watches for a horizontal drag anywhere in the app and opens
+ * the left sidebar, so swiping the panel opened the sidebar instead of
+ * dismissing it. `touch-action` does not stop a JS gesture. Core's handler
+ * walks up from whatever was touched and gives up on the first ancestor with
+ * `data-ignore-swipe`, which is how it exempts its own sliders and canvas.
+ *
+ * There is no core here to be stopped, so what is checked is the opt-out being
+ * on the element — the one thing that would silently stop being true if the
+ * attribute were dropped in a refactor.
+ */
+const optOut = await page.$eval(PANEL, (e) => e.dataset.ignoreSwipe ?? null);
+check("the panel opts out of Obsidian's own drawer swipe", optOut === "true", String(optOut));
+
 const start = await box(PANEL);
 check("the panel is on screen to begin with", start.w > 0 && start.h > 0, JSON.stringify(start));
 

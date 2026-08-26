@@ -98,6 +98,23 @@ export function bindSwipeDismiss(
 	backdrop: HTMLElement | null,
 	onDismiss: () => void
 ): SwipeHandle {
+	/*
+	 * Keep Obsidian's own swipe off this panel.
+	 *
+	 * On a phone Obsidian watches for a horizontal drag anywhere in the app and
+	 * opens the left drawer, and a JS gesture does not care what `touch-action`
+	 * says — so swiping the panel opened the sidebar instead of dismissing it.
+	 * Its handler walks up from whatever was touched and gives up on the first
+	 * ancestor carrying this attribute, which is how core exempts its own
+	 * sliders, canvas, graph controls and leaf resize handles.
+	 *
+	 * Undocumented, so it is only ever additive: if it ever disappears the swipe
+	 * stops working and nothing else changes. It lives here rather than at the
+	 * call site because it is part of claiming the gesture, not part of building
+	 * a panel.
+	 */
+	panel.dataset.ignoreSwipe = "true";
+
 	let pointer: number | null = null;
 	let startX = 0;
 	let startY = 0;
@@ -208,6 +225,7 @@ export function bindSwipeDismiss(
 			panel.removeEventListener("pointermove", onMove);
 			panel.removeEventListener("pointerup", onUp);
 			panel.removeEventListener("pointercancel", onCancel);
+			delete panel.dataset.ignoreSwipe;
 			release();
 		},
 	};
