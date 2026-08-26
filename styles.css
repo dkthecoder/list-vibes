@@ -1749,89 +1749,58 @@ body.is-phone .lv-root {
 }
 
 /*
- * With the keyboard up, clear the keyboard rather than the navbar.
+ * With the keyboard up, reserve nothing for the navbar.
  *
- * They are never both in the way: the keyboard covers the navbar. So the room
- * needed is whichever is taller, and the keyboard always is. This is measured
- * from `visualViewport` — see ListsView.trackKeyboard — because assuming what
- * the navbar does with the keyboard open got it backwards once already.
- */
-/* Scoped through `body` to outrank `body.is-phone .lv-root` above. Written as
-   `.lv-root.is-keyboard-open` it lost the cascade and the keyboard reserve
-   silently never applied — which is exactly the failure this rule exists to
-   prevent, arriving by a different route. */
-/*
- * With the keyboard up, reserve nothing.
+ * They are never both in the way. Obsidian hides the mobile navbar on
+ * `keyboardWillShow`, so the bar this clearance exists to clear is not on
+ * screen; the keyboard's own room is reserved separately, below.
  *
- * Two things have already happened by the time we lay out. Obsidian shortened
- * the app container by the keyboard's height, so the space is gone rather than
- * covered. And Obsidian hides the mobile navbar on `keyboardWillShow`, so the
- * bar this reserve exists to clear is not on screen.
- *
- * Reserving the keyboard's height here added a second keyboard's worth of
- * padding inside a scroller that had already been shortened, and pushed the
- * content out of it. The measurement is still worth taking — it is how we know
- * the keyboard is up at all — but the right response to it is to stop
- * reserving, not to reserve more.
+ * Scoped through `body` to outrank `body.is-phone .lv-root` above. Written as
+ * `.lv-root.is-keyboard-open` it lost the cascade and the reserve silently
+ * never came off — which is exactly the failure this rule exists to prevent,
+ * arriving by a different route.
  */
 body .lv-root.is-keyboard-open {
 	--lv-navbar-clearance: 0px;
 }
 
-/* Let the last rows scroll clear of the bar rather than hiding behind it. */
-body.is-phone .lv-scroll,
-body.is-phone .lv-nav-scroll {
-	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
-}
-
 /*
- * Room at the bottom of a scroller for the keyboard.
+ * Room at the end of the list for the keyboard — and only while there is one.
  *
- * This is padding, not a lift, and the difference is the whole reason it is
- * back. Shortening a positioned panel by the keyboard's height subtracts a
- * second keyboard from a pane Obsidian has already shortened, and that is what
- * collapsed the panel to nothing. Padding inside a scroller only ever adds
- * scrollable room past the last row: if the pane was already clear of the
- * keyboard the user simply can scroll a little further, and if it was not, the
- * field they are typing into can now reach daylight.
+ * This reserved `max(40vh, …)` unconditionally for a while, which is to say it
+ * held two fifths of the screen empty below the last task at all times. On a
+ * tablet showing six items that is the whole lower half of the view blank, and
+ * a list far too short to scroll scrolling anyway, because the padding is what
+ * overflows. It was a plain defect, and it was mine.
  *
- * It is also what Obsidian does. Its settings scroller is
- * `padding-bottom: max(var(--keyboard-height), var(--size-4-16))`, its mobile
- * toolbar is positioned from the same variable, and the editor adds it to the
- * bottom padding under the note. Following that is cheaper than being clever.
+ * The reason it was unconditional was that `--lv-keyboard-height` could not be
+ * trusted to arrive: it was fed from a custom property that may not be declared
+ * anywhere this code can read. That is no longer true — the height is measured
+ * off the cap Obsidian applies to `.app-container`, which is there to be read
+ * whatever the variable does — so the reserve can be what it always should have
+ * been, which is exactly the keyboard and nothing when there is no keyboard.
  *
- * `scroll-padding` on top so that when the browser scrolls a focused field into
- * view it stops short of the keyboard rather than flush against it.
- */
-/*
- * On touch the scroller always has room to scroll into, keyboard or not.
+ * Padding rather than a lift, still, and for the original reason: shortening a
+ * pane Obsidian has already shortened takes the keyboard off twice. Padding
+ * inside a scroller only ever adds somewhere to scroll to.
  *
- * iOS shrinks the *visual* viewport but not the layout one, then scroll-into-
- * views the focused field. A scroll container that can absorb that does, and
- * nothing else moves; if none can, the browser scrolls the page itself — and a
- * `height: 100vh` app shell scrolled to a region with nothing painted is a
- * blank screen that returns when the keyboard closes. It is also why a markdown
- * note never does this: the caret there lives inside `.cm-scroller`, which can
- * always scroll.
- *
- * The room is therefore unconditional rather than reserved once the keyboard
- * has been measured. That measurement arrives after focus, by which point the
- * browser has already looked for somewhere to reveal the field and moved the
- * page instead — a short list had no overflow at the moment it mattered.
- *
- * `40vh` is about a keyboard's worth, and the same trick core plays in the
- * editor, where `updateBottomPadding` reserves roughly half the view beneath
- * the note.
+ * `scroll-padding` so that when the browser reveals a focused field it stops
+ * short of the keyboard rather than flush against it.
  */
 body.is-mobile .lv-scroll,
 body.is-mobile .lv-nav-scroll {
-	padding-bottom: calc(
-		var(--size-4-2) + var(--lv-navbar-clearance) + max(40vh, var(--lv-keyboard-height))
-	);
-	scroll-padding-bottom: calc(var(--lv-keyboard-height) + var(--size-4-4));
+	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	/* Keep a swipe or a flick inside the list instead of handing it to the
 	   drawer behind once the ends are reached. */
 	overscroll-behavior: contain;
+}
+
+body.is-mobile .lv-root.is-keyboard-open .lv-scroll,
+body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
+	padding-bottom: calc(
+		var(--size-4-2) + var(--lv-navbar-clearance) + var(--lv-keyboard-height)
+	);
+	scroll-padding-bottom: calc(var(--lv-keyboard-height) + var(--size-4-4));
 }
 
 /* ------------------------------------------------------------------

@@ -186,12 +186,10 @@ await page.evaluate((pane) => {
 }, PANE);
 await page.waitForTimeout(100);
 const idle = await page.evaluate((pane) => {
-	// The frame here is taller than a phone pane, and a scroller with more room
-	// than content is not scrollable however much padding it carries — which
-	// would make this check pass without meaning anything. So the pane is cut
-	// down to a plausible height first, which is the situation being tested:
-	// a short list, nothing typed yet, and the browser about to look for
-	// somewhere to reveal a field.
+	// A pane cut down to a plausible height, holding a list far shorter than it.
+	// This is the ordinary case — six tasks on a tablet, nothing typed — and it
+	// must not scroll. It did, for a while, because the padding was what
+	// overflowed.
 	const frame = document.querySelector(pane);
 	const was = frame.style.height;
 	frame.style.height = "500px";
@@ -200,21 +198,56 @@ const idle = await page.evaluate((pane) => {
 		pad: Math.round(parseFloat(getComputedStyle(e).paddingBottom)),
 		client: e.clientHeight,
 		scroll: e.scrollHeight,
-		scrollable: e.scrollHeight > e.clientHeight,
+		scrollable: e.scrollHeight - e.clientHeight > 2,
 		viewport: window.innerHeight,
 	};
 	frame.style.height = was;
 	return out;
 }, PANE);
 check(
-	"a short list is scrollable before anything is tapped",
-	idle.scrollable,
-	`scrollHeight ${idle.scroll} > clientHeight ${idle.client}: ${idle.scrollable}`
+	"a list shorter than its pane does not scroll",
+	!idle.scrollable,
+	`scrollHeight ${idle.scroll} vs clientHeight ${idle.client}`
 );
 check(
-	"and the room it holds is about a keyboard's worth",
-	idle.pad >= idle.viewport * 0.4,
-	`padding-bottom=${idle.pad}px against 40vh of ${idle.viewport}px`
+	"because nothing is held empty below the last task",
+	idle.pad < idle.viewport * 0.1,
+	`padding-bottom=${idle.pad}px against a ${idle.viewport}px viewport`
+);
+
+/*
+ * And the room arrives when the keyboard does.
+ *
+ * The pair matters more than either half: reserving nothing is only correct if
+ * the reserve appears on demand, and the previous version of this file bought
+ * the second by permanently paying the first.
+ */
+const armed = await page.evaluate((pane) => {
+	const frame = document.querySelector(pane);
+	const root = frame.querySelector(".lv-root");
+	const e = frame.querySelector(".lv-scroll");
+	root.style.setProperty("--lv-keyboard-height", "420px");
+	root.classList.add("is-keyboard-open");
+	const pad = Math.round(parseFloat(getComputedStyle(e).paddingBottom));
+	const stop = Math.round(parseFloat(getComputedStyle(e).scrollPaddingBottom));
+	root.classList.remove("is-keyboard-open");
+	root.style.setProperty("--lv-keyboard-height", "0px");
+	return { pad, stop, after: Math.round(parseFloat(getComputedStyle(e).paddingBottom)) };
+}, PANE);
+check(
+	"but a keyboard buys room to scroll the last task clear of it",
+	armed.pad >= 420,
+	`padding-bottom=${armed.pad}px for a 420px keyboard`
+);
+check(
+	"and a revealed field is told to stop short of the keyboard",
+	armed.stop >= 420,
+	`scroll-padding-bottom=${armed.stop}px`
+);
+check(
+	"and it is all given back when the keyboard goes",
+	armed.after < idle.viewport * 0.1,
+	`padding-bottom=${armed.after}px`
 );
 
 /* ------------------------------------------------------------------
