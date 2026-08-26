@@ -2192,34 +2192,26 @@ body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
 }
 
 /* ------------------------------------------------------------------
-   A keyboard subtracted twice
+   What core actually does with the keyboard, read off the device
 
-   Core shortens the app for the keyboard with one rule:
+   For several rounds this file carried an override against
+   `body.is-mobile .app-container`, built on a rule quoted from memory
+   and a theory that Android was subtracting the keyboard twice. The
+   plugin has now read Obsidian's own stylesheet on the phone and
+   printed what is there. The rule is real, and verbatim:
 
-     body.is-mobile .app-container {
-       max-height: calc(100vh - var(--keyboard-height));
-     }
+     :root { --keyboard-height: 0px; }
+     body.is-mobile .app-container    { max-height: calc(100vh - var(--keyboard-height)); }
+     body.is-mobile.keyboard-animating .app-container { max-height: 100vh; }
 
-   That is right when the WebView keeps its full height and the keyboard
-   is drawn over it. On some Android devices the WebView is resized as
-   well — so `100vh` has already lost the keyboard's height, the variable
-   takes it away again, and the app is left `screen - 2 × keyboard` tall.
-   In portrait that is the view squashed into the top of the screen with
-   a keyboard's worth of blank beneath it. In landscape, where a screen is
-   barely two keyboards tall, the result clamps at zero and the whole app
-   disappears until the keyboard closes.
+   And the measurements say it is behaving correctly. With the keyboard
+   up: inner 891, 100vh 891, 100dvh 891, visualViewport 891, gap 0,
+   --keyboard-height 463, app-container 428. Nothing resized. The
+   keyboard is subtracted exactly once, in CSS, and 428 + 463 is the
+   whole screen.
 
-   It is a device behaviour rather than anything a plugin does, and it is
-   easy to miss in the editor, which just shows fewer lines when it is
-   shortened. A fixed layout collapses instead, which is where it shows.
-
-   Reaching over one of core's own rules is not something to do lightly,
-   so the class is only ever set where the viewport has been *measured*
-   to shrink on its own — see src/views/doubleKeyboard.ts. Same
-   specificity as the rule it replaces, and later in the cascade, so no
-   `!important` is needed to win.
+   So there was never a double subtraction to undo, the override never
+   once applied — the body class is absent from every sample — and the
+   detection behind it has been deleted rather than left standing as
+   dead machinery aimed at a fault this device does not have.
    ------------------------------------------------------------------ */
-
-body.lv-keyboard-counted-twice.is-mobile .app-container {
-	max-height: 100vh;
-}

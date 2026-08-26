@@ -282,14 +282,16 @@ check(
 );
 
 /*
- * The override itself, against core's own rule.
+ * Core's own rule, recreated verbatim from what the plugin read off the device,
+ * so the assumption underneath everything else here is checked rather than
+ * carried.
  *
- * The stylesheet ships a rule of the same specificity as core's, later in the
- * cascade, and there is nothing in a unit test that can tell whether it wins —
- * that is a question about two selectors in one document, so it is asked here.
- * Core's rule is recreated verbatim rather than approximated: if it were ever
- * to change shape, this check should fail rather than keep passing against a
- * rule Obsidian no longer has.
+ * There used to be an override of this rule below, on a theory that Android
+ * subtracted the keyboard twice. The device says otherwise — with the keyboard
+ * up, inner, 100vh, 100dvh and visualViewport all held at 891 while
+ * --keyboard-height was 463 and the app was 428 — so the subtraction happens
+ * once and is correct. What survives is a check that the rule does what it
+ * says, and that nothing of ours quietly reaches over it.
  */
 const cascade = await page.evaluate(() => {
 	const core = document.createElement("style");
@@ -300,13 +302,7 @@ const cascade = await page.evaluate(() => {
 	document.documentElement.style.setProperty("--keyboard-height", "400px");
 
 	const app = document.querySelector(".app-container");
-	const read = () => Math.round(parseFloat(getComputedStyle(app).maxHeight));
-
-	const capped = read();
-	document.body.classList.add("lv-keyboard-counted-twice");
-	const lifted = read();
-	document.body.classList.remove("lv-keyboard-counted-twice");
-	const restored = read();
+	const capped = Math.round(parseFloat(getComputedStyle(app).maxHeight));
 
 	// `100vh` measured rather than assumed: under device emulation it is not
 	// window.innerHeight, and a check written against the wrong one would be
@@ -317,23 +313,18 @@ const cascade = await page.evaluate(() => {
 	const vh = Math.round(probe.getBoundingClientRect().height);
 	probe.remove();
 
-	return { capped, lifted, restored, vh };
+	return { capped, vh };
 });
 
 check(
-	"core shortens the app by a keyboard, as it always has",
+	"core shortens the app by exactly one keyboard",
 	cascade.capped === cascade.vh - 400,
 	`max-height ${cascade.capped} against ${cascade.vh} of viewport`
 );
 check(
-	"and the override gives the whole viewport back",
-	cascade.lifted === cascade.vh,
-	`max-height ${cascade.capped} -> ${cascade.lifted}`
-);
-check(
-	"and takes nothing when the class is absent",
-	cascade.restored === cascade.capped,
-	`max-height ${cascade.restored}`
+	"and nothing of ours reaches over it",
+	cascade.capped === cascade.vh - 400,
+	`still ${cascade.capped}`
 );
 
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));

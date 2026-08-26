@@ -391,39 +391,37 @@ core already runs on the document root, applied one level down. When it fires it
 logs which box it caught, so a recurrence names its own cause instead of
 starting another round of guessing.
 
-**And on devices that subtract the keyboard twice, core's own cap is corrected.**
-This turned out to be the actual fault, and it was never a plugin bug at all.
-Core shortens the app with one rule:
+**And what core does with the keyboard is now read rather than remembered.** For
+several rounds this section described a fault that does not exist. The theory
+was that some Android devices resize the WebView *and* report a keyboard height,
+so core's cap takes it off twice and leaves the app `screen − 2 × keyboard`
+tall. It was arithmetic that matched a photograph, and it was wrong.
+
+Obsidian's `app.css` is bundled inside the app, so nobody in the argument had
+read it. But it is loaded in the same document the plugin runs in, and
+`document.styleSheets` enumerates it — so the plugin now goes and looks, on the
+device, and writes what it finds to a note in the vault. The rules are real and
+verbatim:
 
 ```css
-body.is-mobile .app-container { max-height: calc(100vh - var(--keyboard-height)); }
+:root                                            { --keyboard-height: 0px; }
+body.is-mobile .app-container                    { max-height: calc(100vh - var(--keyboard-height)); }
+body.is-mobile.keyboard-animating .app-container { max-height: 100vh; }
 ```
 
-That is right when the WebView keeps its height and the keyboard is drawn over
-it. Some Android devices resize the WebView *as well* — so `100vh` has already
-lost the keyboard's height, the variable takes it away again, and the app is
-left `screen − 2 × keyboard` tall. In portrait that reads as the view squashed
-into the top of the screen with a keyboard's worth of blank beneath it. In
-landscape, where a screen is barely two keyboards tall, the result clamps at
-zero and the whole app vanishes until the keyboard closes.
+And the measurements say they behave. On an Android phone with the keyboard up:
+`innerHeight` 891, `100vh` 891, `100dvh` 891, `visualViewport.height` 891, gap
+0, `--keyboard-height` 463, `.app-container` 428. **Nothing resized.** The
+keyboard is subtracted exactly once, and 428 + 463 is the screen.
 
-The arithmetic is checkable against a photograph: a 2000px portrait screen with
-a 645px keyboard left roughly 700px of app and 680px of blank, and
-`2000 − 645 − 645 ≈ 700`.
-
-Two things made it hard to see. It is invisible in Obsidian's own editor, which
-simply shows fewer lines when it is shortened, so it looks like a plugin
-problem. And it does not touch the Quick Switcher, because a modal lives in
-`document.body`, outside `.app-container` — which is why "the search field is
-fine" was the single most useful measurement in the whole investigation.
-
-Reaching over one of core's rules is not something to do on a hunch, so the
-class that does it is only set where `window.innerHeight` has been *measured* to
-shrink on its own by roughly a keyboard's height. See
-`src/views/doubleKeyboard.ts`; the resting height is a running maximum that is
-never learned while a keyboard is up and is forgotten on rotation, both of which
-are tested, because either would silently disable the detection on exactly the
-devices that need it.
+So the override was aimed at a fault this device does not have, and the samples
+confirm it never once applied — the class it depended on is absent from every
+row. It has been deleted rather than left standing, along with the detection
+behind it. What is worth keeping is the lesson: three builds were spent
+escalating the *mechanism* — a CSS rule, then a more specific rule, then inline
+styles — when the thing that needed checking was the *premise*. A stylesheet
+quoted from memory is not evidence, and it was cheaper to read it than to argue
+about it.
 
 **And nothing else.** The view does not shorten itself, lift anything, or reset
 the page scroll for the keyboard. The webview slides the whole app upward when
