@@ -87,7 +87,7 @@ await page.evaluate(
 	({ pane, kb }) => {
 		document.body.classList.add("is-phone", "is-mobile");
 		document.documentElement.style.setProperty("--view-bottom-spacing", "48px");
-		const root = document.querySelector(pane);
+		const root = document.querySelector(`${pane} .lv-root`);
 		root.style.setProperty("--lv-keyboard-height", `${kb}px`);
 		root.classList.add("is-keyboard-open");
 	},
@@ -108,7 +108,7 @@ const scrolled = await page.evaluate(() => {
 });
 check("no ancestor scrolled the view out of sight", scrolled.length === 0, scrolled.join(", "));
 
-const clearance = await page.$eval(`${PANE}`, (e) =>
+const clearance = await page.$eval(`${PANE} .lv-root`, (e) =>
 	getComputedStyle(e).getPropertyValue("--lv-navbar-clearance").trim()
 );
 check(
@@ -132,7 +132,7 @@ check(
 
 // And with the keyboard down it goes back to clearing the navbar only.
 await page.evaluate((pane) => {
-	const root = document.querySelector(pane);
+	const root = document.querySelector(`${pane} .lv-root`);
 	root.classList.remove("is-keyboard-open");
 }, PANE);
 await page.waitForTimeout(100);
@@ -215,6 +215,10 @@ const overlayBefore = await visible(OVERLAY);
 check("the detail panel is on screen", overlayBefore.h > 0, JSON.stringify(overlayBefore));
 check("it has a step field", (await page.$(STEP)) !== null);
 
+const stepGapBefore = await page.$eval(`${OVERLAY} .lv-scroll`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
+);
+
 await page.click(STEP);
 await page.waitForTimeout(120);
 
@@ -223,7 +227,7 @@ await page.waitForTimeout(120);
 // room rather than assume it was given some.
 await page.evaluate(
 	(kb) => {
-		const root = document.querySelector("#m-detail");
+		const root = document.querySelector("#m-detail .lv-root");
 		root.style.setProperty("--lv-keyboard-height", `${kb}px`);
 		root.classList.add("is-keyboard-open");
 	},
@@ -284,13 +288,61 @@ check(
 	detailScrolled.join(", ")
 );
 
+/*
+ * Two things that look like the same thing and are not.
+ *
+ * Shortening the panel by the keyboard's height subtracts a second keyboard
+ * from a pane Obsidian has already shortened, and that is what collapsed it to
+ * nothing. Padding the *scroller inside* the panel cannot do that: padding at
+ * the end of a scroll container only ever adds room to scroll into. So the
+ * panel must not move, and the scroller must reserve.
+ *
+ * Obsidian does the second itself — `.vertical-tab-content` in its own settings
+ * is `padding-bottom: max(var(--keyboard-height), var(--size-4-16))` — which is
+ * what settled the argument after three wrong guesses in the other direction.
+ */
+check(
+	"the panel itself is not lifted — that is what collapsed it before",
+	overlayAfter.bottom === overlayBefore.bottom,
+	`bottom ${overlayBefore.bottom} -> ${overlayAfter.bottom}`
+);
+
 const stepGap = await page.$eval(`${OVERLAY} .lv-scroll`, (e) =>
 	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
 );
 check(
-	"the panel's scroller reserves nothing either — Obsidian already did",
-	stepGap < 40,
-	`padding-bottom=${stepGap}px`
+	"but its scroller reserves room to scroll the field clear of the keyboard",
+	stepGap >= KEYBOARD,
+	`padding-bottom=${stepGap}px, keyboard=${KEYBOARD}px`
+);
+
+const stepScrollPad = await page.$eval(`${OVERLAY} .lv-scroll`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).scrollPaddingBottom) || 0)
+);
+check(
+	"and stops short of it when it scrolls the field into view",
+	stepScrollPad >= KEYBOARD,
+	`scroll-padding-bottom=${stepScrollPad}px`
+);
+
+// And gives it all back the moment the keyboard goes down, or every list would
+// end with a screenful of nothing.
+await page.evaluate(() => {
+	const root = document.querySelector("#m-detail .lv-root");
+	root.style.setProperty("--lv-keyboard-height", "0px");
+	root.classList.remove("is-keyboard-open");
+});
+await page.waitForTimeout(100);
+const stepGapDown = await page.$eval(`${OVERLAY} .lv-scroll`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
+);
+check(
+	"and takes it back when the keyboard closes",
+	// Back to whatever it reserved before — the navbar's height on a phone, not
+	// zero. Comparing against the baseline rather than a number keeps this from
+	// re-stating the stylesheet.
+	stepGapDown === stepGapBefore,
+	`padding-bottom=${stepGapBefore}px -> ${stepGap}px -> ${stepGapDown}px`
 );
 
 void rootBefore;

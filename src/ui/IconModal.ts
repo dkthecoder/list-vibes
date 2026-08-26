@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal, Platform, Setting } from "obsidian";
 
 /**
  * Pick the emoji shown beside a list's name.
@@ -50,11 +50,16 @@ export class IconModal extends Modal {
 			);
 		};
 
-		let field: HTMLInputElement;
+		let field: HTMLInputElement | undefined;
 		new Setting(contentEl)
 			.setName("Emoji")
 			.setDesc(
-				"Use your system's emoji picker — the emoji key on a phone keyboard, Ctrl+Cmd+Space on macOS, Win+. on Windows — or paste one in."
+				// On a phone the keyboard is already up and its emoji key is
+				// right there, so the desktop shortcuts are noise — and noise
+				// that costs a line of a small screen.
+				Platform.isMobile
+					? "Tap the emoji key on your keyboard, or pick one below."
+					: "Use your system's emoji picker — Ctrl+Cmd+Space on macOS, Win+. on Windows — or paste one in."
 			)
 			.addText((t) => {
 				field = t.inputEl;
@@ -119,7 +124,26 @@ export class IconModal extends Modal {
 			);
 
 		paint();
-		window.setTimeout(() => field?.focus(), 0);
+
+		/*
+		 * Bring the keyboard up by hand on a phone.
+		 *
+		 * There is no way to ask for the *emoji* keyboard specifically — no web
+		 * API offers it, and neither iOS nor Android exposes one — so the emoji
+		 * key is still a tap. What can be saved is the tap before it: opening
+		 * the modal already puts the caret in the field, so the keyboard is up
+		 * and the emoji key is on it.
+		 *
+		 * Focused synchronously, not on a timer. iOS only raises the keyboard
+		 * for a focus that happens while the user's tap is still being handled;
+		 * a `setTimeout`, however short, is a new task and the tap is over by
+		 * then. The timer stays as a second attempt for the desktop, where
+		 * focus is not gated on a gesture and the modal may still be settling.
+		 */
+		field?.focus();
+		window.setTimeout(() => {
+			if (field && field.doc.activeElement !== field) field.focus();
+		}, 0);
 	}
 
 	private commit(): void {

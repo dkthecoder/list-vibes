@@ -5,6 +5,7 @@ import { formatDate, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
 import { renderInline } from "./inline";
 import { renderImportance } from "./Importance";
+import { notePreview } from "./notePreview";
 
 /**
  * One task row: checkbox, title, a metadata subtitle, and the importance star.
@@ -36,6 +37,17 @@ export function renderTaskRow(
 	const titleEl = body.createDiv({ cls: "lv-task-title" });
 	renderInline(titleEl, task.title, ctx);
 
+	/*
+	 * The note, one faint line, cut off where the row runs out.
+	 *
+	 * It sits between the title and the metadata rather than among the metadata
+	 * chips, because it is the task's own words and they are not a chip. A chip
+	 * reading "Note" told you a note existed and nothing else, which meant
+	 * opening the task to find out whether it mattered.
+	 */
+	const preview = notePreview(task.note);
+	if (preview) body.createDiv({ cls: "lv-task-note", text: preview });
+
 	const bits: { text: string; cls?: string }[] = [];
 	if (opts.showList) {
 		const name = task.filePath.split("/").pop()?.replace(/\.md$/, "");
@@ -60,7 +72,6 @@ export function renderTaskRow(
 		});
 	}
 	if (task.meta.done) bits.push({ text: `Completed ${formatDate(task.meta.done)}` });
-	if (task.note) bits.push({ text: "Note" });
 
 	if (bits.length) {
 		const meta = body.createDiv({ cls: "lv-task-meta" });

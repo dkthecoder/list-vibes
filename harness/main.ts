@@ -14,6 +14,8 @@ import { renderDetailPane } from "../src/views/panes/DetailPane";
 import { todayISO } from "../src/model/store";
 import { SortKey } from "../src/model/sort";
 import { ListColor, ViewMode } from "../src/model/types";
+import { keyboardOverlap } from "../src/views/keyboard";
+import { bindSwipeDismiss } from "../src/ui/swipeDismiss";
 
 installDomHelpers();
 
@@ -167,10 +169,20 @@ function renderInto(
 	pane: PaneName,
 	withOverlay: boolean
 ): void {
-	el.className = `lv-root ${wide ? "is-wide" : "is-narrow"}`;
+	/*
+	 * The frame is a workspace leaf and the view goes *inside* it, rather than
+	 * the two being the same element.
+	 *
+	 * That distinction is the whole point of this harness now: Obsidian paints
+	 * the leaf, the plugin's panes paint nothing, and a harness that collapses
+	 * the two cannot tell a view that inherits its background from one that
+	 * paints its own. The frame keeps whatever classes the page gave it —
+	 * `mod-root` marks a leaf in the main workspace, its absence a sidebar one.
+	 */
 	el.textContent = "";
-	const shell = el.createDiv({ cls: "lv-shell" });
-	const ctx = ctxFor(el, wide);
+	const root = el.createDiv({ cls: `lv-root ${wide ? "is-wide" : "is-narrow"}` });
+	const shell = root.createDiv({ cls: "lv-shell" });
+	const ctx = ctxFor(root, wide);
 
 	if (wide) {
 		renderListsPane(shell, ctx);
@@ -188,7 +200,16 @@ function renderInto(
 		const backdrop = shell.createDiv({ cls: "lv-backdrop is-open" });
 		const overlay = shell.createDiv({ cls: "lv-overlay is-open" });
 		renderDetailPane(overlay, ctx);
-		void backdrop;
+		// The real gesture, on the real element. Whether a drag becomes a swipe
+		// is unit-tested; whether the panel actually follows a finger depends on
+		// touch-action, pointer capture and the transition, none of which a unit
+		// test can see.
+		bindSwipeDismiss(overlay, backdrop, () => {
+			overlay.remove();
+			backdrop.remove();
+			(window as unknown as { lvDismissed: number }).lvDismissed =
+				((window as unknown as { lvDismissed?: number }).lvDismissed ?? 0) + 1;
+		});
 	}
 }
 
@@ -252,3 +273,12 @@ function paint(): void {
 
 paint();
 (window as unknown as { paint: () => void }).paint = paint;
+
+/*
+ * The real measurement code, exposed so a suite can apply the same number the
+ * view would rather than a number a suite made up. The clamp inside it is the
+ * thing that stops an over-large reading from pushing every row out of its
+ * scroller, and a harness that bypasses it would be testing nothing.
+ */
+(window as unknown as { lvKeyboardOverlap: typeof keyboardOverlap }).lvKeyboardOverlap =
+	keyboardOverlap;

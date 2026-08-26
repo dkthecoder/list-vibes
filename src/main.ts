@@ -18,14 +18,20 @@ import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
 import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
+import { LayoutRecorder } from "./diagnostics";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
 	store!: ListStore;
 	mutator!: Mutator;
+	recorder!: LayoutRecorder;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+
+		this.recorder = new LayoutRecorder(this.app, () => this.activeRoot());
+		// A recording holds listeners on the window, which outlives the plugin.
+		this.register(() => void this.recorder.stop());
 
 		this.store = new ListStore(this.app, this.settings.folder);
 		this.mutator = new Mutator(this.app, {
@@ -184,6 +190,31 @@ export default class ListsPlugin extends Plugin {
 			name: "Add a task to My Day",
 			callback: () => this.quickAdd({ myDay: true, due: todayISO() }),
 		});
+
+		/*
+		 * A round trip for the mobile keyboard fault.
+		 *
+		 * Run it, tap the field that misbehaves, run it again: the measurements
+		 * land in a note in the vault, which syncs back like any other note. One
+		 * command rather than two, because on a phone finding a command is the
+		 * expensive part and the keyboard is up when you need the second one.
+		 */
+		this.addCommand({
+			id: "record-layout-report",
+			name: "Record a layout report (for a display problem)",
+			callback: () => {
+				if (this.recorder.recording) void this.recorder.stop();
+				else this.recorder.start();
+			},
+		});
+	}
+
+	/** The List Vibes view the user is most likely looking at, if any. */
+	private activeRoot(): HTMLElement | null {
+		const active = this.app.workspace.getActiveViewOfType(ListsView);
+		if (active) return active.contentEl;
+		const any = this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS)[0];
+		return any ? (any.view as ListsView).contentEl : null;
 	}
 
 	/** Choose a list by name, for commands that need one. */

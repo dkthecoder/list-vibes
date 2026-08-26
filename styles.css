@@ -42,6 +42,31 @@
 	--lv-nav-width: 15em;
 	--lv-detail-width: 22.5em;
 
+	/*
+	 * The surface the view is sitting on, and the one that reads as raised
+	 * against it.
+	 *
+	 * Obsidian already paints a leaf, and which colour it paints depends on
+	 * where the leaf is:
+	 *
+	 *   .workspace-tabs .workspace-leaf           { --background-secondary }
+	 *   .mod-root .workspace-tabs .workspace-leaf { --background-primary }
+	 *
+	 * So a pane that paints `--background-primary` unconditionally is correct in
+	 * a tab and a bright rectangle in the sidebar — the view stops sitting in
+	 * Obsidian and starts sitting on top of it. The panes themselves therefore
+	 * paint nothing at all and let the leaf show through, which is what core's
+	 * own file explorer does.
+	 *
+	 * These two are for the things that genuinely need to be opaque — a panel
+	 * sliding over the list, a bar pinned across the bottom of a scroller — and
+	 * they follow the same rule the leaf does, so those surfaces match their
+	 * surroundings in both places. `-alt` is always the other one, so a card
+	 * raised off the surface has contrast wherever the view is.
+	 */
+	--lv-surface: var(--background-secondary);
+	--lv-surface-alt: var(--background-primary);
+
 	/* How much room the mobile navbar needs. Self-declared with a safe default
 	   so every calc() below stays valid on desktop and tablet, where Obsidian
 	   never defines the variable it is built from. */
@@ -63,6 +88,16 @@
 	overflow: clip;
 	font-family: var(--font-interface);
 	color: var(--text-normal);
+}
+
+/*
+ * In the main workspace the leaf is primary, so the pair swaps. This mirrors
+ * Obsidian's own `.mod-root .workspace-tabs .workspace-leaf` override rather
+ * than guessing at where the view is from its width.
+ */
+.mod-root .lv-root {
+	--lv-surface: var(--background-primary);
+	--lv-surface-alt: var(--background-secondary);
 }
 
 /* Touch needs a bigger floor than a pointer does. */
@@ -96,11 +131,14 @@
 	min-width: 0;
 }
 
+/*
+ * No background. Obsidian has already painted the leaf the right colour for
+ * where it is, and painting over it is what made the view look bolted on.
+ */
 .lv-pane {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	background: var(--background-primary);
 }
 
 .lv-scroll,
@@ -351,6 +389,32 @@
 	text-decoration: line-through;
 }
 
+/*
+ * The task's note, previewed.
+ *
+ * One line, always — `nowrap` plus `ellipsis` rather than a line clamp, because
+ * a clamp needs a height and a height would have to be guessed at while the
+ * user's font size is theirs to change. This way the row grows by exactly one
+ * line of whatever type they have set.
+ *
+ * `--text-faint` rather than `--text-muted`: the metadata below it is already
+ * muted, and if the note were the same weight the row would read as two equal
+ * subtitles instead of a quiet echo of what is inside.
+ */
+.lv-task-note {
+	margin-top: 2px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	line-height: 1.3;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.lv-task.is-complete .lv-task-note {
+	text-decoration: line-through;
+}
+
 .lv-task-meta {
 	display: flex;
 	flex-wrap: wrap;
@@ -476,7 +540,8 @@
 	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	min-height: var(--lv-row-min);
 	border-top: var(--border-width) solid var(--divider-color);
-	background: var(--background-primary);
+	/* Opaque, because rows scroll underneath it. */
+	background: var(--lv-surface);
 }
 
 .lv-add-icon {
@@ -495,8 +560,11 @@
 
 /* ---------------- detail pane ---------------- */
 
+/* The panel is separated from the list by its shadow and its border, not by
+   being a different colour — so it takes the same surface as everything else
+   and stays right in a tab and in the sidebar. */
 .lv-detail {
-	background: var(--background-secondary);
+	background: var(--lv-surface);
 }
 
 .lv-detail-bar {
@@ -520,7 +588,7 @@
 .lv-card {
 	margin: var(--size-4-2) var(--lv-gutter);
 	padding: var(--size-4-1);
-	background: var(--background-primary);
+	background: var(--lv-surface-alt);
 	border-radius: var(--lv-radius);
 }
 
@@ -882,6 +950,27 @@
 	transform: translateX(0);
 }
 
+/*
+ * Swipe to dismiss.
+ *
+ * `pan-y` gives the browser the vertical gesture — the panel's own scroller
+ * still works exactly as it did — and keeps the horizontal one for us. Without
+ * it the browser claims both, and the swipe never produces a pointermove.
+ */
+.lv-overlay:not(.is-pinned) {
+	touch-action: pan-y;
+}
+
+/*
+ * While a finger is on it the panel is wherever the finger put it, so the
+ * transition has to be out of the way; it is put back for the release, which is
+ * what animates the panel home or the rest of the way out.
+ */
+.lv-overlay.is-dragging,
+.lv-backdrop.is-dragging {
+	transition: none;
+}
+
 .lv-overlay .lv-detail {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -1154,7 +1243,7 @@
 }
 
 .lv-header-name:focus {
-	background: var(--background-primary);
+	background: var(--background-modifier-form-field);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
@@ -1303,7 +1392,7 @@
 	margin: 0 0 var(--size-4-2);
 	padding: var(--size-4-3);
 	border-radius: var(--lv-radius);
-	background: var(--background-secondary);
+	background: var(--lv-surface-alt);
 	border: var(--border-width) solid var(--divider-color);
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
@@ -1433,7 +1522,7 @@
 	z-index: 5;
 	transition: none;
 	box-shadow: var(--shadow-l, 0 8px 20px rgba(0, 0, 0, 0.18));
-	background: var(--background-primary-alt, var(--background-secondary));
+	background: var(--lv-surface-alt);
 	opacity: 0.95;
 }
 
@@ -1471,7 +1560,7 @@ body.lv-is-dragging .lv-step:hover {
 	margin: 0 -4px;
 	padding: 1px var(--size-4-1);
 	border-radius: var(--lv-radius-s);
-	background: var(--background-primary);
+	background: var(--background-modifier-form-field);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 	outline: none;
 	cursor: text;
@@ -1507,7 +1596,7 @@ body.lv-is-dragging .lv-step:hover {
 
 .lv-header-name:focus {
 	outline: none;
-	background: var(--background-primary);
+	background: var(--background-modifier-form-field);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
@@ -1582,6 +1671,34 @@ body .lv-root.is-keyboard-open {
 body.is-phone .lv-scroll,
 body.is-phone .lv-nav-scroll {
 	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
+}
+
+/*
+ * Room at the bottom of a scroller for the keyboard.
+ *
+ * This is padding, not a lift, and the difference is the whole reason it is
+ * back. Shortening a positioned panel by the keyboard's height subtracts a
+ * second keyboard from a pane Obsidian has already shortened, and that is what
+ * collapsed the panel to nothing. Padding inside a scroller only ever adds
+ * scrollable room past the last row: if the pane was already clear of the
+ * keyboard the user simply can scroll a little further, and if it was not, the
+ * field they are typing into can now reach daylight.
+ *
+ * It is also what Obsidian does. Its settings scroller is
+ * `padding-bottom: max(var(--keyboard-height), var(--size-4-16))`, its mobile
+ * toolbar is positioned from the same variable, and the editor adds it to the
+ * bottom padding under the note. Following that is cheaper than being clever.
+ *
+ * `scroll-padding` on top so that when the browser scrolls a focused field into
+ * view it stops short of the keyboard rather than flush against it.
+ */
+body.is-mobile .lv-scroll,
+body.is-mobile .lv-nav-scroll {
+	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance) + var(--lv-keyboard-height));
+	scroll-padding-bottom: calc(var(--lv-keyboard-height) + var(--size-4-4));
+	/* Keep a swipe or a flick inside the list instead of handing it to the
+	   drawer behind once the ends are reached. */
+	overscroll-behavior: contain;
 }
 
 /* ------------------------------------------------------------------

@@ -83,7 +83,7 @@ await page.waitForTimeout(150);
 // And then the keyboard, which is what makes the field fall below the fold.
 await page.evaluate(() => {
 	document.documentElement.style.setProperty("--keyboard-height", "400px");
-	const root = document.querySelector("#vanish");
+	const root = document.querySelector("#vanish .lv-root") ?? document.querySelector("#vanish");
 	root.style.setProperty("--lv-keyboard-height", "400px");
 	root.classList.add("is-keyboard-open");
 	document.querySelector(STEP_SEL)?.scrollIntoView?.({ block: "center" });
@@ -136,8 +136,16 @@ check(
 
 const paneHeight = await page.$eval("#vanish", (e) => Math.round(e.getBoundingClientRect().height));
 await page.evaluate((kb) => {
-	const root = document.querySelector("#vanish");
-	root.style.setProperty("--lv-keyboard-height", `${kb}px`);
+	const root = document.querySelector("#vanish .lv-root") ?? document.querySelector("#vanish");
+	// Through the view's own measurement code, not straight onto the element.
+	// The clamp lives in there, and setting the raw number here would prove
+	// only that a raw number is dangerous — which nobody doubted.
+	const overlap = window.lvKeyboardOverlap({
+		native: kb,
+		visual: 0,
+		viewHeight: root.clientHeight,
+	});
+	root.style.setProperty("--lv-keyboard-height", `${overlap}px`);
 	root.classList.add("is-keyboard-open");
 }, 900);
 await page.waitForTimeout(150);
@@ -174,7 +182,7 @@ check(
 
 const compensation = await page.evaluate(() => {
 	const overlay = document.querySelector("#vanish .lv-overlay");
-	const root = document.querySelector("#vanish");
+	const root = document.querySelector("#vanish .lv-root") ?? document.querySelector("#vanish");
 	return {
 		lift: getComputedStyle(overlay).bottom,
 		reserve: getComputedStyle(root).getPropertyValue("--lv-navbar-clearance").trim(),

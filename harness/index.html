@@ -328,12 +328,27 @@
 				color: #6b6f76;
 				margin: 0 0 10px;
 			}
+			/*
+			 * A frame stands in for a workspace leaf, and Obsidian paints those
+			 * itself — a different colour depending on where the leaf is:
+			 *
+			 *   .workspace-tabs .workspace-leaf           { --background-secondary }
+			 *   .mod-root .workspace-tabs .workspace-leaf { --background-primary }
+			 *
+			 * Reproduced rather than approximated, because the plugin's panes are
+			 * now transparent and sit on whatever this paints. A frame with the
+			 * `mod-root` class is a leaf in the main workspace; one without is a
+			 * leaf in the sidebar.
+			 */
 			.frame {
-				background: var(--background-primary);
+				background: var(--background-secondary);
 				border: 1px solid var(--background-modifier-border);
 				border-radius: 10px;
 				overflow: hidden;
 				box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+			}
+			.frame.mod-root {
+				background: var(--background-primary);
 			}
 			#desktop,
 			#desktop2,
@@ -365,22 +380,22 @@
 	</head>
 	<body>
 		<h2>Desktop — detail sliding over the list</h2>
-		<div class="frame" id="desktop"></div>
+		<div class="frame mod-root" id="desktop"></div>
 
 		<h2 style="margin-top: 28px">Detail — action row expanded inline, no context menu</h2>
-		<div class="frame" id="picker"></div>
+		<div class="frame mod-root" id="picker"></div>
 
 		<h2 style="margin-top: 28px">Post-it view — Google Keep-style layout</h2>
-		<div class="frame" id="cards"></div>
+		<div class="frame mod-root" id="cards"></div>
 
 		<h2 style="margin-top: 28px">Desktop — detail panel pinned as a column</h2>
-		<div class="frame" id="pinned"></div>
+		<div class="frame mod-root" id="pinned"></div>
 
 		<h2 style="margin-top: 28px">Desktop — file order, rows draggable, no overlay</h2>
-		<div class="frame" id="drag"></div>
+		<div class="frame mod-root" id="drag"></div>
 
 		<h2 style="margin-top: 28px">Desktop — 1–5 rating mode, sorted by importance, add box expanded</h2>
-		<div class="frame" id="desktop2"></div>
+		<div class="frame mod-root" id="desktop2"></div>
 
 		<div class="phones">
 			<div>
@@ -389,11 +404,11 @@
 			</div>
 			<div>
 				<h2>Mobile — tasks</h2>
-				<div class="frame phone" id="m-tasks"></div>
+				<div class="frame phone mod-root" id="m-tasks"></div>
 			</div>
 			<div>
 				<h2>Mobile — detail overlay</h2>
-				<div class="frame phone" id="m-detail"></div>
+				<div class="frame phone mod-root" id="m-detail"></div>
 			</div>
 		</div>
 

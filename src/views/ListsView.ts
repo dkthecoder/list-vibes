@@ -10,6 +10,8 @@ import {
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
+import { bindSwipeDismiss } from "../ui/swipeDismiss";
+import { keyboardOverlap } from "./keyboard";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import {
@@ -516,20 +518,22 @@ export class ListsView extends ItemView {
 				? Math.max(0, Math.round(win.innerHeight - vv.height - vv.offsetTop))
 				: 0;
 
-			const measured = Math.max(native, visual > 120 ? visual : 0);
-
 			/*
-			 * Clamped against this view's own height. The measurement comes from
-			 * the screen and this view may be a fraction of it, so an unclamped
-			 * number is not merely large — it is meaningless here.
+			 * Which of the two to believe, and how far, is arithmetic with a
+			 * history of being wrong, so it lives in `keyboardOverlap` where it
+			 * can be tested against the readings a device actually produces.
 			 *
-			 * Nothing is lifted or padded by this value any more (see the
-			 * stylesheet: Obsidian has already shortened the container). What it
-			 * is still for is knowing the keyboard is up, which is what lets the
-			 * navbar reserve be dropped and the focused field be revealed.
+			 * What the answer is used for is narrow on purpose. Nothing is
+			 * lifted by it — Obsidian has already shortened the container — but
+			 * a scroller reserves room at its end so a field can be scrolled
+			 * clear of the keyboard, exactly as Obsidian's own settings scroller
+			 * does.
 			 */
-			const room = this.contentEl.clientHeight || win.innerHeight;
-			const keyboard = Math.min(measured, Math.round(room * 0.6));
+			const keyboard = keyboardOverlap({
+				native,
+				visual,
+				viewHeight: this.contentEl.clientHeight || win.innerHeight,
+			});
 
 			this.contentEl.style.setProperty("--lv-keyboard-height", `${keyboard}px`);
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
@@ -807,6 +811,11 @@ export class ListsView extends ItemView {
 			const overlay = shell.createDiv({ cls: "lv-overlay" });
 			this.overlayEl = overlay;
 			renderDetailPane(overlay, ctx);
+
+			// Push it back where it came from. The handle is not kept: the panel
+			// is destroyed on the next rebuild and every listener is on the panel
+			// itself, so they go with it.
+			bindSwipeDismiss(overlay, backdrop, () => this.closeDetail());
 
 			if (this.detailWasOpen) {
 				// Already on screen — show it in place, do not replay the animation.

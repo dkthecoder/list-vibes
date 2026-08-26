@@ -31,12 +31,16 @@ const PANE = "#drag";
 /** Computed values for the things a user's settings should reach. */
 const sample = () =>
 	page.evaluate((pane) => {
+		// The frame is the leaf; the view is inside it. An empty selector means
+		// the view's own root, which is where its tokens are declared — reading
+		// them off the leaf would find whatever the page happens to inherit.
+		const at = (sel) => document.querySelector(`${pane} .lv-root ${sel}`.trim());
 		const g = (sel, prop) => {
-			const el = document.querySelector(`${pane} ${sel}`);
+			const el = at(sel);
 			return el ? getComputedStyle(el)[prop] : null;
 		};
 		const v = (sel, name) => {
-			const el = document.querySelector(`${pane} ${sel}`);
+			const el = at(sel);
 			return el ? getComputedStyle(el).getPropertyValue(name).trim() : null;
 		};
 		return {
@@ -49,7 +53,8 @@ const sample = () =>
 			navWidth: g(".lv-nav", "width"),
 			accent: v("", "--lv-accent"),
 			textColour: g(".lv-task-title", "color"),
-			background: g(".lv-pane", "backgroundColor"),
+			paneBackground: g(".lv-pane", "backgroundColor"),
+			addBackground: g(".lv-add", "backgroundColor"),
 			rowHover: v("", "--nav-item-background-hover"),
 			checkboxSize: v("", "--checkbox-size"),
 		};
@@ -137,10 +142,66 @@ await apply({
 after = await sample();
 check("text colour follows the theme", after.textColour !== before.textColour,
 	`${before.textColour} -> ${after.textColour}`);
-check("backgrounds follow the theme", after.background !== before.background,
-	`${before.background} -> ${after.background}`);
+check(
+	"opaque surfaces follow the theme",
+	after.addBackground !== before.addBackground,
+	`${before.addBackground} -> ${after.addBackground}`
+);
 check("row hover follows the theme", after.rowHover !== before.rowHover,
 	`${before.rowHover} -> ${after.rowHover}`);
+
+/* ---- 5b. The view sits on Obsidian's surface rather than painting its own ----
+   Obsidian colours a leaf itself, and differently depending on where the leaf
+   is: `--background-secondary` in a sidebar, `--background-primary` in the main
+   workspace. A pane that paints `--background-primary` regardless is right in a
+   tab and a bright rectangle in the sidebar, which is exactly what "it doesn't
+   look native" looks like. The panes must therefore paint nothing, and the
+   parts that genuinely have to be opaque must follow the same rule the leaf
+   does. `#drag` is a main-area leaf here and `#m-nav` is a sidebar one. */
+
+const transparent = (v) => v === "transparent" || /,\s*0\)$/.test(v);
+
+check(
+	"the panes paint nothing, so the leaf's own colour shows through",
+	transparent(after.paneBackground),
+	after.paneBackground
+);
+
+const surfaces = await page.evaluate(() => {
+	const read = (frame, sel) => {
+		const el = document.querySelector(`${frame} ${sel}`);
+		return el ? getComputedStyle(el).backgroundColor : null;
+	};
+	const frameBg = (f) => getComputedStyle(document.querySelector(f)).backgroundColor;
+	return {
+		mainLeaf: frameBg("#drag"),
+		mainAdd: read("#drag", ".lv-add"),
+		sideLeaf: frameBg("#m-nav"),
+		sidePane: read("#m-nav", ".lv-pane"),
+		sideRow: read("#m-nav", ".lv-nav-row"),
+	};
+});
+
+check(
+	"a sidebar leaf and a main-area leaf really are different colours here",
+	surfaces.sideLeaf !== surfaces.mainLeaf,
+	`sidebar=${surfaces.sideLeaf} main=${surfaces.mainLeaf}`
+);
+check(
+	"an opaque bar matches the leaf it is sitting in, rather than a fixed colour",
+	surfaces.mainAdd === surfaces.mainLeaf,
+	`add=${surfaces.mainAdd} leaf=${surfaces.mainLeaf}`
+);
+check(
+	"and in the sidebar the pane still paints nothing over it",
+	transparent(surfaces.sidePane),
+	String(surfaces.sidePane)
+);
+check(
+	"a resting list row paints nothing either — core supplies its hover",
+	transparent(surfaces.sideRow),
+	String(surfaces.sideRow)
+);
 
 /* ---- 6. Nothing is left hardcoded ----
    The sweep. Every colour token the plugin could read is set to a value from
@@ -176,7 +237,7 @@ const strays = await page.evaluate(
 		);
 
 		const out = [];
-		for (const el of document.querySelectorAll(`${pane} *`)) {
+		for (const el of document.querySelectorAll(`${pane} .lv-root, ${pane} .lv-root *`)) {
 			// Inline styles come from the drag and keyboard code at runtime, not
 			// from the stylesheet, so they are not what this is looking for.
 			if (el.getAttribute("style")) continue;
