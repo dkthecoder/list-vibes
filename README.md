@@ -21,6 +21,14 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   dismisses it. One behaviour at every width, from phone to wide main pane. It is
   never full width — a strip of the list always stays visible behind it, because
   at 100% there is nothing to overlay and it just looks like the view changed.
+- **Swipe the panel away.** On touch, push the detail panel back where it came
+  from. Drag it a third of the way across and it goes; flick it and it goes
+  without travelling far; let go short of either and it springs back. A scroll
+  that wanders sideways stays a scroll — the horizontal movement has to clearly
+  beat the vertical before the panel starts following your finger.
+- **A task's note shows on the row.** One faint line under the title, cut off
+  where the row runs out, however long the note is. It used to be a chip reading
+  "Note", which told you a note existed and nothing about whether it mattered.
 - **Every control opens in place.** The due date, reminder and repeat rows expand
   inline into a row of chips. They are not Obsidian Menus: a Menu opens at the
   cursor and reads as a right-click context menu, which is wrong for a primary
@@ -202,6 +210,15 @@ lets the operating system's own picker do the work — the emoji key on a phone
 keyboard, Ctrl+Cmd+Space on macOS, Win+. on Windows. Always current, nothing to
 maintain. The row of suggestions beneath is a shortcut, not the mechanism.
 
+On a phone the field takes the caret as the modal opens, so the keyboard is
+already up with its emoji key on it. That focus happens synchronously, while the
+tap that opened the modal is still being handled — iOS raises the keyboard only
+for a focus inside a user gesture, and a `setTimeout`, however short, is a new
+task by which time the tap is over. There is no way to ask for the *emoji*
+keyboard specifically; no web API offers one and neither platform exposes one,
+so that key remains a tap. The desktop shortcuts are not shown there, where they
+would only cost a line of a small screen.
+
 Only the first glyph is kept, counted as a person would count it: "👍🏽" is four
 code units and "🇬🇧" is two code points, and half of either is a replacement
 box in the middle of the picker.
@@ -262,17 +279,47 @@ out **reversed**. Expanding is now a class rather than a repaint, and a repaint
 from anywhere else is held back while focus is in a field and released when it
 leaves. A file change can wait; a half-typed word cannot.
 
-The keyboard is measured, not assumed. The first attempt guessed that Obsidian's
-navbar detaches while the keyboard is up and gave back the room reserved for it —
-backwards, because on Android the webview does not resize, so that left the add
-box under the keyboard rather than above it. `visualViewport` reports how much of
-the view is actually covered, on both platforms, and the reserve becomes whichever
-of the keyboard and the navbar is in the way. Where `visualViewport` is
-unavailable the measurement is zero and the layout is unchanged.
+The keyboard is measured, not assumed — from two sources, because neither is
+reliable alone. Obsidian's own `--keyboard-height` is the platform's real inset
+but is undocumented and absent on a desktop; `visualViewport` is a web standard
+and reports on iOS, but on Android the webview usually is not resized at all, so
+it reports nothing. The larger of the two wins, differences under 120px are
+treated as browser chrome rather than a keyboard, and the answer is clamped
+against the view's own height — the measurement comes from the whole screen and
+the view may be a sidebar or a tablet split, where an unclamped number is not
+merely large but meaningless. That arithmetic lives in `keyboardOverlap` and is
+unit-tested, because a number that is only slightly too big does not look wrong,
+it looks like the view went blank.
+
+What the number is used for is deliberately narrow. **Nothing is lifted by it.**
+Obsidian shortens `.app-container` by the keyboard's height before the view is
+laid out, so shortening a positioned panel again subtracts a second keyboard —
+on a phone that is most of the pane, and it is what collapsed the panel to
+nothing. What the number does do is reserve room at the *end of a scroller*, so
+a field can be scrolled clear of the keyboard. Padding inside a scroll container
+can only ever add room to scroll into; it cannot push anything off screen. It is
+also what Obsidian does: its settings scroller is
+`padding-bottom: max(var(--keyboard-height), var(--size-4-16))`, its mobile
+toolbar is positioned from the same variable, and the editor adds it beneath the
+note. Removing all reservation on the grounds that the container cap was enough
+was a mistake, and it has been put back.
 
 `npm run test:ui` drives all of this under a phone viewport: typing arrives in
-order, focus survives it, nothing scrolls the view out of sight, and the box
-clears the keyboard and gives the room back afterwards.
+order, focus survives it, nothing scrolls the view out of sight, the panel is
+*not* lifted, and the scroller reserves the room and gives it back afterwards —
+the two are asserted separately, because they look like the same thing and are
+not.
+
+### When it still misbehaves
+
+A soft keyboard does not exist on a desktop, and no harness reproduces one, so
+a fault that only happens on a real device cannot be diagnosed from here. The
+command **Record a layout report (for a display problem)** exists for that. Run
+it, tap the field that misbehaves, run it again: it writes a note into the vault
+holding every measurement that could tell one cause from another — the viewport,
+the keyboard height, each element's rectangle, and every ancestor that has been
+scrolled together with whether it can be scrolled back. It records sizes and
+scroll offsets only: no task text, no file names, no note contents.
 
 ## Where the title comes from
 
@@ -310,6 +357,18 @@ own CSS and JS. Nothing here ever selects on a core class. Those names are not
 public API — they appear nowhere in `obsidian.d.ts`, and Obsidian's theme
 guidelines note that new versions may change class names. Carrying both means a
 rename costs inherited polish, never a working view.
+
+Nothing paints a background it was not asked to. Obsidian already paints a
+workspace leaf, and it picks the colour by where the leaf is —
+`--background-secondary` in a sidebar, `--background-primary` in the main
+workspace, through two rules in core's own stylesheet. A pane that paints
+`--background-primary` regardless is therefore right in a tab and a bright
+rectangle in the sidebar, which is most of what "it doesn't look native" turns
+out to mean. The panes paint nothing and the leaf shows through, exactly as the
+file explorer's do. The few surfaces that genuinely have to be opaque — the add
+bar, the sliding panel, a post-it — read `--lv-surface`, which follows the same
+rule the leaf does, and `--lv-surface-alt`, which is always the other one, so a
+raised card has contrast wherever the view happens to be.
 
 The single biggest change was the smallest: task rows lost their card background.
 No core list row has a resting background — the file explorer, search results,
