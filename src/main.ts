@@ -135,6 +135,12 @@ export default class ListsPlugin extends Plugin {
 					void this.saveSettings();
 				}
 				if (this.store.isListFile(file)) void this.store.reloadFile(file);
+				// Point every open view at the new path. Without this a list
+				// renamed anywhere but in the view showing it — the sidebar
+				// picker, the file explorer, a sync landing — leaves that view
+				// holding a path that no longer exists, which is what put two
+				// disagreeing titles on screen.
+				this.followRename(oldPath, file.path);
 			})
 		);
 	}
@@ -372,6 +378,7 @@ export default class ListsPlugin extends Plugin {
 	 * rename looked like it had half worked.
 	 */
 	private followRename(from: string, to: string): void {
+		if (from === to) return;
 		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS)) {
 			const view = leaf.view as ListsView;
 			if (!view?.showsList?.(from)) continue;

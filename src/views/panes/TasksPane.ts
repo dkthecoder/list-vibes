@@ -12,6 +12,7 @@ import { renderTaskCard } from "../../ui/TaskCard";
 import { makeDragSortable } from "../../ui/dragSort";
 import { editName, makeEditableName } from "../../ui/editableName";
 import { renderAddButton, submitOnEnter } from "../../ui/addButton";
+import { prettifyName } from "../../ui/prettify";
 import { formatDate, todayISO } from "../../model/store";
 import {
 	SORT_OPTIONS,
@@ -125,6 +126,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			const nameEl = titleWrap.createSpan({ cls: "lv-header-name" });
 			makeEditableName(nameEl, {
 				value: list.name,
+				// Tidied for the title, never for the rename: `display` is what
+				// sits there, `value` is what appears the moment you click in.
+				display: ctx.settings.prettyTitles ? prettifyName(list.name) : list.name,
 				alwaysEditable: true,
 				onCommit: (next) => ctx.renameList(list.path, next),
 			});

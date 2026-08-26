@@ -135,10 +135,17 @@ export class ListsView extends ItemView {
 	 */
 	getDisplayText(): string {
 		if (!this.inMainWorkspace()) return "List Vibes";
-		const sel = this.state.selection;
-		const name =
-			sel.kind === "list" ? this.plugin.store.getList(sel.path)?.name : undefined;
-		return selectionTitle(sel, name);
+		/*
+		 * From the path, not from the store.
+		 *
+		 * A list's name *is* its filename, so the path is the authority and it is
+		 * never out of date. The store is a cache of parsed files rebuilt from
+		 * vault events, so between a rename landing and the reload finishing it
+		 * can answer with the old name or with nothing — and this is read by
+		 * Obsidian to label a tab, where a stale answer sits there disagreeing
+		 * with the title inside the view until something else forces a redraw.
+		 */
+		return selectionTitle(this.state.selection);
 	}
 
 	getIcon(): string {

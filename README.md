@@ -401,6 +401,42 @@ The cheaper check first, though, and the one that would have saved four
 attempts: **does Obsidian's own editor do it too?** If it does, it is the app or
 the device, and no amount of plugin CSS will help.
 
+## The list's name, and the two places it shows
+
+A list's name **is** its filename. Renaming the title renames the file and
+Obsidian updates every link pointing at it — that is the whole idea, and it is
+why the name is never stored anywhere else.
+
+It shows in two places on a desktop: Obsidian's own tab, and the title inside
+the view. They used to disagree — a tab reading "Untitled list" beside a view
+reading "Favourite animals" — for a reason worth writing down. `followRename`
+existed to point every open view at a renamed list's new path, and **nothing
+ever called it**. Rename from the sidebar picker, the file explorer, or a sync
+landing, and the view kept a path that no longer existed. It is wired to the
+vault's rename event now. The tab's title is also read straight off the path
+rather than out of the store, because the store is a cache rebuilt from vault
+events and can answer with yesterday's name for a moment; a path cannot.
+
+A leading emoji in a filename — `💼Work.md`, which plenty of vaults use — is
+promoted to the list's *icon*, so the view shows the icon and the word "Work".
+A tab has nowhere to put an icon, so it shows "Work" too rather than repeating
+the emoji in the text.
+
+The title inside the view is additionally **tidied**: `weekly-review` reads as
+`weekly review`. Only names written without spaces are touched. A hyphen you
+typed *between spaces you chose* is your own punctuation, and rewriting
+`Movies & TV - new` would be editing your prose rather than tidying a filename.
+Nothing is capitalised, because case is guesswork — `iphone` is not `Iphone`.
+There is a setting to turn it off and show the true filename everywhere.
+
+The trap in that, and the reason it is tested harder than it looks worth: the
+title is also the field that renames the file. If the tidied text were what sat
+in the field when it took focus, opening a list and touching its title would
+quietly rename `weekly_review.md` to `weekly review.md`. So the field shows the
+tidy version at rest and swaps to the **true** name the instant it is focused —
+what you edit is always what will be written. Remove that swap and the harness
+reports the file being renamed by a click that typed nothing.
+
 ## Where the title comes from
 
 Obsidian draws the view's title in `.view-header`, but only in some placements:

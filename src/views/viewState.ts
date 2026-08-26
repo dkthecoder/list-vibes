@@ -11,6 +11,7 @@
 
 import { SmartView } from "../model/store";
 import { Selection, sameSelection } from "./context";
+import { splitIcon } from "../model/parse";
 
 const SMART_VIEWS: SmartView[] = ["myday", "important", "planned", "all"];
 
@@ -103,8 +104,17 @@ export function selectionTitle(sel: Selection, listName?: string): string {
 		}
 	}
 	if (listName) return listName;
-	const base = sel.path.split("/").pop() ?? sel.path;
-	return base.replace(/\.md$/i, "");
+	const base = (sel.path.split("/").pop() ?? sel.path).replace(/\.md$/i, "");
+	/*
+	 * Minus a leading emoji, because that is the list's *icon*.
+	 *
+	 * Plenty of vaults name files "💼Work.md", and the parser promotes that
+	 * emoji to the list's icon and leaves "Work" as the name — so the view shows
+	 * an icon and the word. A tab has nowhere to put an icon, and repeating the
+	 * emoji in front of the text there made the tab and the view disagree about
+	 * what the list was called.
+	 */
+	return splitIcon(base).name;
 }
 
 /**

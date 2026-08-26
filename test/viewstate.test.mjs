@@ -329,3 +329,58 @@ describe("encodeTaskRef / decodeTaskRef", () => {
 		}
 	});
 });
+
+/**
+ * A tab's title, when the store has not caught up.
+ *
+ * The name of a list *is* its filename, so the path is the authority and is
+ * never stale. The store is a cache rebuilt from vault events, and between a
+ * rename landing and the reload finishing it answers with the old name or with
+ * nothing at all — which is how a tab came to sit there reading "Untitled list"
+ * beside a view whose own header said "Favourite animals".
+ */
+describe("selectionTitle falls back to the path", () => {
+	test("a list with no cached name is named by its file", () => {
+		assert.equal(
+			selectionTitle({ kind: "list", path: "lists/Favourite animals.md" }),
+			"Favourite animals"
+		);
+	});
+
+	test("nested folders do not leak into the name", () => {
+		assert.equal(
+			selectionTitle({ kind: "list", path: "a/b/c/Groceries.md" }),
+			"Groceries"
+		);
+	});
+
+	test("only the extension is stripped, not a dot in the name", () => {
+		assert.equal(selectionTitle({ kind: "list", path: "lists/v1.2 plans.md" }), "v1.2 plans");
+	});
+
+	test("a leading emoji is the list's icon, not part of its name", () => {
+		// Plenty of vaults name files this way, including the one this was built
+		// against, and the parser promotes that emoji to the list's icon — so the
+		// view shows an icon and the word "Work". A tab has nowhere to put an
+		// icon, and repeating it in the text made the two disagree about what the
+		// list was called.
+		assert.equal(selectionTitle({ kind: "list", path: "lists/💼Work.md" }), "Work");
+		assert.equal(selectionTitle({ kind: "list", path: "lists/🎓 Certifications.md" }), "Certifications");
+	});
+
+	test("but an emoji that is the whole name stays", () => {
+		// Promoting it would leave the tab with nothing at all to show.
+		assert.equal(selectionTitle({ kind: "list", path: "lists/🎮.md" }), "🎮");
+	});
+
+	test("and one in the middle is just a character", () => {
+		assert.equal(
+			selectionTitle({ kind: "list", path: "lists/Trip 🇬🇧 notes.md" }),
+			"Trip 🇬🇧 notes"
+		);
+	});
+
+	test("a smart view ignores the path entirely", () => {
+		assert.equal(selectionTitle({ kind: "smart", view: "myday" }), "My Day");
+	});
+});

@@ -48,6 +48,12 @@ export interface ListsSettings {
 	 * Only honoured where there is room for it; a narrow pane always overlays.
 	 */
 	pinDetail: boolean;
+	/**
+	 * Tidy a list's name for the title above it — separators shown as spaces.
+	 * Display only: the file keeps the name it has, and editing the title always
+	 * edits the real one.
+	 */
+	prettyTitles: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
 	/** Per-list layout override, keyed by file path. */
@@ -67,6 +73,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	importanceMode: "star",
 	defaultSort: "custom",
 	sortByList: {},
+	prettyTitles: true,
 	defaultView: "list",
 	viewByList: {},
 	openOnStartup: true,
@@ -226,6 +233,19 @@ export class ListsSettingTab extends PluginSettingTab {
 					this.plugin.refreshViews();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Tidy list titles")
+			.setDesc(
+				"Show a list's name with hyphens and underscores as spaces, so \"weekly-review\" reads as \"weekly review\". Only names written without spaces are touched — a name you typed spaces into is your own punctuation and is left exactly as it is. This changes the title only: the file keeps the name it has, the tab shows that name, and clicking into the title to rename always puts the real filename in front of you, so a tidied title can never rename a file by itself. Turn it off to show the true filename everywhere."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.prettyTitles).onChange(async (v) => {
+					this.plugin.settings.prettyTitles = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				})
+			);
 
 		new Setting(containerEl)
 			.setName("New lists start as")

@@ -15,6 +15,7 @@ import { todayISO } from "../src/model/store";
 import { SortKey } from "../src/model/sort";
 import { ListColor, ViewMode } from "../src/model/types";
 import { keyboardOverlap } from "../src/views/keyboard";
+import { makeEditableName } from "../src/ui/editableName";
 import { bindSwipeDismiss } from "../src/ui/swipeDismiss";
 
 installDomHelpers();
@@ -281,6 +282,10 @@ function paint(): void {
 
 paint();
 (window as unknown as { paint: () => void }).paint = paint;
+// The real inline-rename implementation, so a suite can drive it with a tidied
+// display value — the arrangement where a display flourish could rename a file.
+(window as unknown as { lvMakeEditableName: typeof makeEditableName }).lvMakeEditableName =
+	makeEditableName;
 (window as unknown as { lvSetListOnly: (v: boolean) => void }).lvSetListOnly = (v) => {
 	listOnly = v;
 	paint();

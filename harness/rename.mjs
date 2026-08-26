@@ -143,6 +143,75 @@ check(
 		"plaintext-only"
 );
 
+/* ------------------------------------------------------------------
+   A tidied title must never rename the file by itself
+
+   The title shows a list's name with separators as spaces —
+   `weekly_review` reads as `weekly review`. It is also the field that
+   renames the file when it is committed. Those two facts together are a
+   trap: if the tidied text were what sat in the field when it took
+   focus, opening a list and touching its title would quietly rename the
+   file to the tidied version.
+
+   So the field shows the tidy version at rest and the *true* name the
+   moment it is focused. What you edit is always what will be written.
+   ------------------------------------------------------------------ */
+
+const tidy = await page.evaluate(() => {
+	const host = document.body.appendChild(document.createElement("div"));
+	host.id = "tidy-probe";
+	const el = host.appendChild(document.createElement("span"));
+	// On window, not in a closure, so a later step can read what was committed.
+	window.lvTidyWrites = [];
+	window.lvMakeEditableName(el, {
+		value: "weekly_review",
+		display: "weekly review",
+		alwaysEditable: true,
+		onCommit: (next) => window.lvTidyWrites.push(next),
+	});
+	const atRest = el.textContent;
+
+	el.focus();
+	const onFocus = el.textContent;
+
+	// Blur without touching anything: an unchanged name must write nothing and
+	// go back to reading tidily.
+	el.blur();
+	return { atRest, onFocus, afterBlur: el.textContent, written: window.lvTidyWrites.slice() };
+});
+
+check("the title reads tidily at rest", tidy.atRest === "weekly review", tidy.atRest);
+check(
+	"and swaps to the real filename the moment it is focused",
+	tidy.onFocus === "weekly_review",
+	tidy.onFocus
+);
+check(
+	"so clicking in and out renames nothing",
+	tidy.written.length === 0,
+	JSON.stringify(tidy.written)
+);
+check(
+	"and it goes back to reading tidily afterwards",
+	tidy.afterBlur === "weekly review",
+	tidy.afterBlur
+);
+
+// And a real edit still writes exactly what was typed — separators and all,
+// rather than the tidied reading of it.
+const edited = await page.evaluate(() => {
+	const el = document.querySelector("#tidy-probe span");
+	el.focus();
+	el.textContent = "spring_cleaning";
+	el.blur();
+	return window.lvTidyWrites.slice();
+});
+check(
+	"a real edit is written verbatim, underscores included",
+	edited.length === 1 && edited[0] === "spring_cleaning",
+	JSON.stringify(edited)
+);
+
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

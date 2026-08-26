@@ -17,8 +17,18 @@
  */
 
 export interface EditableNameOptions {
-	/** The current name. Restored verbatim on cancel or on an empty commit. */
+	/**
+	 * The current name — the real one, the one that is also the filename. This
+	 * is what the field is seeded with when it takes focus, what an unchanged
+	 * commit is compared against, and what gets written.
+	 */
 	value: string;
+	/**
+	 * What to show while nobody is editing, if that differs — a tidied title,
+	 * say. Editing always swaps back to `value`, so what you edit is what will
+	 * be written and a display flourish can never rename a file by itself.
+	 */
+	display?: string;
 	/** Called only when the name actually changed to something non-empty. */
 	onCommit: (next: string) => void;
 	/**
@@ -44,8 +54,9 @@ export function makeEditableName(
 ): EditableName {
 	const always = opts.alwaysEditable === true;
 	let editing = always;
+	const shown = () => opts.display ?? opts.value;
 
-	el.setText(opts.value);
+	el.setText(shown());
 	el.setAttribute("role", "textbox");
 	el.setAttribute("spellcheck", "false");
 	el.setAttribute("aria-label", "List name, edit to rename the file");
@@ -72,20 +83,28 @@ export function makeEditableName(
 		// An empty name would be an unopenable file, and an unchanged one is not
 		// worth a rename — either way, put the original back and write nothing.
 		if (!next || next === opts.value) {
-			el.setText(opts.value);
+			el.setText(shown());
 			return;
 		}
 		opts.onCommit(next);
 	};
 
 	const cancel = () => {
-		el.setText(opts.value);
+		el.setText(shown());
 		stop();
 		el.blur();
 	};
 
+	// Focus is where the tidied title gives way to the real filename. It fires
+	// for a click into an always-editable header as well as for `edit()`, which
+	// is why it lives here rather than only in `edit`.
+	el.addEventListener("focus", () => {
+		if (el.textContent !== opts.value) el.setText(opts.value);
+	});
+
 	el.addEventListener("blur", () => {
 		if (editing) commit();
+		else if (el.textContent !== shown()) el.setText(shown());
 	});
 
 	el.addEventListener("keydown", (e) => {
@@ -105,6 +124,7 @@ export function makeEditableName(
 
 	const edit = () => {
 		setEditing(true);
+		el.setText(opts.value);
 		el.focus();
 		selectAll(el);
 	};
