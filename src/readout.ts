@@ -273,6 +273,16 @@ export class KeyboardReadout {
 			});
 			// A cap, so a readout left on all day cannot grow without bound.
 			if (this.samples.length > 200) this.samples.splice(0, 100);
+			/*
+			 * Written on every change of shape, not only on the way out.
+			 *
+			 * The fault being diagnosed is one where the whole app disappears, so
+			 * "toggle it off afterwards" is an instruction that assumes the thing
+			 * under test behaves. A handful of writes per keyboard is cheap, and
+			 * it means the report survives a crash, a force-quit, or simply
+			 * forgetting.
+			 */
+			this.report();
 		}
 
 		this.el.setText(
