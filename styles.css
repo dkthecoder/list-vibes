@@ -1771,6 +1771,64 @@ body .lv-root.is-keyboard-open {
 }
 
 /*
+ * Core pads `.view-content` by the keyboard's height. We must not take it.
+ *
+ * This is the fault. Not the app container, which was correct all along.
+ *
+ * Our root element *is* the view's `.view-content` — Obsidian hands a plugin
+ * that element and the plugin adds its own class to it — and core pads it by
+ * `max(var(--keyboard-height), 32px)`, measured on the device as 32px at rest
+ * and 463.143px with the keyboard up, which is `--keyboard-height` exactly.
+ *
+ * For a note that is right, and invisible. The editor inside is one tall
+ * scroller, so bottom padding only ever adds somewhere to scroll past the last
+ * line — which is why this never happens in a markdown file, and why eight
+ * rounds of looking went everywhere except here.
+ *
+ * For a fixed layout it is fatal. This root is `height: 100%` of a leaf core
+ * has already shortened to `100vh - keyboard`; 463px of padding then eats the
+ * content box, and the numbers off the device are unambiguous:
+ *
+ *     .view-content.lv-root   h 475   padding-bottom 463.143   ->  12px of content
+ *     .lv-shell               h 0
+ *     .lv-pane .lv-tasks      h 0
+ *
+ * Zero. The whole view collapses, and on a phone the view is the screen, which
+ * is the "everything goes blank" this has been chasing. In landscape there is
+ * not even the 12px.
+ *
+ * **The variable, not the property.** The obvious fix is to override
+ * `padding-bottom` and out-specify core — and that is a fight against a
+ * selector nobody here has read. Core's rule beats a plain `.lv-root`, so it is
+ * more specific than one class; how much more is a guess, and shipping a guess
+ * about specificity is what the last several rounds were.
+ *
+ * A custom property does not need the fight. `--keyboard-height` inherits, and
+ * a value set here shadows it for this subtree only — so core's own formula,
+ * whatever selector carries it, resolves against this and yields
+ * `max(0px, 32px)`. The rule still applies and still wins; it simply computes
+ * to something survivable. Nothing of core's is overridden, and the answer does
+ * not depend on a selector this file cannot see.
+ *
+ * `--lv-keyboard-height` is deliberately a separate variable, set from JS, so
+ * the room the keyboard genuinely needs is still reserved one level in, on the
+ * scroller, where padding does what it did in the editor: adds somewhere to
+ * scroll to.
+ *
+ * The `padding-bottom` override stays underneath as well. If it wins the
+ * cascade the scroller carries the room instead, which is also correct; if it
+ * loses, the shadowed variable has already made the rule harmless. Neither
+ * depends on the other.
+ */
+.lv-root {
+	--keyboard-height: 0px;
+}
+
+body.is-mobile .lv-root {
+	padding-bottom: 0;
+}
+
+/*
  * Room at the end of the list for the keyboard — and only while there is one.
  *
  * This reserved `max(40vh, …)` unconditionally for a while, which is to say it

@@ -391,37 +391,48 @@ core already runs on the document root, applied one level down. When it fires it
 logs which box it caught, so a recurrence names its own cause instead of
 starting another round of guessing.
 
-**And what core does with the keyboard is now read rather than remembered.** For
-several rounds this section described a fault that does not exist. The theory
-was that some Android devices resize the WebView *and* report a keyboard height,
-so core's cap takes it off twice and leaves the app `screen − 2 × keyboard`
-tall. It was arithmetic that matched a photograph, and it was wrong.
+**And core's own `.view-content` padding is neutralised, which was the fault all
+along.** Not the app container. Not Android. Ours, and in plain sight.
 
-Obsidian's `app.css` is bundled inside the app, so nobody in the argument had
-read it. But it is loaded in the same document the plugin runs in, and
-`document.styleSheets` enumerates it — so the plugin now goes and looks, on the
-device, and writes what it finds to a note in the vault. The rules are real and
-verbatim:
+A plugin's root element *is* the view's `.view-content` — Obsidian hands you that
+element and you add your class to it — and core pads it:
 
 ```css
-:root                                            { --keyboard-height: 0px; }
-body.is-mobile .app-container                    { max-height: calc(100vh - var(--keyboard-height)); }
-body.is-mobile.keyboard-animating .app-container { max-height: 100vh; }
+padding-bottom: max(var(--keyboard-height), 32px);
 ```
 
-And the measurements say they behave. On an Android phone with the keyboard up:
-`innerHeight` 891, `100vh` 891, `100dvh` 891, `visualViewport.height` 891, gap
-0, `--keyboard-height` 463, `.app-container` 428. **Nothing resized.** The
-keyboard is subtracted exactly once, and 428 + 463 is the screen.
+For a note that is right and invisible: the editor inside is one tall scroller,
+so bottom padding just adds somewhere to scroll past the last line. For a fixed
+`height: 100%` layout inside a leaf core has already shortened to
+`100vh − keyboard`, it eats the content box. Read off an Android phone with the
+keyboard up:
 
-So the override was aimed at a fault this device does not have, and the samples
-confirm it never once applied — the class it depended on is absent from every
-row. It has been deleted rather than left standing, along with the detection
-behind it. What is worth keeping is the lesson: three builds were spent
-escalating the *mechanism* — a CSS rule, then a more specific rule, then inline
-styles — when the thing that needed checking was the *premise*. A stylesheet
-quoted from memory is not evidence, and it was cheaper to read it than to argue
-about it.
+```
+.view-content.lv-root   h 475   padding-bottom 463.143   ->  12px of content
+.lv-shell               h 0
+.lv-pane .lv-tasks      h 0
+```
+
+Zero. On a phone the view is the screen, so the screen goes blank — and in
+landscape there is not even the 12px. That is the whole bug, and it explains
+every observation that made it look like something else: invisible in a markdown
+file because the editor absorbs the padding, absent from the Quick Switcher
+because a modal is not a `.view-content`, and untouched by three rounds of
+overriding `.app-container`, which was never involved.
+
+**The fix is the variable, not the property.** Overriding `padding-bottom` means
+out-specifying a selector nobody had read — core's beats a plain `.lv-root`, but
+by how much is a guess. `--keyboard-height` inherits, so setting it on the root
+shadows it for that subtree, core's own formula resolves against it and yields
+`max(0px, 32px)`, and no cascade is fought. `harness/collapse.mjs` pitches core's
+stand-in rule at four classes deep on purpose: remove the shadowed variable and
+it reports `pane=0px` — the device symptom, reproduced locally — and it reports
+the same with the `padding-bottom` override still in place, which is the fix that
+would have shipped and failed a fourth time.
+
+That suite exists because the others modelled `.view-content` and `.lv-root` as
+two elements when Obsidian makes them one. Eight rounds of tests could not see a
+rule aimed at a class the harness never put on the root.
 
 **And nothing else.** The view does not shorten itself, lift anything, or reset
 the page scroll for the keyboard. The webview slides the whole app upward when
