@@ -1,10 +1,15 @@
 # List Vibes
 
-A Microsoft To Do–style task app built on a folder of markdown files.
+An Obsidian plugin that turns a folder of markdown files into to-do lists.
+
+Because how the flip can we make AI Generated content thats super realistic but no one can do a todo list/remidners app correctly 😤
 
 One file is a list. One line is a task. There is no database, no index and no
 cache — open any of these files in the editor and you are looking at exactly
-what the plugin is looking at.
+what the plugin is looking at. The alternative most Obsidian task plugins take is
+one file per task, which scatters your todos across hundreds of files and then
+needs an index, a query language and a filter UI to get them back on screen. A
+list is already a list.
 
 ## Features
 
@@ -12,25 +17,25 @@ what the plugin is looking at.
 
 - A folder of `.md` files is your lists. Add a file, get a list.
 - Each list gets an **icon** and a **colour**. The icon can be a leading emoji in
-  the filename (`💼Work.md`) or set from the list menu; both are stored in the
+  the filename (`💼Work.md`) or picked from the list menu; both live in the
   file's frontmatter.
 - **Rename in place** — double-click a list's name. It renames the file, and
   every open tab follows.
-- **Tidy titles** turn `my-work-list.md` into "My work list" for display, without
-  touching the filename. Toggleable if you want the true name.
-- Open a list **in the sidebar** or **as a tab**. In tab mode the sidebar stays a
-  picker, the way the file explorer works.
+- **Tidy titles** show `my-work-list.md` as "My work list" without touching the
+  filename. Toggle it off if you want the true name.
+- Work in the **sidebar** or open lists **as tabs**. In tab mode the sidebar
+  stays a picker, the way the file explorer works.
 
 ### Tasks
 
 - Tick, add, rename, delete, and **drag to reorder**.
 - **Steps** — nested subtasks with an "n of m" counter. Can be switched off.
-- **Notes** — a description under any task, with the first line shown faintly
-  beneath the title in the list.
-- **Importance** — a single star, or a 1–5 star rating if you prefer more room.
+- **Notes** — a description on any task, with its first line shown faintly under
+  the title in the list.
+- **Importance** — a single star, or a 1–5 rating if you want more room.
 - **Due dates**, **scheduled dates**, **reminders**, and **My Day**.
-- **Repeating tasks** — `🔁 every week`. Ticking one writes the next occurrence.
-- **Completed section** — collapsed, expanded, or hidden, per your setting.
+- **Repeating tasks** — `🔁 every week`. Ticking one leaves the next behind.
+- **Completed section** — collapsed, expanded or hidden.
 - Completion and creation stamps, optionally **with the time**:
   `✅ 2026-08-26T14:32`.
 
@@ -38,41 +43,57 @@ what the plugin is looking at.
 
 - **My Day**, **Important**, **Planned** and **Tasks** — cross-list views that
   read every list in the folder.
-- **Rows or post-its** — a list layout or a card wall, chosen per list or as a
-  default.
+- **Rows or post-its** — a list layout or a card wall, per list or as a default.
 - **Sorting** — custom order, importance, due date, date created (newest or
-  oldest), or alphabetical. Remembered per list.
+  oldest), or alphabetical. Remembered per list, and never written to your
+  files: changing a sort cannot touch a byte of markdown.
 
 ### The detail panel
 
 - Tapping a task opens it in **Obsidian's own right panel** — the same one
-  Backlinks and Outline use. It docks, collapses, resizes and, on a phone,
-  swipes away, because it is a real Obsidian view rather than an overlay
-  pretending to be one.
+  Backlinks and Outline use. It docks, collapses, resizes, and swipes away on a
+  phone, because it is a real Obsidian view rather than an overlay pretending to
+  be one.
 - Opened from anywhere else, it offers a **fuzzy task search** across every list.
-- Fields grow as you type rather than sitting at a fixed size.
+- Fields grow as you type instead of sitting at a fixed size.
 
 ### It stays markdown
 
 - Reads **both** the [Obsidian Tasks](https://publish.obsidian.md/tasks/) emoji
-  dialect and **Dataview** inline fields. Writes whichever you choose.
-- Files are edited **one line at a time** — never re-serialised from a parsed
-  model — so nothing the plugin does not understand is ever rewritten or lost.
-- **Promote any task to its own note** when a single line stops being enough. The
-  line becomes a link; the list still shows it inline.
+  dialect and **Dataview** inline fields. Writes whichever you choose — so
+  switching the setting never breaks what is already on disk.
+- Files are edited **one line at a time**, never re-serialised from a parsed
+  model, so nothing the plugin does not understand is rewritten or lost.
+- **Promote a task to its own note** when one line stops being enough. The line
+  becomes a link; the list still shows it inline.
 
 ### Everywhere
 
-- One view on desktop, tablet and phone. The layout collapses from three panes
-  to two to one as the space runs out.
+- One view on desktop, tablet and phone, collapsing from three panes to two to
+  one as the space runs out.
 - **No colours of its own.** Every colour comes from an Obsidian token, so the
-  plugin follows your theme — including ones it has never seen. There is a test
-  suite that repaints the whole palette and fails if a single colour ignores it.
+  plugin follows your theme — including themes it has never seen. A test suite
+  repaints the entire palette and fails if a single colour ignores it.
 
 ### Commands
 
 `Open List Vibes` · `Open My Day` · `Open a list in a new tab` · `Add a task` ·
 `Add a task to My Day`
+
+## Safety
+
+The plugin never rebuilds a file from its parsed model. Every task carries the
+exact original line it came from, and every edit is a surgical splice into that
+string. A line the plugin didn't mean to change cannot drift.
+
+Writes take one of two paths, which is not optional:
+
+- File open in an editor → the **Editor API**, so cursor, selection and folds survive.
+- File not open → **`Vault.process`**, the atomic read-modify-write.
+
+Line numbers are re-verified against the file immediately before every write; if
+the line has changed underneath us the edit is abandoned rather than applied to
+the wrong place.
 
 ## Storage format
 
@@ -107,93 +128,22 @@ showCompleted: collapsed
 | My Day | `☀️` | this plugin |
 | Reminder | `⏰ 11:00` | this plugin |
 
-Most of that is the Obsidian Tasks emoji dialect, so existing vaults parse with
-no migration and the files stay readable by the Tasks plugin, TaskForge and
-Finalist. **Dataview inline fields (`[due:: 2026-08-24]`) are always parsed too**;
-the setting only controls which format gets written, so switching it never breaks
-anything already on disk.
+A star rating maps straight onto the five Obsidian Tasks priority glyphs — 5★
+`🔺`, 4★ `⏫`, 3★ `🔼`, 2★ `🔽`, 1★ `⏬` — so switching between star and rating
+mode never rewrites a file.
 
-An emoji at the start of a filename (`📺Movies & TV.md`) is used as the list icon
-and removed from the display name.
+An emoji at the start of a filename (`📺Movies & TV.md`) becomes the list's icon
+and is dropped from the displayed name.
 
-Colour and layout are written to the list's frontmatter. That write goes through
-our own single-key editor rather than Obsidian's `processFrontMatter`, which
-round-trips the whole block through a YAML parser and can reorder keys — these
-files are yours, and one of them is a Kanban board whose plugin reads its own
-frontmatter back. Only the line being set is ever touched.
-
-## Importance and sorting
-
-Importance has two modes, set in settings:
-
-- **Star** — on or off, the Microsoft To Do behaviour.
-- **Rating** — 0 to 5 stars, where 5 is most important. Tapping the star you are
-  already on clears it back to zero, so every value is reachable without a
-  separate clear button.
-
-Both write the same priority field. The five Obsidian Tasks glyphs map straight
-onto the rating (5★ `🔺`, 4★ `⏫`, 3★ `🔼`, 2★ `🔽`, 1★ `⏬`), so switching the
-setting never rewrites a file, and a task rated four stars shows as a filled star
-in star mode.
-
-Each list can be sorted independently: custom (the file's own order), importance,
-due date, date created newest or oldest, and alphabetical either way. **Sorting is
-view-only** — it is stored in plugin settings, never written to your markdown, so
-changing it cannot touch a byte of the file. Custom order is the only mode that
-shows the file's `##` headings as section dividers, since the others break that
-grouping by definition.
-
-Dragging is only offered under **custom** sort, and never in a smart view.
-Custom sort *is* the file's order, so moving a row is a real edit and the new
-position is what you see next time. Under a computed sort, dropping a task
-between two others would write a change the sort immediately undoes — which
-reads as the drag having failed. A smart view has no single order to rewrite at
-all: its rows come from several files at once.
-
-There is deliberately no "last modified" sort for tasks. A markdown line has no
-modified timestamp — only the file does — so every task in a list would share one
-value. Date created is the honest version of that, and needs the creation-date
-setting switched on.
-
-## Safety
-
-The plugin never rebuilds a file from its parsed model. Every task carries the
-exact original line it came from, and every edit is a surgical splice into that
-string. A line the plugin didn't mean to change cannot drift.
-
-Writes take one of two paths, which is not optional:
-
-- File open in an editor → the **Editor API**, so cursor, selection and folds survive.
-- File not open → **`Vault.process`**, the atomic read-modify-write.
-
-Line numbers are re-verified against the file immediately before every write; if
-the line has changed underneath us the edit is abandoned rather than applied to
-the wrong place.
-
-## Repainting
-
-A repaint names what it affects, and anything it does not name is left on screen
-untouched. A file change rebuilds the task list; expanding a date row rebuilds
-the detail panel and nothing else. Only a genuine change of layout shape — the
-pane switching, the width crossing the breakpoint — rebuilds the tree.
-
-Without that, editing a task made the whole view flash: a click wrote the file,
-the vault event came back about 30ms later, and everything was destroyed and
-rebuilt underneath the pointer.
-
-## Fonts
-
-The plugin reads `--font-interface`, not `--font-interface-theme`. The latter is
-an input hook for themes, and Obsidian defaults it to a font registered over
-`unicode-range: U+0` — it renders no glyphs. Read it directly and the text falls
-back to the browser's default serif, worst of all when a theme is well behaved
-and sets no font of its own.
+---
 
 ## Folder
 
 Default `lists/`, configurable.
 
-Do **not** use a dot-prefixed folder like `.lists/`. 
+Do **not** use a dot-prefixed folder like `.lists/`. Obsidian excludes anything
+starting with a dot from the vault entirely, so the plugin would never see its
+own files.
 
 ## Development
 
@@ -201,8 +151,8 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 294 tests: parsing, sorting, frontmatter, view state, writes
-npm run test:ui  # drives drags, renames, titles and mobile typing in a browser
+npm test         # unit tests: parsing, sorting, frontmatter, view state, writes
+npm run test:ui  # drives the real UI in a browser: drags, renames, layout, theming
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```
 
@@ -238,7 +188,6 @@ renders the real `WorkspaceMobileDrawer`, which exercises the same code path the
 phone uses. To get it onto an actual phone you need the built files inside the
 vault's `.obsidian/plugins/list-vibes/` and that folder syncing to the device —
 note that Obsidian Sync excludes plugin files unless you explicitly enable it.
-
 
 ## AI
 
