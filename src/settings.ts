@@ -318,24 +318,5 @@ export class ListsSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			);
-
-		/*
-		 * Temporary, and here rather than only in the command palette because
-		 * the device this is for is a tablet, and the person holding it said
-		 * plainly that they cannot run commands on it. A diagnostic that can
-		 * only be reached by a route the one affected user does not have is not
-		 * a diagnostic. Goes when the keyboard fault closes.
-		 */
-		new Setting(containerEl)
-			.setName("Show the keyboard readout")
-			.setDesc(
-				"A panel of live measurements for the mobile keyboard. Turn it on, tap a text field, let the keyboard settle, dismiss it, then turn this off — a report is written to \"List Vibes keyboard report.md\" at the top of the vault. Temporary."
-			)
-			.addToggle((t) =>
-				t.setValue(this.plugin.readout.open).onChange((v) => {
-					if (v) this.plugin.readout.show();
-					else this.plugin.readout.close();
-				})
-			);
 	}
 }

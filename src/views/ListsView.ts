@@ -681,9 +681,6 @@ export class ListsView extends ItemView {
 				if (!resetIfScrolled(el)) return;
 				const name = String(el.className || el.tagName).split(" ")[0];
 				console.debug("[List Vibes] put back a scrolled ancestor:", name, was);
-				// Kept on the readout too, because the interesting catch happens
-				// on a device where nobody is watching a console.
-				this.plugin.readout.noteCatch(`${name}@${was}`);
 			});
 		}
 	}

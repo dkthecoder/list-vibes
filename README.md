@@ -434,6 +434,20 @@ That suite exists because the others modelled `.view-content` and `.lv-root` as
 two elements when Obsidian makes them one. Eight rounds of tests could not see a
 rule aimed at a class the harness never put on the root.
 
+The two files that found it are gone from the plugin. `src/readout.ts` and
+`src/diagnostics.ts` — an on-screen panel of live numbers and a routine that
+read Obsidian's own stylesheet and wrote a report into the vault — existed
+because a tablet with no cable has no console. They were right for that
+constraint and wrong to keep: shipping a diagnostic to every user because one
+device was hard to reach is a tax on everybody else.
+
+What replaced them is `tools/live-dump.js`, which is not part of the plugin at
+all. Obsidian supports Android remote debugging over `chrome://inspect`, so the
+console exists after all; the snippet is pasted into it and writes the same dump
+to the vault, because the one thing remote debugging does badly is getting a
+large object out of a console and into a conversation. Nothing ships, and the
+next round of this starts with a real inspector instead of a screenshot.
+
 **And nothing else.** The view does not shorten itself, lift anything, or reset
 the page scroll for the keyboard. The webview slides the whole app upward when
 the keyboard rises — core's own editor does it too — so it is not a plugin's to

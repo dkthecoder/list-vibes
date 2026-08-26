@@ -18,34 +18,15 @@ import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
 import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
-import { KeyboardReadout } from "./readout";
-
-/** Temporary, while the mobile keyboard fault is open. See src/diagnostics.ts. */
-const KEYBOARD_REPORT = "List Vibes keyboard report.md";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
 	store!: ListStore;
 	mutator!: Mutator;
-	/** Temporary, while the mobile keyboard fault is open. See src/readout.ts. */
-	readout!: KeyboardReadout;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
 
-		/*
-		 * The report lands at the top of the vault rather than in the lists
-		 * folder: it is not a list, and a diagnostic that shows up as one is a
-		 * bug of its own. Vault root so it syncs like any other note and can be
-		 * read on a desktop instead of photographed on a tablet.
-		 */
-		this.readout = new KeyboardReadout(window, (body) => {
-			void this.app.vault.adapter
-				.write(KEYBOARD_REPORT, body)
-				.then(() => new Notice(`Keyboard report written to ${KEYBOARD_REPORT}`, 5000))
-				.catch((e) => new Notice(`Could not write the report: ${String(e)}`, 8000));
-		});
-		this.register(() => this.readout.close());
 
 		this.store = new ListStore(this.app, this.settings.folder);
 		this.mutator = new Mutator(this.app, {
@@ -209,17 +190,6 @@ export default class ListsPlugin extends Plugin {
 			id: "quick-add-today",
 			name: "Add a task to My Day",
 			callback: () => this.quickAdd({ myDay: true, due: todayISO() }),
-		});
-
-		/*
-		 * Temporary, while the mobile keyboard fault is open. A phone with no
-		 * cable has no console, so the numbers have to be on the screen to be
-		 * photographed. Run it again to put it away.
-		 */
-		this.addCommand({
-			id: "keyboard-readout",
-			name: "Show the keyboard readout",
-			callback: () => this.readout.toggle(),
 		});
 	}
 
