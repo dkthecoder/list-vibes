@@ -585,34 +585,20 @@ export class ListsView extends ItemView {
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
 
 			/*
-			 * Nothing is capped, lifted, or scrolled back here, and that is the
-			 * conclusion of four wrong attempts rather than an omission.
+			 * Nothing is capped, lifted or scrolled back from here, and the
+			 * omission is deliberate. The webview slides the whole app upward
+			 * when the keyboard rises — Obsidian's own editor does it too — so
+			 * it is not this view's to correct, and correcting it fights
+			 * behaviour the user meets everywhere else in the app.
 			 *
-			 * The reported symptom was the whole screen sliding upward when the
-			 * keyboard rose. It turns out Obsidian's own editor does the same on
-			 * the same device, so it is the webview moving the entire app and not
-			 * anything this view does — and every correction aimed at it was
-			 * aimed at the wrong target. Two of them (a height cap, and resetting
-			 * the page scroll) were actively fighting behaviour that is the
-			 * platform's to decide, in an app where the user already lives with
-			 * it everywhere else.
-			 *
-			 * What made this view *worse* than the editor was never the shift. It
-			 * was that the editor is one tall scroller with the caret inside it,
-			 * so a shift still leaves it something to show and somewhere to
-			 * scroll, whereas the field being tapped here sat in a bar pinned
-			 * outside every scroller, where nothing could bring it anywhere. That
-			 * is fixed by moving the field into the scroller, not by arguing with
-			 * the viewport.
-			 *
-			 * So the measurement is kept for one purpose only: reserving room at
-			 * the end of the scroller, which is what Obsidian does for its own.
+			 * The measurement earns its keep in one place only: reserving room
+			 * at the end of the scroller, which is what core does for its own.
 			 */
 
-			// The field may still be scrolled out
-			// of its own list. Only its own scroller is moved: `scrollIntoView`
-			// walks every ancestor and, with ours unable to scroll, ends up
-			// asking the page to move — which is the fault this is here to avoid.
+			// The field may still be scrolled out of its own list. Only that
+			// scroller is moved: `scrollIntoView` walks every ancestor and, with
+			// ours unable to scroll, ends up asking the page to move — which is
+			// the fault this exists to avoid.
 			win.requestAnimationFrame(() => {
 				const active = this.contentEl.doc.activeElement;
 				if (active instanceof HTMLElement && this.contentEl.contains(active)) {

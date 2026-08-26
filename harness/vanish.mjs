@@ -1,16 +1,17 @@
 /**
- * Reproduce the vanishing view, faithfully.
+ * The view under a real pane's constraints, with a keyboard up.
  *
- * The mobile harness could not reproduce it because its panels are not
- * height-constrained — the detail panel simply grew taller, which it cannot do
- * inside a real pane. This builds the ancestry Obsidian actually provides:
- * a fixed-height leaf, `.workspace-leaf-content` with `overflow: hidden`, and —
- * in a sidebar, which is where a tablet usually shows this — a `.view-content`
- * with `overflow: auto`, a genuine scroller nobody was guarding.
+ * The other mobile suite renders into panels that can grow, which a workspace
+ * leaf cannot — so a panel that should have been squeezed simply got taller and
+ * nothing looked wrong. This builds the ancestry Obsidian actually provides:
+ * a fixed-height leaf with `contain: strict`, `.workspace-leaf-content` at
+ * `overflow: hidden`, and — in a sidebar, which is where a tablet usually shows
+ * this — a `.view-content` at `overflow: auto`, a genuine scroller.
  *
- * The bug is not visual. It is that focusing a field near the bottom makes the
- * browser scroll one of those ancestors, and an ancestor with no scrollbar can
- * never be scrolled back.
+ * What it guards is mostly an *absence*: the view must not shorten itself or
+ * lift anything for a keyboard the platform has already accounted for. An
+ * absence is not something a screenshot shows and is easy to reintroduce while
+ * fixing something else.
  */
 import { chromium } from "playwright";
 

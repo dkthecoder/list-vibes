@@ -8,19 +8,18 @@
  * it reports nothing. Neither is reliable alone, so both are read and the larger
  * is taken.
  *
- * The arithmetic is separated from the reading of it because it has been wrong
- * three times, in ways no screenshot showed: a number that is merely too large
- * does not look wrong, it looks like the view went blank.
+ * The arithmetic is separated from the reading of it because it is testable and
+ * the failure is invisible: a number that is merely too large does not look
+ * wrong, it looks like the view went blank.
  */
 
 /**
  * The most of a view a keyboard is allowed to be believed to cover.
  *
  * The measurement comes from the whole screen and the view may be a fraction of
- * it — a sidebar, a split, a tablet pane. An unclamped number in that case is
- * not just large, it is meaningless here, and anything laid out from it puts
- * the content past the bottom of a box that cannot scroll far enough to bring
- * it back.
+ * it — a sidebar, a split, a tablet pane. An unclamped number there is not
+ * merely large but meaningless, and anything laid out from it puts content past
+ * the bottom of a box that cannot scroll far enough to bring it back.
  */
 export const MAX_FRACTION = 0.6;
 

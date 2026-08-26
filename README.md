@@ -310,13 +310,6 @@ sidebar. In a *narrow pane* that arrow does something nothing else does — it
 moves between the picker and the list — so it stays there and is gone from a
 tab on a phone. Both halves are asserted.
 
-Every field you can type into is at least 16px on touch. iOS zooms a WKWebView
-in on a focused field with a smaller font, and a zoom moves the page up *and
-sideways*, which is one description of the remaining keyboard fault and is
-something no scroll can do. At Obsidian's default reading size this changes
-nothing — `--font-ui-medium` is already `--font-text-size` on mobile — so it is
-a floor rather than a change of scale.
-
 ## Typing on mobile
 
 Two faults lived here, and both came from the same mistake: rebuilding DOM the
@@ -330,122 +323,65 @@ out **reversed**. Expanding is now a class rather than a repaint, and a repaint
 from anywhere else is held back while focus is in a field and released when it
 leaves. A file change can wait; a half-typed word cannot.
 
-### The keyboard, and four wrong answers
+### The keyboard
 
-The reported symptom was that raising the keyboard blanked the view — and later,
-more precisely, that *the whole screen got pushed up*. Four fixes were aimed at
-that, none worked, and each was a variation on the same idea: measure the
-keyboard and subtract it from something.
+Tapping a field on a phone or tablet used to blank the view, and the reason is
+worth writing down because the fix looks like nothing and the wrong fixes all
+look sensible.
 
-The thing that settled it was not code. It was checking whether Obsidian's own
-editor did the same thing on the same device. **It does.** So the webview is
-sliding the entire app upward when the keyboard rises, it does it to core's UI
-as readily as to this plugin's, and it is not a plugin's to prevent. Two of the
-four fixes — capping the view's height, resetting the page scroll — were
-actively fighting a behaviour the user already lives with everywhere else in the
-app. Both are gone.
+iOS shrinks the **visual** viewport when the keyboard opens but leaves the
+layout viewport alone, then scroll-into-views the focused field. A scroll
+container that can absorb that does, and nothing else moves. If none can, the
+browser scrolls the *page* — and a `height: 100vh` app shell scrolled to a
+region with nothing painted is a blank screen that comes back when the keyboard
+closes. ([Apple 723420](https://developer.apple.com/forums/thread/723420),
+[WebKit 207049](https://bugs.webkit.org/show_bug.cgi?id=207049),
+[192564](https://bugs.webkit.org/show_bug.cgi?id=192564).)
 
-What was genuinely wrong was subtler, and it is a layout question rather than a
-viewport one. The editor survives the shift because it is **one tall scroller
-with the caret inside it**: whatever the page does, the editor still has content
-to show and somewhere to scroll, so the caret can always be brought back. This
-plugin put the field you tap — the add box — in a bar pinned *below* the
-scroller, outside every scrollable thing in the view. Nothing could bring it
-anywhere. The same shift that merely nudges the editor left this view showing
-empty space.
+A markdown note never triggers it, which is the clue that matters: its caret
+lives inside `.cm-scroller`, which can always scroll.
 
-So on touch the add box is now the last row **inside** the list's scroller,
-after the tasks, and typing into it behaves like typing in a note. On a desktop
-it stays pinned below the list, where a bar always within reach is simply better
-and there is no keyboard to dodge. The harness asserts both halves, because each
-one is the other's regression.
+So two rules here, and they are the whole answer:
 
-The keyboard is still measured, and now does exactly one thing: reserve room at
-the end of the scroller so the last row can be scrolled clear of it. Padding
-inside a scroll container can only ever add room to scroll into — it cannot push
-anything off screen, which is what distinguishes it from every one of the four
-fixes that failed. It is also what Obsidian does: its settings scroller is
-`padding-bottom: max(var(--keyboard-height), var(--size-4-16))`, its mobile
-toolbar is positioned from the same variable, and the editor adds it beneath the
-note.
+**Every field you can type into is inside a scroller.** On touch the add box is
+the last row *inside* the list rather than a bar pinned below it, where nothing
+could have revealed it. On a desktop it stays pinned — there is no keyboard to
+dodge and a bar in reach is better.
 
-Two readings feed that measurement, because neither is reliable alone. Obsidian
-publishes `--keyboard-height`, which is the platform's real inset but is
-undocumented and absent on a desktop; `visualViewport` is a web standard and
-reports on iOS, but on Android the webview is usually not resized, so it reports
-nothing. The larger wins, differences under 120px are treated as browser chrome
-rather than a keyboard, and the answer is clamped against the view's own height —
-the measurement comes from the whole screen and the view may be a sidebar or a
-tablet split. That arithmetic lives in `keyboardOverlap` and is unit-tested,
-because a number that is only slightly too big does not look wrong, it looks like
-the view went blank.
+**That scroller always has room to scroll into, keyboard or not.** Reserving it
+only once the keyboard is measured loses a race it cannot win: the measurement
+arrives after focus, by which point the browser has already looked for somewhere
+to reveal the field and moved the page instead. A short list had no overflow at
+the moment it mattered. `40vh` is about a keyboard's worth, and the same trick
+core plays in the editor, where `updateBottomPadding` reserves roughly half the
+view beneath the note. The harness pins the race directly: shrink the pane to a
+phone's height and the scroller must already be scrollable with nothing tapped.
 
-Obsidian's developer documentation says nothing about any of this. Its [mobile
+**And nothing else.** The view does not shorten itself, lift anything, or reset
+the page scroll for the keyboard. The webview slides the whole app upward when
+the keyboard rises — core's own editor does it too — so it is not a plugin's to
+correct, and correcting it means subtracting a keyboard Obsidian has often
+already subtracted. `harness/vanish.mjs` asserts those absences under a faithful
+pane, because an absence is not something a screenshot shows.
+
+Two properties are deliberately **not** used. `-webkit-overflow-scrolling: touch`
+is dead weight: WebKit's own source shows its compositing branch is unreachable
+once `asyncOverflowScrollingEnabled` is on — the default in every WKWebView —
+and Blink removed the property outright, so on Android it is dropped at parse
+time. Its one surviving effect on iOS is silently forcing `z-index: 0`. Core
+uses it zero times. And nothing reads `--keyboard-height` to lay anything out;
+it feeds one padding and one class, and that is all.
+
+Every field is also at least 16px on touch, because iOS zooms a WKWebView in on
+a smaller one. At Obsidian's default reading size this changes nothing —
+`--font-ui-medium` is already `--font-text-size` on mobile — so it is a floor
+rather than a change of scale.
+
+Obsidian's own documentation says nothing about any of this. Its [mobile
 development page](https://docs.obsidian.md/Plugins/Getting+started/Mobile+development)
 covers emulation, the `Platform` API, remote inspection and `isDesktopOnly`, and
-does not mention the keyboard, the viewport or safe areas. Checking was worth
-doing; it is recorded here so nobody has to check again.
-
-### What the research actually said
-
-Two things were searched exhaustively after the fifth failure, and both results
-are worth keeping because they stop the same ground being covered again.
-
-**Nobody has reported this symptom.** Not the Obsidian forum, not any plugin
-repository. Obsidian's core has no issue tracker — [obsidian-releases refuses
-them](https://github.com/obsidianmd/obsidian-releases) — so the forum is the
-only venue, and it is not there. There is precedent for a plugin causing an
-app-level keyboard fault, though: the [Commander plugin broke Obsidian's
-keyboard layout](https://forum.obsidian.md/t/empty-space-on-top-of-mobile-app-after-1-9-0-update/104621)
-in exactly this shape, restored on dismiss, and was fixed in the plugin.
-
-**`-webkit-overflow-scrolling: touch` was a dead end, and it was mine.** It sat
-on every scroller here as momentum-scroll insurance, and core uses it zero
-times, which looked significant. It is not: WebKit's own source shows the
-compositing branch is unreachable once `asyncOverflowScrollingEnabled` is on,
-which is the default in every WKWebView, and Blink removed the property outright
-so on Android it is dropped at parse time. Its one surviving effect on iOS is
-silently forcing `z-index: 0`. Removed as dead weight, not as a fix.
-
-What the literature does support, and support well, is the mechanism — and it
-finally explains the asymmetry that matters. iOS shrinks the *visual* viewport
-but not the layout one, then scroll-into-views the focused field
-([Apple 723420](https://developer.apple.com/forums/thread/723420),
-[WebKit 207049](https://bugs.webkit.org/show_bug.cgi?id=207049),
-[192564](https://bugs.webkit.org/show_bug.cgi?id=192564)). If a scroll container
-can absorb that, it does and nothing else moves. If none can, the browser
-scrolls the page — and a `height: 100vh` app shell scrolled to a region with
-nothing painted is a blank screen that comes back when the keyboard closes.
-A markdown note never triggers it because its caret lives inside `.cm-scroller`,
-which can always scroll.
-
-Which is why the scroller now reserves room **unconditionally** rather than when
-the keyboard is measured. The measurement arrives after focus, by which time the
-browser has already looked for somewhere to reveal the field, found nothing, and
-moved the page instead. A short list had no overflow at the moment it mattered.
-The harness pins that directly: shrink the pane to a phone's height and the
-scroller must already be scrollable with nothing tapped — reserve only on
-measurement and it reports `scrollHeight 450 > clientHeight 450: false`, which
-is the race, in numbers.
-
-**What would falsify this:** the view still blanks with the scroller demonstrably
-scrollable before focus. Then the reveal is not what is escalating, and the
-answer is a real workspace screen rather than more padding.
-
-### When it still misbehaves
-
-A soft keyboard does not exist on a desktop, and no harness reproduces one, so a
-fault that only happens on a real device cannot be diagnosed from a development
-machine. The command **Record a layout report (for a display problem)** exists
-for that. Run it, tap the field that misbehaves, run it again: it writes a note
-into the vault holding every measurement that could tell one cause from another —
-the viewport, the keyboard height, each element's rectangle, and every ancestor
-that has been scrolled together with whether it can be scrolled back. It records
-sizes and scroll offsets only: no task text, no file names, no note contents.
-
-The cheaper check first, though, and the one that would have saved four
-attempts: **does Obsidian's own editor do it too?** If it does, it is the app or
-the device, and no amount of plugin CSS will help.
+does not mention the keyboard, the viewport or safe areas. That is recorded here
+so nobody spends an afternoon looking for it.
 
 ## The list's name, and the two places it shows
 

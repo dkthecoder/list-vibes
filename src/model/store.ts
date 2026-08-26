@@ -4,10 +4,6 @@ import { Task, TaskList, isComplete } from "./types";
 
 export type SmartView = "myday" | "important" | "planned" | "all";
 
-export interface StoreEvents {
-	onChange: () => void;
-}
-
 /**
  * Reads the lists folder and keeps an in-memory view of it.
  *
