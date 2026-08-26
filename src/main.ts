@@ -19,6 +19,7 @@ import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
 import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
 import { LayoutRecorder } from "./diagnostics";
+import { KeyboardProbeModal } from "./probe";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
@@ -195,6 +196,19 @@ export default class ListsPlugin extends Plugin {
 			id: "quick-add-today",
 			name: "Add a task to My Day",
 			callback: () => this.quickAdd({ myDay: true, due: todayISO() }),
+		});
+
+		/*
+		 * Temporary, and meant to be deleted once it has answered.
+		 *
+		 * Two questions in one tap: does a core Modal survive the keyboard where
+		 * the view does not, and what are the numbers at the instant the view
+		 * blanks. See src/probe.ts.
+		 */
+		this.addCommand({
+			id: "keyboard-probe",
+			name: "Test: keyboard probe",
+			callback: () => new KeyboardProbeModal(this.app, () => this.activeRoot()).open(),
 		});
 
 		/*

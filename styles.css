@@ -2138,3 +2138,63 @@ body.is-mobile .lv-nav-scroll {
 .is-mobile .lv-icon-modal input[type="text"] {
 	font-size: max(16px, var(--font-ui-medium));
 }
+
+/* ------------------------------------------------------------------
+   Keyboard probe — temporary, deleted with src/probe.ts
+
+   Deliberately plain. It is a measuring instrument, and anything here
+   that were clever about layout would be one more thing that could be
+   the reason the reading came out the way it did.
+   ------------------------------------------------------------------ */
+
+.lv-probe-hint {
+	margin: 0 0 var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.lv-probe-field {
+	width: 100%;
+	/* The same floor the real fields have, so the probe is not testing a
+	   different thing from the one being investigated. */
+	font-size: max(16px, var(--font-ui-medium));
+	margin-bottom: var(--size-4-3);
+}
+
+.lv-probe-row {
+	display: flex;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	padding: 2px 0;
+	border-bottom: var(--border-width) solid var(--divider-color);
+}
+
+.lv-probe-key {
+	flex: 0 0 40%;
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.lv-probe-value {
+	flex: 1 1 auto;
+	font-family: var(--font-monospace);
+	overflow-wrap: anywhere;
+}
+
+.lv-probe-row.is-self .lv-probe-value {
+	color: var(--text-accent);
+}
+
+.lv-probe-log {
+	margin-top: var(--size-4-3);
+	max-height: 9em;
+	overflow-y: auto;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.lv-probe-event {
+	padding: 1px 0;
+	overflow-wrap: anywhere;
+}
