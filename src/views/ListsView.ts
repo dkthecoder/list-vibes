@@ -687,13 +687,13 @@ export class ListsView extends ItemView {
 	private pinAncestors(): void {
 		for (const el of unscrollableAncestors(this.contentEl, this.contentEl.win)) {
 			this.registerDomEvent(el, "scroll", () => {
+				const was = Math.round(el.scrollTop);
 				if (!resetIfScrolled(el)) return;
-				/*
-				 * Left in deliberately. If this view ever blanks again, this line
-				 * names the box that did it — the difference between knowing the
-				 * mechanism and guessing at it a seventh time.
-				 */
-				console.debug("[List Vibes] put back a scrolled ancestor:", el.className || el.tagName);
+				const name = String(el.className || el.tagName).split(" ")[0];
+				console.debug("[List Vibes] put back a scrolled ancestor:", name, was);
+				// Kept on the readout too, because the interesting catch happens
+				// on a device where nobody is watching a console.
+				this.plugin.readout.noteCatch(`${name}@${was}`);
 			});
 		}
 	}

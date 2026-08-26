@@ -18,14 +18,20 @@ import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
 import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
+import { KeyboardReadout } from "./readout";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
 	store!: ListStore;
 	mutator!: Mutator;
+	/** Temporary, while the mobile keyboard fault is open. See src/readout.ts. */
+	readout!: KeyboardReadout;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+
+		this.readout = new KeyboardReadout(window);
+		this.register(() => this.readout.close());
 
 		this.store = new ListStore(this.app, this.settings.folder);
 		this.mutator = new Mutator(this.app, {
@@ -189,6 +195,17 @@ export default class ListsPlugin extends Plugin {
 			id: "quick-add-today",
 			name: "Add a task to My Day",
 			callback: () => this.quickAdd({ myDay: true, due: todayISO() }),
+		});
+
+		/*
+		 * Temporary, while the mobile keyboard fault is open. A phone with no
+		 * cable has no console, so the numbers have to be on the screen to be
+		 * photographed. Run it again to put it away.
+		 */
+		this.addCommand({
+			id: "keyboard-readout",
+			name: "Show the keyboard readout",
+			callback: () => this.readout.toggle(),
 		});
 	}
 
