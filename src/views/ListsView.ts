@@ -12,7 +12,12 @@ import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { bindSwipeDismiss } from "../ui/swipeDismiss";
 import { keyboardOverlap } from "./keyboard";
-import { restingHeightAfter, subtractsTwice } from "./doubleKeyboard";
+import {
+	capShortfall,
+	restingHeightAfter,
+	stillDoubled,
+	subtractsTwice,
+} from "./doubleKeyboard";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
@@ -76,6 +81,8 @@ export class ListsView extends ItemView {
 	private restingHeight = 0;
 	/** Viewport width, so a rotation can be told from a keyboard. */
 	private lastWidth = 0;
+	/** Latched, because lifting the cap erases the reading that set it. */
+	private doubled = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ListsPlugin) {
 		super(leaf);
@@ -553,12 +560,23 @@ export class ListsView extends ItemView {
 			 * positioned from it, and Obsidian's own first-party Importer plugin
 			 * consumes it. Undocumented, so it carries a fallback.
 			 */
-			const native =
+			const app = win.document.querySelector(".app-container");
+			const declared =
 				parseFloat(
 					win.getComputedStyle(win.document.documentElement).getPropertyValue(
 						"--keyboard-height"
 					)
 				) || 0;
+
+			/*
+			 * And the cap the variable produces, measured, for when the variable
+			 * is declared somewhere `:root` cannot see it. Whichever is larger:
+			 * a missing variable reads as zero, never as a wrong number.
+			 */
+			const capped = app
+				? capShortfall(parseFloat(win.getComputedStyle(app).maxHeight), win.innerHeight)
+				: 0;
+			const native = Math.max(declared, capped);
 
 			/*
 			 * The visual viewport second. It reports on iOS, but on Android the
@@ -605,13 +623,15 @@ export class ListsView extends ItemView {
 				native,
 				rotated
 			);
-			this.contentEl.doc.body.toggleClass(
-				"lv-keyboard-counted-twice",
+			this.doubled =
 				subtractsTwice({
 					innerHeight: win.innerHeight,
 					restingHeight: this.restingHeight,
 					keyboard: native,
-				})
+				}) || stillDoubled(this.doubled, win.innerHeight, this.restingHeight);
+			this.contentEl.doc.body.toggleClass(
+				"lv-keyboard-counted-twice",
+				this.doubled
 			);
 
 			/*

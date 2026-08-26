@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
 	subtractsTwice,
 	restingHeightAfter,
+	capShortfall,
+	stillDoubled,
 	RESIZE_SHARE,
 } from "./build/views/doubleKeyboard.js";
 
@@ -128,5 +130,60 @@ describe("restingHeightAfter", () => {
 
 	test("and a rotation with the keyboard already up waits for a clean reading", () => {
 		assert.equal(restingHeightAfter(TALL, 600, 400, true), 0);
+	});
+});
+
+/**
+ * The reading that does not depend on knowing where Obsidian keeps its variable.
+ *
+ * This is the failure the first attempt shipped with: `--keyboard-height` was
+ * read off `:root`, the device declares it somewhere else, the detection saw a
+ * keyboard height of zero on every reading and the override never once applied.
+ * Nothing in the code was wrong — it simply asked a question that had no answer
+ * on the device it was written for.
+ */
+describe("capShortfall", () => {
+	test("is the gap between the viewport and the cap core applied", () => {
+		assert.equal(capShortfall(TALL - KEYBOARD, TALL), KEYBOARD);
+	});
+
+	test("is nothing when max-height computes to none", () => {
+		// `parseFloat("none")` is NaN, which is the resting state, not a cap of zero.
+		assert.equal(capShortfall(NaN, TALL), 0);
+	});
+
+	test("is nothing when the cap is taller than the viewport", () => {
+		// Which is what the override itself produces, and must not read as a keyboard.
+		assert.equal(capShortfall(TALL, TALL), 0);
+		assert.equal(capShortfall(TALL + 50, TALL), 0);
+	});
+
+	test("ignores sub-pixel rounding", () => {
+		assert.equal(capShortfall(TALL - 1.5, TALL), 0);
+	});
+});
+
+/**
+ * Holding the answer after the evidence for it has been removed.
+ *
+ * The override closes the very gap `capShortfall` measures. Without the latch
+ * the sequence is: gap seen, override on, gap now zero, override off, gap seen
+ * again — at the 150ms of a resize handler, which is a flicker rather than a fix.
+ */
+describe("stillDoubled", () => {
+	test("holds while the viewport is still short", () => {
+		assert.equal(stillDoubled(true, TALL - KEYBOARD, TALL), true);
+	});
+
+	test("lets go once the viewport is back", () => {
+		assert.equal(stillDoubled(true, TALL, TALL), false);
+	});
+
+	test("never turns itself on", () => {
+		assert.equal(stillDoubled(false, TALL - KEYBOARD, TALL), false);
+	});
+
+	test("and holds nothing before a resting height is known", () => {
+		assert.equal(stillDoubled(true, TALL - KEYBOARD, 0), false);
 	});
 });

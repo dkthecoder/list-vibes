@@ -281,6 +281,61 @@ check(
 	`chrome top ${shell.chromeBefore} -> ${shell.chromeAfter}`
 );
 
+/*
+ * The override itself, against core's own rule.
+ *
+ * The stylesheet ships a rule of the same specificity as core's, later in the
+ * cascade, and there is nothing in a unit test that can tell whether it wins —
+ * that is a question about two selectors in one document, so it is asked here.
+ * Core's rule is recreated verbatim rather than approximated: if it were ever
+ * to change shape, this check should fail rather than keep passing against a
+ * rule Obsidian no longer has.
+ */
+const cascade = await page.evaluate(() => {
+	const core = document.createElement("style");
+	core.textContent =
+		"body.is-mobile .app-container { max-height: calc(100vh - var(--keyboard-height)); }";
+	// First in the document, exactly as core's stylesheet is.
+	document.head.insertBefore(core, document.head.firstChild);
+	document.documentElement.style.setProperty("--keyboard-height", "400px");
+
+	const app = document.querySelector(".app-container");
+	const read = () => Math.round(parseFloat(getComputedStyle(app).maxHeight));
+
+	const capped = read();
+	document.body.classList.add("lv-keyboard-counted-twice");
+	const lifted = read();
+	document.body.classList.remove("lv-keyboard-counted-twice");
+	const restored = read();
+
+	// `100vh` measured rather than assumed: under device emulation it is not
+	// window.innerHeight, and a check written against the wrong one would be
+	// testing the harness instead of the stylesheet.
+	const probe = document.createElement("div");
+	probe.style.cssText = "position:fixed;top:0;left:0;width:1px;height:100vh;";
+	document.body.appendChild(probe);
+	const vh = Math.round(probe.getBoundingClientRect().height);
+	probe.remove();
+
+	return { capped, lifted, restored, vh };
+});
+
+check(
+	"core shortens the app by a keyboard, as it always has",
+	cascade.capped === cascade.vh - 400,
+	`max-height ${cascade.capped} against ${cascade.vh} of viewport`
+);
+check(
+	"and the override gives the whole viewport back",
+	cascade.lifted === cascade.vh,
+	`max-height ${cascade.capped} -> ${cascade.lifted}`
+);
+check(
+	"and takes nothing when the class is absent",
+	cascade.restored === cascade.capped,
+	`max-height ${cascade.restored}`
+);
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 await browser.close();
 const failed = results.filter((r) => !r.pass);

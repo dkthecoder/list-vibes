@@ -25,7 +25,12 @@ import { Notice } from "obsidian";
 
 /** What each reading would mean, so the screenshot needs no interpretation. */
 const LEGEND =
-	"app h=0 → the container collapsed · scrolled=… → something scrolled it · both 0/none → neither";
+	[
+		"app h=0 → the container collapsed",
+		"kb=0 but short>0 → the variable is not on :root",
+		"short ≈ inner/2 → the keyboard is off twice",
+		"scrolled=… → something scrolled it",
+	].join(" · ");
 
 export class KeyboardReadout {
 	private el: HTMLElement | null = null;
@@ -106,7 +111,18 @@ export class KeyboardReadout {
 			win.getComputedStyle(de).getPropertyValue(name).trim() || "0";
 
 		const app = doc.querySelector(".app-container");
+		/*
+		 * Both readings of the keyboard, kept apart on purpose. `--keyboard-height`
+		 * is only visible here if Obsidian declares it on the document element;
+		 * the cap it produces is measurable wherever it is declared. A screenshot
+		 * showing `kb=0 short=645` is the whole answer to why a detection that
+		 * depends on the variable never fired.
+		 */
 		const kb = Math.round(parseFloat(cssVar("--keyboard-height")) || 0);
+		const maxH = app ? parseFloat(win.getComputedStyle(app).maxHeight) : NaN;
+		const short = Number.isFinite(maxH)
+			? Math.round(win.innerHeight - maxH)
+			: 0;
 		if (kb > this.peak) this.peak = kb;
 
 		// Every ancestor of the caret that is holding an offset. This is the
@@ -132,11 +148,11 @@ export class KeyboardReadout {
 		this.el.setText(
 			[
 				`app h=${px(app)} cap=${app ? win.getComputedStyle(app).maxHeight : "—"}`,
-				`kb=${kb} peak=${this.peak}  inner=${win.innerHeight}`,
+				`kb=${kb} peak=${this.peak} short=${short} inner=${win.innerHeight}`,
 				vv
 					? `vv=${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale}`
 					: "vv=(none)",
-				`body=${doc.body.className.slice(0, 60)}`,
+				`body=${doc.body.className.slice(0, 140)}`,
 				`focus=${focused}`,
 				`scrolled=${scrolled.length ? scrolled.join(" ") : "none"}`,
 				`guard=${this.caught.size ? [...this.caught].join(" ") : "quiet"}`,

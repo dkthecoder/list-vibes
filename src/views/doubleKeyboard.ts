@@ -57,12 +57,59 @@ export function subtractsTwice({ innerHeight, restingHeight, keyboard }: Viewpor
 }
 
 /**
+ * Whether a double subtraction already found is still in force.
+ *
+ * Lifting the cap erases the evidence for it. `capShortfall` measures the gap
+ * between the viewport and core's cap, and the override closes that gap by
+ * design — so on a device where the custom property cannot be read, the reading
+ * that turned the override on reads as zero the moment it is on, the override
+ * comes off, and the app flickers between the two states for as long as the
+ * keyboard is up.
+ *
+ * So it is held instead, on the one signal the override does not disturb: the
+ * viewport is still shorter than its resting height, which is the WebView's own
+ * resize and nothing to do with the cap.
+ */
+export function stillDoubled(
+	previouslyDoubled: boolean,
+	innerHeight: number,
+	restingHeight: number
+): boolean {
+	if (!previouslyDoubled) return false;
+	if (!(restingHeight > 0) || !(innerHeight > 0)) return false;
+	return restingHeight - innerHeight > 2;
+}
+
+/**
  * The tallest the viewport has been with no keyboard up.
  *
  * Kept as a running maximum, and reset by a rotation rather than carried across
  * one: landscape is shorter than portrait, and a resting height remembered from
  * portrait would make every landscape reading look like a shrinking viewport.
  */
+/**
+ * How much shorter than the viewport core has capped the app.
+ *
+ * The custom property is read where it is *declared*, and that is not
+ * guaranteed to be the document element — a value set on `body`, or on
+ * `.app-container` itself, reads as nothing from `:root` and the whole
+ * detection silently never fires. The cap it produces, on the other hand, is
+ * plainly measurable: `max-height` computes to a pixel value whatever
+ * `calc(100vh - var(--keyboard-height))` was fed.
+ *
+ * So this is the same number arrived at from the other end, and it does not
+ * care where Obsidian keeps its variable.
+ *
+ * `maxHeight` is `NaN` when it computes to `none`, which is the resting state.
+ */
+export function capShortfall(maxHeight: number, innerHeight: number): number {
+	if (!Number.isFinite(maxHeight) || maxHeight <= 0) return 0;
+	if (!(innerHeight > 0)) return 0;
+	const short = innerHeight - maxHeight;
+	// Sub-pixel layout rounding is not a keyboard.
+	return short > 2 ? short : 0;
+}
+
 export function restingHeightAfter(
 	previous: number,
 	innerHeight: number,
