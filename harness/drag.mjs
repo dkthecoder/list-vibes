@@ -42,6 +42,20 @@ await page.waitForTimeout(100);
 const before = await rows();
 check("rows render and are sortable", before.length >= 3, `${before.length} rows`);
 
+/*
+ * And on a desktop it stays pinned below the list.
+ *
+ * The in-list arrangement exists for the soft keyboard, which a desktop does
+ * not have; there a bar always within reach is simply better, and it is what
+ * the reference UI does. This suite runs without `is-mobile` on the body, so it
+ * is the other half of the same decision.
+ */
+const addPinned = await page.$eval(
+	`${PANE} .lv-add`,
+	(e) => !e.closest(".lv-scroll") && e.parentElement.classList.contains("lv-tasks")
+);
+check("with a pointer the add box stays pinned below the list", addPinned);
+
 const sortableCount = await page.$$eval(`${PANE} .lv-task.lv-sortable`, (e) => e.length);
 check("every row is marked sortable", sortableCount === before.length,
 	`${sortableCount}/${before.length}`);

@@ -14,7 +14,7 @@ import { renderDetailPane } from "../src/views/panes/DetailPane";
 import { todayISO } from "../src/model/store";
 import { SortKey } from "../src/model/sort";
 import { ListColor, ViewMode } from "../src/model/types";
-import { keyboardOverlap, visibleCap } from "../src/views/keyboard";
+import { keyboardOverlap } from "../src/views/keyboard";
 import { bindSwipeDismiss } from "../src/ui/swipeDismiss";
 
 installDomHelpers();
@@ -286,4 +286,3 @@ paint();
  */
 (window as unknown as { lvKeyboardOverlap: typeof keyboardOverlap }).lvKeyboardOverlap =
 	keyboardOverlap;
-(window as unknown as { lvVisibleCap: typeof visibleCap }).lvVisibleCap = visibleCap;

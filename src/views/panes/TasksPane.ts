@@ -315,7 +315,28 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	/* ---------------- add box ---------------- */
 	if (!isSmart || sel.view === "myday") {
-		renderAddBox(pane, ctx);
+		/*
+		 * On touch it goes *inside* the list; on a desktop it stays pinned below.
+		 *
+		 * This is the answer to the mobile keyboard, and it took four wrong ones
+		 * to get to. The webview slides the whole app upward when the keyboard
+		 * rises — Obsidian's own editor does it too on the same device, so it is
+		 * not ours to prevent. What made this view worse than the editor was that
+		 * the editor is one tall scroller with the caret inside it, so a shift
+		 * leaves it something to show and somewhere to scroll, while the field
+		 * being tapped here sat in a bar outside every scroller where nothing
+		 * could bring it anywhere. Inside the scroller it behaves like typing in
+		 * a note, which is the behaviour the user already lives with.
+		 *
+		 * Read off `is-mobile` on the body rather than `Platform`, because that
+		 * is the same signal the stylesheet keys off — so the two can never
+		 * disagree — and because it follows Obsidian's desktop mobile emulation,
+		 * which makes this testable without a phone.
+		 */
+		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
+		const host = touch ? scroll : pane;
+		host.toggleClass("lv-has-inline-add", touch);
+		renderAddBox(host, ctx);
 	}
 }
 

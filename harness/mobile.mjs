@@ -33,6 +33,10 @@ await page.evaluate(() => {
 	document.body.classList.add("is-phone", "is-mobile");
 	// Obsidian defines this only on a phone; the navbar is ~48px plus inset.
 	document.documentElement.style.setProperty("--view-bottom-spacing", "48px");
+	// Repaint, because where the add box goes is decided at render time from
+	// this very class. Painting before setting it would test the desktop layout
+	// under a phone viewport, which is nobody's configuration.
+	window.paint();
 });
 await page.waitForTimeout(200);
 
@@ -120,29 +124,60 @@ check(
 	`clearance=${clearance || "(unset)"}`
 );
 
-const gap = await page.$eval(`${PANE} .lv-add`, (e) => {
-	const cs = getComputedStyle(e);
-	return Math.round(parseFloat(cs.paddingBottom));
-});
+/*
+ * Where the add box lives, which is the whole answer to the keyboard.
+ *
+ * The webview slides the entire app upward when the keyboard rises — the
+ * editor does it too, so it is the platform's and not ours. What made this
+ * view worse than the editor was that the field being tapped sat in a bar
+ * pinned *outside* every scroller, so nothing could bring it anywhere. On
+ * touch it now sits at the end of the list, in the same scroller as the tasks,
+ * exactly as typing in a note does.
+ */
+const inScroller = await page.$eval(
+	`${PANE} .lv-add`,
+	(e) => !!e.closest(".lv-scroll")
+);
+check("on touch the add box is inside the list's own scroller", inScroller);
+
+const lastInList = await page.$eval(
+	`${PANE} .lv-scroll`,
+	(e) => e.lastElementChild?.classList.contains("lv-add") ?? false
+);
+check("and it is the last thing in it, after the tasks", lastInList);
+
+const gap = await page.$eval(`${PANE} .lv-add`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
+);
 check(
-	"so the add box adds no padding of its own either",
+	"the box itself reserves nothing — the scroller carries it for the whole list",
 	gap < 40,
 	`padding-bottom=${gap}px`
 );
 
-// And with the keyboard down it goes back to clearing the navbar only.
-await page.evaluate((pane) => {
-	const root = document.querySelector(`${pane} .lv-root`);
-	root.classList.remove("is-keyboard-open");
-}, PANE);
-await page.waitForTimeout(100);
-const gapDown = await page.$eval(`${PANE} .lv-add`, (e) =>
+const scrollerRoom = await page.$eval(`${PANE} .lv-scroll`, (e) =>
 	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
 );
 check(
-	"and gives that room back when the keyboard closes",
-	gapDown < KEYBOARD && gapDown > 0,
-	`padding-bottom=${gapDown}px`
+	"and the scroller does carry it, so the box can be scrolled clear of the keyboard",
+	scrollerRoom >= KEYBOARD,
+	`padding-bottom=${scrollerRoom}px, keyboard=${KEYBOARD}px`
+);
+
+// And with the keyboard down that room goes back to clearing the navbar only.
+await page.evaluate((pane) => {
+	const root = document.querySelector(`${pane} .lv-root`);
+	root.style.setProperty("--lv-keyboard-height", "0px");
+	root.classList.remove("is-keyboard-open");
+}, PANE);
+await page.waitForTimeout(100);
+const roomDown = await page.$eval(`${PANE} .lv-scroll`, (e) =>
+	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
+);
+check(
+	"which it gives back when the keyboard closes",
+	roomDown < KEYBOARD && roomDown > 0,
+	`padding-bottom=${roomDown}px`
 );
 
 /* ------------------------------------------------------------------

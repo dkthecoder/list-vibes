@@ -56,7 +56,9 @@ Pick a list, work in it, open a task when you need more than a checkbox.
   reorder the same way, within their own parent. On touch it takes a long press
   to start, because a vertical swipe on a list has to stay a scroll.
 - **The add box expands upward.** Collapsed it is a single line — type a title,
-  press Enter, keep going. Click it and it opens into a title, a description, and
+  press Enter, keep going. On a desktop it is pinned below the list; on touch it
+  is the last row *inside* the list, which is what lets it be scrolled clear of
+  the keyboard (see **Typing on mobile**). Click it and it opens into a title, a description, and
   the same metadata a task has: My Day, due, reminder, repeat and importance.
   Steps are the one omission — a step has to hang beneath a task that exists.
   Nothing is written as you tap: the chips stage a draft that lands in one edit
@@ -301,82 +303,76 @@ out **reversed**. Expanding is now a class rather than a repaint, and a repaint
 from anywhere else is held back while focus is in a field and released when it
 leaves. A file change can wait; a half-typed word cannot.
 
-The keyboard is measured, not assumed — from two sources, because neither is
-reliable alone. Obsidian's own `--keyboard-height` is the platform's real inset
-but is undocumented and absent on a desktop; `visualViewport` is a web standard
-and reports on iOS, but on Android the webview usually is not resized at all, so
-it reports nothing. The larger of the two wins, differences under 120px are
-treated as browser chrome rather than a keyboard, and the answer is clamped
-against the view's own height — the measurement comes from the whole screen and
-the view may be a sidebar or a tablet split, where an unclamped number is not
-merely large but meaningless. That arithmetic lives in `keyboardOverlap` and is
-unit-tested, because a number that is only slightly too big does not look wrong,
-it looks like the view went blank.
+### The keyboard, and four wrong answers
 
-What the number is used for is deliberately narrow. **Nothing is lifted by it.**
-Obsidian shortens `.app-container` by the keyboard's height before the view is
-laid out, so shortening a positioned panel again subtracts a second keyboard —
-on a phone that is most of the pane, and it is what collapsed the panel to
-nothing. What the number does do is reserve room at the *end of a scroller*, so
-a field can be scrolled clear of the keyboard. Padding inside a scroll container
-can only ever add room to scroll into; it cannot push anything off screen. It is
-also what Obsidian does: its settings scroller is
+The reported symptom was that raising the keyboard blanked the view — and later,
+more precisely, that *the whole screen got pushed up*. Four fixes were aimed at
+that, none worked, and each was a variation on the same idea: measure the
+keyboard and subtract it from something.
+
+The thing that settled it was not code. It was checking whether Obsidian's own
+editor did the same thing on the same device. **It does.** So the webview is
+sliding the entire app upward when the keyboard rises, it does it to core's UI
+as readily as to this plugin's, and it is not a plugin's to prevent. Two of the
+four fixes — capping the view's height, resetting the page scroll — were
+actively fighting a behaviour the user already lives with everywhere else in the
+app. Both are gone.
+
+What was genuinely wrong was subtler, and it is a layout question rather than a
+viewport one. The editor survives the shift because it is **one tall scroller
+with the caret inside it**: whatever the page does, the editor still has content
+to show and somewhere to scroll, so the caret can always be brought back. This
+plugin put the field you tap — the add box — in a bar pinned *below* the
+scroller, outside every scrollable thing in the view. Nothing could bring it
+anywhere. The same shift that merely nudges the editor left this view showing
+empty space.
+
+So on touch the add box is now the last row **inside** the list's scroller,
+after the tasks, and typing into it behaves like typing in a note. On a desktop
+it stays pinned below the list, where a bar always within reach is simply better
+and there is no keyboard to dodge. The harness asserts both halves, because each
+one is the other's regression.
+
+The keyboard is still measured, and now does exactly one thing: reserve room at
+the end of the scroller so the last row can be scrolled clear of it. Padding
+inside a scroll container can only ever add room to scroll into — it cannot push
+anything off screen, which is what distinguishes it from every one of the four
+fixes that failed. It is also what Obsidian does: its settings scroller is
 `padding-bottom: max(var(--keyboard-height), var(--size-4-16))`, its mobile
 toolbar is positioned from the same variable, and the editor adds it beneath the
-note. Removing all reservation on the grounds that the container cap was enough
-was a mistake, and it has been put back.
+note.
 
-`npm run test:ui` drives all of this under a phone viewport: typing arrives in
-order, focus survives it, nothing scrolls the view out of sight, the panel is
-*not* lifted, and the scroller reserves the room and gives it back afterwards —
-the two are asserted separately, because they look like the same thing and are
-not.
+Two readings feed that measurement, because neither is reliable alone. Obsidian
+publishes `--keyboard-height`, which is the platform's real inset but is
+undocumented and absent on a desktop; `visualViewport` is a web standard and
+reports on iOS, but on Android the webview is usually not resized, so it reports
+nothing. The larger wins, differences under 120px are treated as browser chrome
+rather than a keyboard, and the answer is clamped against the view's own height —
+the measurement comes from the whole screen and the view may be a sidebar or a
+tablet split. That arithmetic lives in `keyboardOverlap` and is unit-tested,
+because a number that is only slightly too big does not look wrong, it looks like
+the view went blank.
 
-### The screen being pushed up
-
-The remaining fault reported was that the whole screen slid upward when the
-keyboard rose. That is what a browser does when a focused field is under the
-keyboard and nothing can scroll to bring it into view: it gives up and scrolls
-the page itself, chrome and all, leaving blank space behind. Obsidian pins
-`document.documentElement.scrollTop` at startup for exactly this reason, but
-nothing pins the window or the visual viewport.
-
-Two changes. The field is brought into view by moving **its own scroller and
-nothing else** — `scrollIntoView` walks every ancestor looking for something
-that can move, and since ours deliberately cannot, it kept walking until it
-reached the page. And where the view genuinely hangs past the visible area, it
-is capped to fit.
-
-Where the visible bottom *is* takes two readings for the same reason the
-keyboard's height does. On iOS the visual viewport shrinks or slides and says so;
-on Android the webview is usually not resized, so the visual viewport reports a
-full-height screen and only the platform's own inset knows better. The more
-pessimistic of the two wins. An earlier version read the viewport alone, which
-is why it did nothing at all on Android: the view looked like it fitted, and the
-browser went on scrolling the page to reach the field.
-
-That cap is the part worth being careful about. It is not the keyboard's height
-subtracted from the view — that is what the three earlier attempts did, and it
-is wrong whenever Obsidian has already subtracted the same keyboard from
-`.app-container`, which is how the pane ended up collapsing to nothing. `visibleCap`
-never asks how tall the keyboard is. It asks whether the view currently extends
-past what can be seen, which is zero when room has already been made and exactly
-the shortfall when it has not, and cannot be double-counted either way. It
-returns an absolute height rather than a reduction, measured with any previous
-cap cleared, so applying it twice gives the same answer instead of a smaller one
-— and the harness asserts precisely that, because a cap that compounds looks
-like the view collapsing, which is the symptom this whole section is about.
+Obsidian's developer documentation says nothing about any of this. Its [mobile
+development page](https://docs.obsidian.md/Plugins/Getting+started/Mobile+development)
+covers emulation, the `Platform` API, remote inspection and `isDesktopOnly`, and
+does not mention the keyboard, the viewport or safe areas. Checking was worth
+doing; it is recorded here so nobody has to check again.
 
 ### When it still misbehaves
 
-A soft keyboard does not exist on a desktop, and no harness reproduces one, so
-a fault that only happens on a real device cannot be diagnosed from here. The
-command **Record a layout report (for a display problem)** exists for that. Run
-it, tap the field that misbehaves, run it again: it writes a note into the vault
-holding every measurement that could tell one cause from another — the viewport,
-the keyboard height, each element's rectangle, and every ancestor that has been
-scrolled together with whether it can be scrolled back. It records sizes and
-scroll offsets only: no task text, no file names, no note contents.
+A soft keyboard does not exist on a desktop, and no harness reproduces one, so a
+fault that only happens on a real device cannot be diagnosed from a development
+machine. The command **Record a layout report (for a display problem)** exists
+for that. Run it, tap the field that misbehaves, run it again: it writes a note
+into the vault holding every measurement that could tell one cause from another —
+the viewport, the keyboard height, each element's rectangle, and every ancestor
+that has been scrolled together with whether it can be scrolled back. It records
+sizes and scroll offsets only: no task text, no file names, no note contents.
+
+The cheaper check first, though, and the one that would have saved four
+attempts: **does Obsidian's own editor do it too?** If it does, it is the app or
+the device, and no amount of plugin CSS will help.
 
 ## Where the title comes from
 

@@ -11,7 +11,7 @@ import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { renderDetailPane } from "./panes/DetailPane";
 import { bindSwipeDismiss } from "../ui/swipeDismiss";
-import { keyboardOverlap, visibleBottomOf, visibleCap } from "./keyboard";
+import { keyboardOverlap } from "./keyboard";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
 import {
@@ -190,18 +190,13 @@ export class ListsView extends ItemView {
 		});
 
 		/*
-		 * Lift the add box above the soft keyboard.
+		 * Measure the keyboard, and do exactly one thing with the answer:
+		 * reserve room at the end of the scroller, as Obsidian does for its own.
 		 *
-		 * My first attempt assumed Obsidian's navbar detaches while the keyboard
-		 * is up and simply gave back the room reserved for it. That was a guess,
-		 * and it was backwards: on Android the webview does not resize, so
-		 * zeroing the reserve left the add box under the keyboard rather than
-		 * above it.
-		 *
-		 * `visualViewport` measures it instead of assuming. It is a web standard
-		 * rather than an Obsidian internal, it reports the keyboard on both iOS
-		 * and Android, and where it is unavailable the measurement is simply zero
-		 * and the layout is exactly as it was.
+		 * Everything else that used to be done with it is gone. The whole app
+		 * slides upward on this platform when the keyboard rises — the editor
+		 * included — so it is not this view's to correct, and correcting it was
+		 * what kept breaking the view.
 		 */
 		this.trackKeyboard();
 		this.pinScroll(this.contentEl);
@@ -583,48 +578,31 @@ export class ListsView extends ItemView {
 			this.contentEl.toggleClass("is-keyboard-open", keyboard > 0);
 
 			/*
-			 * Keep the view inside the part of the screen that is on screen.
+			 * Nothing is capped, lifted, or scrolled back here, and that is the
+			 * conclusion of four wrong attempts rather than an omission.
 			 *
-			 * The cap is cleared before measuring, so what is measured is the
-			 * view's natural size rather than the last answer — see `visibleCap`
-			 * for why that is what stops it walking itself down to nothing.
+			 * The reported symptom was the whole screen sliding upward when the
+			 * keyboard rose. It turns out Obsidian's own editor does the same on
+			 * the same device, so it is the webview moving the entire app and not
+			 * anything this view does — and every correction aimed at it was
+			 * aimed at the wrong target. Two of them (a height cap, and resetting
+			 * the page scroll) were actively fighting behaviour that is the
+			 * platform's to decide, in an app where the user already lives with
+			 * it everywhere else.
+			 *
+			 * What made this view *worse* than the editor was never the shift. It
+			 * was that the editor is one tall scroller with the caret inside it,
+			 * so a shift still leaves it something to show and somewhere to
+			 * scroll, whereas the field being tapped here sat in a bar pinned
+			 * outside every scroller, where nothing could bring it anywhere. That
+			 * is fixed by moving the field into the scroller, not by arguing with
+			 * the viewport.
+			 *
+			 * So the measurement is kept for one purpose only: reserving room at
+			 * the end of the scroller, which is what Obsidian does for its own.
 			 */
-			this.contentEl.style.removeProperty("max-height");
-			const rect = this.contentEl.getBoundingClientRect();
-			const visibleBottom = visibleBottomOf({
-				innerHeight: win.innerHeight,
-				native,
-				viewportOffsetTop: vv?.offsetTop,
-				viewportHeight: vv?.height,
-			});
-			const cap =
-				keyboard > 0
-					? visibleCap({ top: rect.top, bottom: rect.bottom, visibleBottom })
-					: null;
 
-			if (cap !== null) this.contentEl.style.maxHeight = `${cap}px`;
-
-			/*
-			 * And put the page back where it belongs.
-			 *
-			 * Obsidian pins `document.documentElement.scrollTop` at startup, but
-			 * nothing pins the window or the body, and on iOS the visual viewport
-			 * can be shifted without either — which is what "the whole screen gets
-			 * pushed up" is: the browser scrolling the page to reach a field it
-			 * could not reveal any other way.
-			 *
-			 * Whenever the keyboard is up and the caret is in this view, not only
-			 * when a cap was applied. A cap is not applied when the view already
-			 * fits, and a view that already fits is exactly the case where the
-			 * page had no business being scrolled at all.
-			 */
-			const active = this.contentEl.doc.activeElement;
-			if (keyboard > 0 && active instanceof HTMLElement && this.contentEl.contains(active)) {
-				if (win.scrollY !== 0 || (vv && vv.offsetTop !== 0)) win.scrollTo(0, 0);
-				if (win.document.body.scrollTop !== 0) win.document.body.scrollTop = 0;
-			}
-
-			// Now the box is the right size, the field may still be scrolled out
+			// The field may still be scrolled out
 			// of its own list. Only its own scroller is moved: `scrollIntoView`
 			// walks every ancestor and, with ours unable to scroll, ends up
 			// asking the page to move — which is the fault this is here to avoid.
