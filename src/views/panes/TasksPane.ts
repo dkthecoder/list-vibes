@@ -332,17 +332,22 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	/* ---------------- add box ---------------- */
 	if (!isSmart || sel.view === "myday") {
 		/*
-		 * On touch it goes *inside* the list; on a desktop it stays pinned below.
+		 * Pinned to the foot of the pane on every platform, and simplified on
+		 * touch.
 		 *
-		 * This is the answer to the mobile keyboard, and it took four wrong ones
-		 * to get to. The webview slides the whole app upward when the keyboard
-		 * rises — Obsidian's own editor does it too on the same device, so it is
-		 * not ours to prevent. What made this view worse than the editor was that
-		 * the editor is one tall scroller with the caret inside it, so a shift
-		 * leaves it something to show and somewhere to scroll, while the field
-		 * being tapped here sat in a bar outside every scroller where nothing
-		 * could bring it anywhere. Inside the scroller it behaves like typing in
-		 * a note, which is the behaviour the user already lives with.
+		 * It spent a while *inside* the scroller on touch, as an answer to the
+		 * keyboard: a field in the same scroller as the tasks can be scrolled
+		 * clear of a keyboard, and a bar outside every scroller cannot. That was
+		 * treating a symptom of a viewport being shortened twice, and it cost the
+		 * thing this pane is for — the box ended up floating after the last task
+		 * with the rest of the screen empty below it, which is neither a list nor
+		 * a footer. The cap is now undone where it happens, so the box can sit
+		 * where a footer belongs.
+		 *
+		 * `simple` is a separate question from where it lives, and stays: on
+		 * touch the box is one line, because expanding a description field, five
+		 * chips and two buttons under a keyboard covering half the screen is not
+		 * what tapping "add a task" was asking for.
 		 *
 		 * Read off `is-mobile` on the body rather than `Platform`, because that
 		 * is the same signal the stylesheet keys off — so the two can never
@@ -350,8 +355,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		 * which makes this testable without a phone.
 		 */
 		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
-		const host = touch ? scroll : pane;
-		renderAddBox(host, ctx, touch);
+		renderAddBox(pane, ctx, touch);
 	}
 }
 
@@ -446,14 +450,14 @@ async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
  * task; the expanded one just writes a note line beneath it.
  * ------------------------------------------------------------------ */
 
-function renderAddBox(pane: HTMLElement, ctx: ViewContext, inline = false): void {
+function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void {
 	const sel = ctx.state.selection;
-	// An inline box never expands, so it is never in the expanded state either —
+	// A simple box never expands, so it is never in the expanded state either —
 	// including on the paint right after a desktop layout became a touch one.
-	const expanded = ctx.state.composing && !inline;
+	const expanded = ctx.state.composing && !simple;
 
 	const box = pane.createDiv({ cls: "lv-add" });
-	box.toggleClass("lv-add-inline", inline);
+	box.toggleClass("lv-add-simple", simple);
 	// Set from state on every render, and toggled live by expand() without one,
 	// so a repaint that does land while composing keeps the box open.
 	box.toggleClass("is-expanded", expanded);
@@ -540,7 +544,7 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext, inline = false): void
 	 * away, on a panel built for it.
 	 */
 	const expand = () => {
-		if (inline || ctx.state.composing) return;
+		if (simple || ctx.state.composing) return;
 		ctx.state.composing = true;
 		box.addClass("is-expanded");
 	};

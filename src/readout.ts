@@ -140,6 +140,22 @@ export class KeyboardReadout {
 		}
 		if (de.scrollTop || win.scrollY) scrolled.push(`page=${Math.round(de.scrollTop || win.scrollY)}`);
 
+		/*
+		 * Every ancestor of the view that is materially shorter than the viewport,
+		 * which is the reading the measured fix acts on. `chain=none` with the
+		 * keyboard up and `inner` below its resting height would mean the app is
+		 * not being shortened at all and the whole diagnosis is wrong.
+		 */
+		const lv = doc.querySelector(".lv-root");
+		const shortened = [];
+		for (let n = lv; n && n !== doc.body; n = n.parentElement) {
+			const h = Math.round(n.getBoundingClientRect().height);
+			if (win.innerHeight - h >= 120) {
+				shortened.push(`${String(n.className || n.tagName).split(" ")[0].slice(0, 18)}=${h}`);
+			}
+		}
+		const chain = shortened.length ? shortened.join(" ") : "none";
+
 		const active = doc.activeElement;
 		const focused = active
 			? `${active.tagName.toLowerCase()}.${String(active.className || "").split(" ")[0].slice(0, 20)}`
@@ -153,6 +169,7 @@ export class KeyboardReadout {
 					? `vv=${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale}`
 					: "vv=(none)",
 				`body=${doc.body.className.slice(0, 140)}`,
+				`chain=${chain}`,
 				`focus=${focused}`,
 				`scrolled=${scrolled.length ? scrolled.join(" ") : "none"}`,
 				`guard=${this.caught.size ? [...this.caught].join(" ") : "quiet"}`,

@@ -18,6 +18,7 @@ import {
 	stillDoubled,
 	subtractsTwice,
 } from "./doubleKeyboard";
+import { Restore, recap, shortenedAncestors, uncap } from "./appCap";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
@@ -83,6 +84,8 @@ export class ListsView extends ItemView {
 	private lastWidth = 0;
 	/** Latched, because lifting the cap erases the reading that set it. */
 	private doubled = false;
+	/** Inline heights written over a doubled cap, and what was there before. */
+	private capped = new Map<unknown, Restore>();
 
 	constructor(leaf: WorkspaceLeaf, plugin: ListsPlugin) {
 		super(leaf);
@@ -243,6 +246,9 @@ export class ListsView extends ItemView {
 
 	async onClose(): Promise<void> {
 		this.contentEl.doc.body.removeClass("lv-keyboard-counted-twice");
+		// Inline heights written on Obsidian's own boxes outlive this view, so
+		// they have to come off with it.
+		recap(this.capped);
 		this.unsubscribe?.();
 		this.unsubscribe = null;
 		this.observer?.disconnect();
@@ -633,17 +639,7 @@ export class ListsView extends ItemView {
 				"lv-keyboard-counted-twice",
 				this.doubled
 			);
-
-			/*
-			 * Nothing is capped, lifted or scrolled back from here, and the
-			 * omission is deliberate. The webview slides the whole app upward
-			 * when the keyboard rises — Obsidian's own editor does it too — so
-			 * it is not this view's to correct, and correcting it fights
-			 * behaviour the user meets everywhere else in the app.
-			 *
-			 * The measurement earns its keep in one place only: reserving room
-			 * at the end of the scroller, which is what core does for its own.
-			 */
+			this.applyCap(win);
 
 			// The field may still be scrolled out of its own list. Only that
 			// scroller is moved: `scrollIntoView` walks every ancestor and, with
@@ -687,6 +683,46 @@ export class ListsView extends ItemView {
 		this.registerDomEvent(win, "orientationchange", measure);
 
 		measure();
+	}
+
+	/**
+	 * Undo a cap that has been applied twice, by measuring rather than by name.
+	 *
+	 * The stylesheet's override does this declaratively and is the tidier of the
+	 * two, but it has to name the element and the property, and on the device
+	 * this fault actually appears on that naming has now been wrong twice while
+	 * the arithmetic behind it held exactly. This asks the question the other way
+	 * round: with the viewport already shrunk by the keyboard, any ancestor still
+	 * much shorter than the viewport has had the keyboard taken off it a second
+	 * time, whatever rule did it and whatever property that rule used.
+	 *
+	 * Inline styles, so no selector has to win a cascade. Restored exactly, so a
+	 * device that never had the fault never sees a trace of this.
+	 */
+	private applyCap(win: Window): void {
+		if (!this.doubled) {
+			recap(this.capped);
+			return;
+		}
+		const chain: HTMLElement[] = [];
+		for (
+			let node: HTMLElement | null = this.contentEl;
+			node && node !== this.contentEl.doc.body;
+			node = node.parentElement
+		) {
+			chain.push(node);
+		}
+		/*
+		 * Measured *before* anything is written, and against the elements as they
+		 * currently stand — an element already uncapped by the last pass measures
+		 * at full height and is simply not selected again.
+		 */
+		const short = shortenedAncestors(
+			chain,
+			(el) => el.getBoundingClientRect().height,
+			win.innerHeight
+		);
+		for (const el of short) uncap(el, win.innerHeight, this.capped);
 	}
 
 	/**

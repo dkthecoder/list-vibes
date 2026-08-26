@@ -129,33 +129,13 @@ check(
 	`clearance=${clearance || "(unset)"}`
 );
 
-/*
- * Where the add box lives, which is the whole answer to the keyboard.
- *
- * The webview slides the entire app upward when the keyboard rises — the
- * editor does it too, so it is the platform's and not ours. What made this
- * view worse than the editor was that the field being tapped sat in a bar
- * pinned *outside* every scroller, so nothing could bring it anywhere. On
- * touch it now sits at the end of the list, in the same scroller as the tasks,
- * exactly as typing in a note does.
- */
-const inScroller = await page.$eval(
-	`${PANE} .lv-add`,
-	(e) => !!e.closest(".lv-scroll")
-);
-check("on touch the add box is inside the list's own scroller", inScroller);
-
-const lastInList = await page.$eval(
-	`${PANE} .lv-scroll`,
-	(e) => e.lastElementChild?.classList.contains("lv-add") ?? false
-);
-check("and it is the last thing in it, after the tasks", lastInList);
-
 const gap = await page.$eval(`${PANE} .lv-add`, (e) =>
 	Math.round(parseFloat(getComputedStyle(e).paddingBottom))
 );
 check(
-	"the box itself reserves nothing — the scroller carries it for the whole list",
+	"the box reserves nothing extra with the keyboard up",
+	// The navbar is hidden behind the keyboard, so its clearance is dropped;
+	// reserving it here as well would push the field it holds off screen.
 	gap < 40,
 	`padding-bottom=${gap}px`
 );
@@ -186,13 +166,12 @@ await page.evaluate((pane) => {
 }, PANE);
 await page.waitForTimeout(100);
 const idle = await page.evaluate((pane) => {
-	// A pane cut down to a plausible height, holding a list far shorter than it.
-	// This is the ordinary case — six tasks on a tablet, nothing typed — and it
-	// must not scroll. It did, for a while, because the padding was what
-	// overflowed.
+	// A pane comfortably taller than its list, which is the ordinary case — a
+	// handful of tasks on a tablet, nothing typed. It must not scroll. It did,
+	// for a while, because the padding was what overflowed.
 	const frame = document.querySelector(pane);
 	const was = frame.style.height;
-	frame.style.height = "500px";
+	frame.style.height = "700px";
 	const e = frame.querySelector(".lv-scroll");
 	const out = {
 		pad: Math.round(parseFloat(getComputedStyle(e).paddingBottom)),
@@ -294,6 +273,54 @@ check(
 );
 
 /* ------------------------------------------------------------------
+   2b-bis. The add box is the pane's footer, not the list's last item
+
+   It lived inside the scroller for a while, as a workaround for a
+   keyboard that was being subtracted twice. What that produced on a
+   tablet was a box floating just under the last task with the whole
+   lower screen empty below it — dk's "the add task is just floating,
+   neither with the tasks nor at the bottom". It is a footer now.
+   ------------------------------------------------------------------ */
+
+const footer = await page.evaluate((pane) => {
+	const frame = document.querySelector(pane);
+	const was = frame.style.height;
+	// A pane taller than its list, which is the case that exposed this: with
+	// the box inside the scroller there is nothing holding it down.
+	frame.style.height = "700px";
+	const scroll = frame.querySelector(".lv-scroll");
+	const box = frame.querySelector(".lv-add");
+	const out = {
+		insideScroller: scroll.contains(box),
+		gap: Math.round(
+			frame.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom
+		),
+		lastRow: (() => {
+			const rows = frame.querySelectorAll(".lv-task");
+			const last = rows[rows.length - 1];
+			return last
+				? Math.round(
+						box.getBoundingClientRect().top - last.getBoundingClientRect().bottom
+					)
+				: -1;
+		})(),
+	};
+	frame.style.height = was;
+	return out;
+}, PANE);
+check("the add box is not a row in the list", !footer.insideScroller);
+check(
+	"it sits at the foot of the pane",
+	footer.gap <= 2,
+	`${footer.gap}px below it`
+);
+check(
+	"so a short list leaves the space between, not below",
+	footer.lastRow > 100,
+	`${footer.lastRow}px between the last task and the box`
+);
+
+/* ------------------------------------------------------------------
    2c. The in-list add box is one line and nothing else
 
    Expanding it in place put a description field, five chips and two
@@ -309,13 +336,13 @@ const inlineExtras = await page.evaluate((pane) => {
 		return !!el && getComputedStyle(el).display !== "none";
 	};
 	return {
-		inline: box.classList.contains("lv-add-inline"),
+		simple: box.classList.contains("lv-add-simple"),
 		description: shown(".lv-add-note"),
 		chips: shown(".lv-add-chips"),
 		actions: shown(".lv-add-actions"),
 	};
 }, PANE);
-check("the in-list box knows it is inline", inlineExtras.inline);
+check("the touch box knows it is the simple one", inlineExtras.simple);
 check(
 	"and shows no description, chips or second add button",
 	!inlineExtras.description && !inlineExtras.chips && !inlineExtras.actions,

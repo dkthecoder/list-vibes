@@ -577,23 +577,6 @@ body.is-phone .lv-header {
 	background: var(--lv-surface);
 }
 
-/*
- * The same box, but living inside the list rather than pinned under it.
- *
- * On touch it is the last thing in the scroller, so the field you tap is in the
- * same scroller as everything else and can be scrolled clear of the keyboard —
- * which a bar outside every scroller never could. Nothing scrolls underneath it
- * any more, so it paints nothing and reserves nothing: the scroller already
- * carries the navbar and keyboard room for the whole list.
- */
-.lv-scroll > .lv-add {
-	background: none;
-	padding-bottom: var(--size-4-2);
-	/* Enough of a gap that it reads as "add something" rather than as another
-	   task that has lost its checkbox. */
-	margin-top: var(--size-4-2);
-}
-
 .lv-add-icon {
 	display: flex;
 	align-items: center;
