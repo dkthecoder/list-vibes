@@ -9,8 +9,6 @@ import {
 } from "./context";
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
-import { renderDetailPane } from "./panes/DetailPane";
-import { bindSwipeDismiss } from "../ui/swipeDismiss";
 import { keyboardOverlap } from "./keyboard";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
@@ -36,15 +34,6 @@ export const VIEW_TYPE_LISTS = "list-vibes-view";
  */
 const WIDE_BREAKPOINT = 620;
 
-/**
- * Below this, the detail panel always overlays even when pinned.
- *
- * A pinned panel is a third column, and three columns in less than this leaves
- * the task list too narrow to read — which is the same reason the panel became
- * an overlay in the first place. The pin is a preference about how to use space
- * you have, not a promise to make space you do not.
- */
-const PIN_BREAKPOINT = 900;
 
 
 export class ListsView extends ItemView {
@@ -55,8 +44,6 @@ export class ListsView extends ItemView {
 	private wide = false;
 	private queued = false;
 	private queuedScope: RenderScope = "all";
-	/** Whether the overlay was on screen last paint, so it only animates in once. */
-	private detailWasOpen = false;
 	/**
 	 * The containers kept alive between paints. Rebuilding only the pane that
 	 * changed is what stops the view flashing on every edit — see `paint`.
@@ -64,10 +51,8 @@ export class ListsView extends ItemView {
 	private shellEl: HTMLElement | null = null;
 	private navEl: HTMLElement | null = null;
 	private tasksEl: HTMLElement | null = null;
-	private overlayEl: HTMLElement | null = null;
 	/** Layout shape of the last paint. A change here forces a full rebuild. */
 	private lastShape = "";
-	private wasPinned = false;
 	private deferred = false;
 	/** Guards the setViewState round trip from re-entering itself. */
 	private persisting = false;
@@ -121,13 +106,6 @@ export class ListsView extends ItemView {
 		return this.plugin.settings.openListsInTab && this.inMainWorkspace();
 	}
 
-	/** True when the detail panel should be a column rather than an overlay. */
-	private detailPinned(): boolean {
-		return (
-			this.plugin.settings.pinDetail &&
-			this.contentEl.clientWidth >= PIN_BREAKPOINT
-		);
-	}
 
 	/**
 	 * In a workspace tab this is the tab's title, so it names the list. In a
@@ -189,11 +167,14 @@ export class ListsView extends ItemView {
 		this.observer = new ResizeObserver(() => this.onResize());
 		this.observer.observe(this.contentEl);
 
-		// Escape closes the overlay before Obsidian gets the key.
+		// Escape clears the selection before Obsidian gets the key. It no longer
+		// closes anything — the detail is a panel of Obsidian's, with its own
+		// collapse — but a highlighted row with nothing behind it is a lie.
 		this.scope = new Scope(this.app.scope);
 		this.scope.register([], "Escape", () => {
 			if (!this.state.selectedTask) return true;
-			this.closeDetail();
+			this.state.selectedTask = null;
+			this.render("tasks");
 			return false;
 		});
 
@@ -287,14 +268,11 @@ export class ListsView extends ItemView {
 	}
 
 	onResize(): void {
+		// Only one breakpoint left. The pin one went with the overlay: the
+		// detail is a panel Obsidian sizes now, not a column this view makes room
+		// for.
 		const wide = this.contentEl.clientWidth >= WIDE_BREAKPOINT;
-		// The pin breakpoint matters too: crossing it turns a pinned column into
-		// an overlay and back, which is a change of shape rather than of content.
-		const pinned = this.detailPinned();
-		if (wide !== this.wide || pinned !== this.wasPinned) {
-			this.wasPinned = pinned;
-			this.render();
-		}
+		if (wide !== this.wide) this.render();
 	}
 
 	/** Jump straight to a selection, e.g. from a command. */
@@ -320,17 +298,6 @@ export class ListsView extends ItemView {
 		}
 	}
 
-	private closeDetail(): void {
-		const had = !!this.state.selectedTask;
-		this.state.selectedTask = null;
-		this.render();
-		// Keep the leaf's state honest about what is on screen, so a later
-		// restore does not bring the panel back. `setState` deliberately does not
-		// record this one in history: back should not re-open a panel you just
-		// dismissed.
-		if (had && this.inMainWorkspace()) void this.persistState();
-	}
-
 	private buildContext(): ViewContext {
 		return {
 			app: this.app,
@@ -340,12 +307,6 @@ export class ListsView extends ItemView {
 			state: this.state,
 			wide: this.wide,
 			listOnly: this.listOnly(),
-			detailPinned: this.detailPinned(),
-			setDetailPinned: (pinned: boolean) => {
-				this.plugin.settings.pinDetail = pinned;
-				void this.plugin.saveSettings();
-				this.plugin.refreshViews();
-			},
 			showPicker: () => void this.plugin.activateView(),
 			render: (scope?: RenderScope) => this.render(scope ?? "all"),
 			save: () => this.plugin.saveSettings(),
@@ -386,19 +347,21 @@ export class ListsView extends ItemView {
 				if (this.inMainWorkspace()) void this.persistState();
 			},
 
+			/*
+			 * Selecting is now two things: mark the row, and show it on the right.
+			 *
+			 * The selection is still kept here because the row it belongs to has
+			 * to look selected, and that is this view's business. What has gone
+			 * is the panel: no state to push into leaf history, because there is
+			 * no overlay for the back button to close.
+			 */
 			selectTask: (task: Task | null) => {
-				const had = !!this.state.selectedTask;
 				this.state.selectedTask = task
 					? { filePath: task.filePath, line: task.line }
 					: null;
 				this.state.openAction = null;
-				this.render();
-				// Push the state so the panel joins the leaf's history and back
-				// closes it. Only when something changed, or every repaint of an
-				// already-open panel would stack another entry to walk back
-				// through. A sidebar leaf is not navigable, so there is no
-				// history there and nothing to push into.
-				if (this.inMainWorkspace() && had !== !!task) void this.persistState();
+				this.render("tasks");
+				void this.plugin.showTaskDetail(task);
 			},
 
 			showPane: (pane: PaneName) => {
@@ -737,11 +700,8 @@ export class ListsView extends ItemView {
 	 */
 	private shape(): string {
 		if (this.pickerOnly()) return "picker";
-		const pinned = this.detailPinned() && this.state.selectedTask ? "pin" : "float";
-		if (this.listOnly())
-			return `list|${this.state.selectedTask ? "detail" : "nodetail"}|${pinned}`;
+		if (this.listOnly()) return "list";
 		return [
-			pinned,
 			this.wide ? "wide" : "narrow",
 			this.wide ? "both" : this.state.pane,
 			this.state.selectedTask ? "detail" : "nodetail",
@@ -812,14 +772,6 @@ export class ListsView extends ItemView {
 			}
 		}
 
-		// The overlay element itself is deliberately left in place: it owns the
-		// slide transform and the backdrop's fade, and recreating it restarts
-		// both. Only its contents are rebuilt.
-		if (this.overlayEl && this.state.selectedTask) {
-			this.overlayEl.empty();
-			renderDetailPane(this.overlayEl, ctx);
-		}
-
 		this.restoreFocus(focus);
 	}
 
@@ -887,7 +839,6 @@ export class ListsView extends ItemView {
 		this.shellEl = shell;
 		this.navEl = null;
 		this.tasksEl = null;
-		this.overlayEl = null;
 
 		/* --- base layer: browsing lists, then a list --- */
 		const added = (fn: () => void): HTMLElement => {
@@ -907,40 +858,15 @@ export class ListsView extends ItemView {
 			this.tasksEl = added(() => renderTasksPane(shell, ctx));
 		}
 
-		/* --- overlay layer: the detail panel, always floating --- */
-		const showDetail = !this.pickerOnly() && !!this.state.selectedTask;
-		if (showDetail && this.detailPinned()) {
-			// A column: no backdrop, no transform, and the task list simply
-			// gets narrower rather than being covered.
-			const panel = shell.createDiv({ cls: "lv-overlay is-pinned is-open" });
-			this.overlayEl = panel;
-			renderDetailPane(panel, ctx);
-			this.detailWasOpen = false;
-		} else if (showDetail) {
-			const backdrop = shell.createDiv({ cls: "lv-backdrop" });
-			backdrop.addEventListener("click", () => this.closeDetail());
-
-			const overlay = shell.createDiv({ cls: "lv-overlay" });
-			this.overlayEl = overlay;
-			renderDetailPane(overlay, ctx);
-
-			// Push it back where it came from. The handle is not kept: the panel
-			// is destroyed on the next rebuild and every listener is on the panel
-			// itself, so they go with it.
-			bindSwipeDismiss(overlay, backdrop, () => this.closeDetail());
-
-			if (this.detailWasOpen) {
-				// Already on screen — show it in place, do not replay the animation.
-				overlay.addClass("is-open");
-				backdrop.addClass("is-open");
-			} else {
-				window.requestAnimationFrame(() => {
-					overlay.addClass("is-open");
-					backdrop.addClass("is-open");
-				});
-			}
-		}
-		this.detailWasOpen = showDetail;
+		/*
+		 * No detail layer here any more.
+		 *
+		 * It was an overlay sliding over the list, which meant owning a
+		 * backdrop, a transform, a swipe-to-dismiss gesture and an Android
+		 * back-button handler — all of which Obsidian's right panel provides
+		 * for every view docked in it. Selecting a task now opens that panel
+		 * instead; see `ListsPlugin.showTaskDetail`.
+		 */
 		this.lastShape = shape;
 
 		/* --- restore scroll and focus --- */

@@ -1010,126 +1010,24 @@ body.is-phone .lv-header {
 }
 
 
-/* ------------------------------------------------------------------
-   Detail overlay
-
-   The detail panel is never a column. It slides in from the right over
-   the task list, on every width, so there is one behaviour to learn and
-   one layout to maintain.
-   ------------------------------------------------------------------ */
-
-.lv-backdrop {
-	position: absolute;
-	inset: 0;
-	z-index: 10;
-	background: var(--background-modifier-cover, rgba(0, 0, 0, 0.4));
-	opacity: 0;
-	transition: opacity 180ms ease;
-}
-
-.lv-backdrop.is-open {
-	opacity: 1;
-}
-
-.lv-overlay {
-	position: absolute;
-	top: 0;
-	right: 0;
-	/*
-	 * Lifted clear of the keyboard rather than padded away from it. `bottom: 0`
-	 * is measured against the containing block, which knows nothing about a
-	 * keyboard, so padding the panel's insides only hides its last few hundred
-	 * pixels behind the pad. Shortening the box re-flows the whole panel — the
-	 * scroller shrinks and the step field lands directly above the keyboard.
-	 *
-	 * And then not lifted at all, because Obsidian has already done it.
-	 *
-	 * `body.is-mobile .app-container { max-height: calc(100vh - var(--keyboard-height)) }`
-	 * — the whole app is shortened by the keyboard's height before our view is
-	 * laid out, so the pane we are inside is *already* clear of it. Lifting again
-	 * subtracts a second keyboard, which on a phone is most of the pane and on a
-	 * tablet is more than the pane has. That is what made everything go blank,
-	 * and it was this fix that introduced it.
-	 */
-	bottom: 0;
-	/* Belt and braces: the shell is the containing block, but if a theme ever
-	   unsets its position this keeps the panel inside the pane. */
-	max-height: 100%;
-	z-index: 11;
+/*
+ * The detail is a panel of Obsidian's now, not an overlay of ours.
+ *
+ * What used to be here — a backdrop, a slide transform, an `is-open` state, a
+ * `touch-action` map for the swipe, a reduced-motion escape — was the cost of
+ * building a sheet by hand. A view docked in the right split gets all of it
+ * from Obsidian, in the form the user already knows: drag it wider, collapse
+ * it, and on a phone swipe the drawer shut.
+ *
+ * The host takes the same surface as the rest of the plugin and fills its leaf.
+ */
+.lv-detail-host {
 	display: flex;
-	width: min(var(--lv-detail-width), 100%);
-	max-width: 100%;
-	/* Obsidian ships a shadow token whose value is already correct in both a
-	   light and a dark theme. Mixing our own from --color-base-100 looked right
-	   in light and produced a white glow in dark, where base-100 is the light
-	   end of the scale. */
-	box-shadow: var(--shadow-l, -8px 0 24px rgba(0, 0, 0, 0.18));
-	transform: translateX(100%);
-	transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
-	will-change: transform;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
 }
 
-.lv-overlay.is-open {
-	transform: translateX(0);
-}
-
-/*
- * Swipe to dismiss.
- *
- * `pan-y` gives the browser the vertical gesture — the panel's own scroller
- * still works exactly as it did — and keeps the horizontal one for us. Without
- * it the browser claims both, and the swipe never produces a pointermove.
- */
-/*
- * The swipe has to work from anywhere on the panel, the way a sheet does in any
- * other app — not just from the strip of bar across the top.
- *
- * `touch-action` is per-element, and the scroller inside the panel is its own
- * touch target with its own default. Declaring it only on the panel left the
- * browser owning the gesture everywhere the scroller covers, which is all of it
- * below the header — so the swipe appeared to work only at the top. The
- * scroller is named explicitly, and `pan-y` still leaves it scrolling exactly
- * as it did: the vertical gesture is the browser's, the horizontal one is ours.
- */
-.lv-overlay:not(.is-pinned),
-.lv-overlay:not(.is-pinned) .lv-scroll,
-.lv-overlay:not(.is-pinned) .lv-card,
-.lv-overlay:not(.is-pinned) .lv-detail-bar {
-	touch-action: pan-y;
-}
-
-/*
- * While a finger is on it the panel is wherever the finger put it, so the
- * transition has to be out of the way; it is put back for the release, which is
- * what animates the panel home or the rest of the way out.
- */
-.lv-overlay.is-dragging,
-.lv-backdrop.is-dragging {
-	transition: none;
-}
-
-.lv-overlay .lv-detail {
-	flex: 1 1 auto;
-	min-width: 0;
-	border-left: var(--border-width) solid var(--divider-color);
-}
-
-/*
- * Never full width. At 100% there is nothing behind it, so it stops reading as
- * something laid over the list and just looks like the view changed. Leaving a
- * strip of the list and backdrop showing is what makes it legible as an overlay,
- * and it doubles as an obvious tap target for dismissing it.
- */
-.lv-root.is-narrow .lv-overlay {
-	width: calc(100% - var(--size-4-11, 44px));
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.lv-overlay,
-	.lv-backdrop {
-		transition: none;
-	}
-}
 
 /* ------------------------------------------------------------------
    Add box, expanded
@@ -2040,47 +1938,19 @@ body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
 }
 
 /* ------------------------------------------------------------------
-   Pinned detail panel
+   The detail panel at a sidebar's width
 
-   The same panel, held open as a column instead of sliding over. It
-   keeps its own element and its own contents; only the positioning
-   changes, so pinning and unpinning is not a different panel.
+   Obsidian's right split opens around 300px and the user can drag it
+   narrower, so this is the width the panel actually has to work at —
+   not the 22.5em the overlay gave itself. Nothing here sets a width:
+   the leaf decides, and the panel fills it.
    ------------------------------------------------------------------ */
 
-.lv-overlay.is-pinned {
-	position: relative;
-	inset: auto;
-	z-index: auto;
-	flex: 0 0 var(--lv-detail-width);
-	max-width: 50%;
-	transform: none;
-	transition: none;
-	/* A column sits beside the list rather than above it, so it needs a divider
-	   rather than a drop shadow. */
+.lv-detail-host .lv-detail {
+	flex: 1 1 auto;
+	min-height: 0;
+	border: none;
 	box-shadow: none;
-	border-left: var(--border-width) solid var(--divider-color);
-}
-
-/* Pinned, the list keeps its own width and simply gets less of it. */
-.lv-root.is-wide .lv-overlay.is-pinned + .lv-tasks,
-.lv-root.is-wide .lv-tasks:has(+ .lv-overlay.is-pinned) {
-	min-width: 0;
-}
-
-.lv-detail-pin {
-	margin-inline-start: auto;
-}
-
-/* Below the pin breakpoint the panel always overlays, so a pin button would
-   toggle a setting with no visible effect. */
-.lv-overlay:not(.is-pinned) .lv-detail-pin {
-	display: none;
-}
-
-@media (min-width: 900px) {
-	.lv-overlay:not(.is-pinned) .lv-detail-pin {
-		display: flex;
-	}
 }
 
 /* ------------------------------------------------------------------

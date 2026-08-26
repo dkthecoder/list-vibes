@@ -1,5 +1,5 @@
 import { setIcon } from "obsidian";
-import { ViewContext } from "../context";
+import { DetailContext } from "../context";
 import { Task, isComplete } from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
@@ -17,7 +17,7 @@ const REPEATS = [
 ];
 
 /** Right pane: the expanded task — steps, dates, note. */
-export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
+export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void {
 	const pane = parent.createDiv({ cls: "lv-pane lv-detail" });
 	const ref = ctx.state.selectedTask;
 	const task = ref ? ctx.store.findTask(ref.filePath, ref.line) : undefined;
@@ -25,35 +25,18 @@ export function renderDetailPane(parent: HTMLElement, ctx: ViewContext): void {
 	// The panel only exists while a task is selected, so there is no empty state.
 	if (!task) return;
 
-	/* ---------------- header ---------------- */
-	const bar = pane.createDiv({ cls: "lv-detail-bar" });
-	const close = bar.createDiv({ cls: "clickable-icon lv-back" });
-	setIcon(close, "x");
-	close.setAttribute("aria-label", "Close");
-	close.addEventListener("click", () => ctx.selectTask(null));
-	bar.createDiv({
-		cls: "lv-detail-bar-title",
-		text: task.filePath.split("/").pop()?.replace(/\.md$/, "") ?? "",
-	});
-
 	/*
-	 * Pin the panel open as a column instead of letting it slide over.
+	 * No header of our own.
 	 *
-	 * The button is here rather than only in settings because it is a decision
-	 * about the thing in front of you, and it is the sort of thing people change
-	 * more than once — pinned while working through a list, unpinned when the
-	 * list itself is what matters.
+	 * This is a view in Obsidian's right panel now, and a panel there already
+	 * has a header: the name, the collapse control, the pane menu. Drawing a
+	 * second bar underneath the first with our own close button and our own
+	 * title was the overlay's chrome, and in a panel it is one row of duplicated
+	 * furniture eating the height the task needs.
 	 *
-	 * It is hidden in a pane too narrow to hold a third column, where the panel
-	 * overlays regardless: offering a control that visibly does nothing is worse
-	 * than not offering it.
+	 * Which list the task belongs to is the view's `getDisplayText`, so it shows
+	 * in Obsidian's header where a pane's name belongs.
 	 */
-	const pin = bar.createDiv({ cls: "clickable-icon lv-detail-pin" });
-	pin.toggleClass("is-active", ctx.detailPinned);
-	setIcon(pin, ctx.detailPinned ? "pin-off" : "pin");
-	pin.setAttribute("aria-label", ctx.detailPinned ? "Unpin panel" : "Pin panel open");
-	pin.addEventListener("click", () => ctx.setDetailPinned(!ctx.detailPinned));
-
 	const scroll = pane.createDiv({ cls: "lv-scroll" });
 
 	/* ---------------- title card ---------------- */
@@ -332,7 +315,7 @@ interface ActionOpts {
 	onClear?: () => void;
 }
 
-function action(parent: HTMLElement, ctx: ViewContext, o: ActionOpts): void {
+function action(parent: HTMLElement, ctx: DetailContext, o: ActionOpts): void {
 	const open = ctx.state.openAction === o.id;
 
 	const wrap = parent.createDiv({ cls: "lv-action-wrap" });
@@ -419,7 +402,7 @@ function daysUntilWeekday(target: number): number {
 }
 
 async function pickDate(
-	ctx: ViewContext,
+	ctx: DetailContext,
 	task: Task,
 	field: "due" | "scheduled"
 ): Promise<void> {
@@ -434,7 +417,7 @@ async function pickDate(
 	}).open();
 }
 
-async function pickTime(ctx: ViewContext, task: Task): Promise<void> {
+async function pickTime(ctx: DetailContext, task: Task): Promise<void> {
 	const { InputModal } = await import("../../ui/InputModal");
 	new InputModal(ctx.app, {
 		title: "Pick a time",

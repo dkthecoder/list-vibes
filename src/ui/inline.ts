@@ -1,4 +1,4 @@
-import { ViewContext } from "../views/context";
+import { DetailContext } from "../views/context";
 
 /**
  * Render a task title's inline markdown as real elements.
@@ -59,7 +59,7 @@ export function parseInline(text: string): Piece[] {
 	return out;
 }
 
-export function renderInline(el: HTMLElement, text: string, ctx: ViewContext): void {
+export function renderInline(el: HTMLElement, text: string, ctx: DetailContext): void {
 	for (const p of parseInline(text)) {
 		switch (p.t) {
 			case "text":

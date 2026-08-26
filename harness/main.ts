@@ -17,7 +17,6 @@ import { ListColor, ViewMode } from "../src/model/types";
 import { keyboardOverlap } from "../src/views/keyboard";
 import { resetIfScrolled, unscrollableAncestors } from "../src/views/pinScroll";
 import { makeEditableName } from "../src/ui/editableName";
-import { bindSwipeDismiss } from "../src/ui/swipeDismiss";
 
 installDomHelpers();
 
@@ -191,6 +190,21 @@ function renderInto(
 	 */
 	el.textContent = "";
 	const root = el.createDiv({ cls: `lv-root ${wide ? "is-wide" : "is-narrow"}` });
+
+	/*
+	 * The detail is its own leaf now, so a frame showing it shows only it.
+	 *
+	 * It used to be an overlay drawn on top of the list in the same frame,
+	 * because that is what it was. Obsidian gives it a separate leaf in the
+	 * right split, and a harness that kept drawing it over the list would be
+	 * testing a layout the plugin no longer produces.
+	 */
+	if (withOverlay) {
+		root.addClass("lv-detail-host");
+		renderDetailPane(root, ctxFor(root, wide));
+		return;
+	}
+
 	const shell = root.createDiv({ cls: "lv-shell" });
 	const ctx = ctxFor(root, wide);
 
@@ -203,24 +217,6 @@ function renderInto(
 		renderTasksPane(shell, ctx);
 	}
 
-	if (withOverlay && pinned) {
-		const panel = shell.createDiv({ cls: "lv-overlay is-pinned is-open" });
-		renderDetailPane(panel, ctx);
-	} else if (withOverlay) {
-		const backdrop = shell.createDiv({ cls: "lv-backdrop is-open" });
-		const overlay = shell.createDiv({ cls: "lv-overlay is-open" });
-		renderDetailPane(overlay, ctx);
-		// The real gesture, on the real element. Whether a drag becomes a swipe
-		// is unit-tested; whether the panel actually follows a finger depends on
-		// touch-action, pointer capture and the transition, none of which a unit
-		// test can see.
-		bindSwipeDismiss(overlay, backdrop, () => {
-			overlay.remove();
-			backdrop.remove();
-			(window as unknown as { lvDismissed: number }).lvDismissed =
-				((window as unknown as { lvDismissed?: number }).lvDismissed ?? 0) + 1;
-		});
-	}
 }
 
 /** Move the picker highlight without a repaint, as the real view does. */

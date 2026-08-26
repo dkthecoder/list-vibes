@@ -6,7 +6,7 @@ import {
 	isStarred,
 	starsOf,
 } from "../model/sort";
-import { ViewContext } from "../views/context";
+import { DetailContext } from "../views/context";
 
 /**
  * The importance control, in whichever mode the user picked.
@@ -18,7 +18,7 @@ import { ViewContext } from "../views/context";
 export function renderImportance(
 	parent: HTMLElement,
 	task: Task,
-	ctx: ViewContext,
+	ctx: DetailContext,
 	opts: { size?: "sm" | "md" } = {}
 ): HTMLElement {
 	return ctx.settings.importanceMode === "stars5"
@@ -33,7 +33,7 @@ export function renderImportance(
 function renderStar(
 	parent: HTMLElement,
 	task: Task,
-	ctx: ViewContext,
+	ctx: DetailContext,
 	opts: { size?: "sm" | "md" }
 ): HTMLElement {
 	const on = isStarred(task);
@@ -67,7 +67,7 @@ function renderStar(
 function renderRating(
 	parent: HTMLElement,
 	task: Task,
-	ctx: ViewContext,
+	ctx: DetailContext,
 	opts: { size?: "sm" | "md" }
 ): HTMLElement {
 	const value = starsOf(task);

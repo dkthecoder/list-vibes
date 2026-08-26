@@ -90,7 +90,7 @@ check(
 );
 
 const STEP = "#vanish .lv-step-input";
-const OVERLAY = "#vanish .lv-overlay";
+const OVERLAY = "#vanish .lv-detail-host";
 
 const seen = async (sel) =>
 	page.$eval(sel, (e) => {
@@ -211,7 +211,7 @@ check(
    ------------------------------------------------------------------ */
 
 const compensation = await page.evaluate(() => {
-	const overlay = document.querySelector("#vanish .lv-overlay");
+	const overlay = document.querySelector("#vanish .lv-detail-host");
 	const root = document.querySelector("#vanish .lv-root") ?? document.querySelector("#vanish");
 	return {
 		lift: getComputedStyle(overlay).bottom,

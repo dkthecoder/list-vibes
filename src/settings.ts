@@ -49,7 +49,6 @@ export interface ListsSettings {
 	 * Keep the task detail panel as a fixed column rather than an overlay.
 	 * Only honoured where there is room for it; a narrow pane always overlays.
 	 */
-	pinDetail: boolean;
 	/**
 	 * Tidy a list's name for the title above it — separators shown as spaces.
 	 * Display only: the file keeps the name it has, and editing the title always
@@ -83,7 +82,6 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	sidebarFirst: false,
 	notesFolder: "tasks",
 	openListsInTab: true,
-	pinDetail: false,
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -163,19 +161,6 @@ export class ListsSettingTab extends PluginSettingTab {
 				t.setValue(this.plugin.settings.openListsInTab).onChange(async (v) => {
 					this.plugin.settings.openListsInTab = v;
 					await this.plugin.saveSettings();
-				})
-			);
-
-		new Setting(containerEl)
-			.setName("Pin the detail panel")
-			.setDesc(
-				"Keep the task detail panel open as a fixed column beside the list, instead of sliding it over. Only applies where there is room — below about 900px the panel always overlays, because a third column would leave the list too narrow to read. There is a pin button on the panel itself."
-			)
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.pinDetail).onChange(async (v) => {
-					this.plugin.settings.pinDetail = v;
-					await this.plugin.saveSettings();
-					this.plugin.refreshViews();
 				})
 			);
 

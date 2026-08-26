@@ -448,7 +448,8 @@ check(
    with its own scroller and was never tested with a keyboard.
    ------------------------------------------------------------------ */
 
-const OVERLAY = "#m-detail .lv-overlay";
+// The detail is a docked panel now, not an overlay sliding over the list.
+const OVERLAY = "#m-detail .lv-detail-host";
 const STEP = `${OVERLAY} .lv-step-input`;
 
 await page.evaluate(() => {

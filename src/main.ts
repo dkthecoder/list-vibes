@@ -15,6 +15,8 @@ import { ListStore, todayISO } from "./model/store";
 import { Task, TaskList, normalizeViewMode } from "./model/types";
 import { Mutator } from "./model/mutate";
 import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
+import { DetailView, VIEW_TYPE_DETAIL } from "./views/DetailView";
+import { TaskPickerModal } from "./ui/TaskPickerModal";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
 import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
@@ -37,6 +39,7 @@ export default class ListsPlugin extends Plugin {
 		});
 
 		this.registerView(VIEW_TYPE_LISTS, (leaf) => new ListsView(leaf, this));
+		this.registerView(VIEW_TYPE_DETAIL, (leaf) => new DetailView(leaf, this));
 
 		this.addRibbonIcon("list-todo", "List Vibes", () => void this.activateView());
 
@@ -84,6 +87,42 @@ export default class ListsPlugin extends Plugin {
 	 * want to write in it, so landing in the empty note is the next step rather
 	 * than an extra one.
 	 */
+	/**
+	 * Show a task in the right panel, opening the panel if it is not there.
+	 *
+	 * `ensureSideLeaf` is the API Obsidian's own side panels use: it finds an
+	 * existing leaf of this type or makes one, and `reveal` expands a sidebar
+	 * the user had collapsed. So a tap on a task opens the panel whether or not
+	 * anything was open, which is the behaviour asked for and the behaviour
+	 * Backlinks already has.
+	 *
+	 * The task is handed over after the leaf exists rather than through the
+	 * `state` option, so one code path serves both "the panel was already there"
+	 * and "the panel had to be made" — and the view is told by a method call
+	 * rather than by a state round trip it would have to decode.
+	 */
+	async showTaskDetail(task: Task | null): Promise<void> {
+		const leaf = await this.app.workspace.ensureSideLeaf(VIEW_TYPE_DETAIL, "right", {
+			reveal: true,
+			// Not `active`: tapping a task should show it, not move the keyboard
+			// focus out of the list the user is working down.
+			active: false,
+		});
+		const view = leaf.view;
+		if (view instanceof DetailView) view.show(task);
+	}
+
+	/**
+	 * Ask which task, for the panel opened from somewhere with no task in it.
+	 *
+	 * The panel is docked on the right and stays there while the user reads
+	 * notes, so "no task selected" is its ordinary resting state rather than an
+	 * error. This is the way out of it without going and finding a list first.
+	 */
+	async pickTask(onPick: (task: Task | null) => void): Promise<void> {
+		new TaskPickerModal(this.app, this.store, onPick).open();
+	}
+
 	async promote(task: Task): Promise<void> {
 		const path = await this.mutator.promote(task, this.settings.notesFolder);
 		if (!path) return;
