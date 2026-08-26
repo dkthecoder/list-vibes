@@ -792,6 +792,12 @@ body.is-phone .lv-header {
 	background: var(--background-modifier-hover);
 }
 
+/*
+ * A textarea that looks like a one-line field until it needs to be two.
+ *
+ * The fixed height went with the `<input>`: a step longer than the box used to
+ * scroll sideways, so in a narrow panel you could not read what you had typed.
+ */
 .lv-step-input {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -799,7 +805,18 @@ body.is-phone .lv-header {
 	border: none;
 	box-shadow: none;
 	padding: 0;
-	height: var(--size-4-10);
+	min-height: var(--size-4-10);
+	max-height: 30vh;
+	resize: none;
+	/*
+	 * A normal line height with padding to fill the row, rather than a line
+	 * height of a whole row. The latter makes one line the right height and
+	 * every line after it a row tall, so a step that wraps to three is 120px of
+	 * mostly space.
+	 */
+	line-height: var(--line-height-tight, 1.4);
+	padding: var(--size-4-2) 0;
+	font-family: inherit;
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }
@@ -893,10 +910,22 @@ body.is-phone .lv-header {
 
 /* note */
 
+/*
+ * Sized to its content, between the two bounds set here.
+ *
+ * `min-height` is one row rather than three: an empty note reserving three
+ * lines of nothing is the panel's scarcest resource spent on a placeholder.
+ * `max-height` is where growing stops and scrolling starts, so a long note
+ * cannot push the actions off the bottom of a 300px panel.
+ *
+ * `resize` is off because the height is not the user's to set any more — it
+ * follows what they typed, which is the thing they were adjusting it to match.
+ */
 .lv-note-input {
 	width: 100%;
-	min-height: var(--size-4-18, 72px);
-	resize: vertical;
+	min-height: var(--size-4-9);
+	max-height: 40vh;
+	resize: none;
 	background: transparent;
 	border: none;
 	box-shadow: none;
@@ -1060,7 +1089,8 @@ body.is-phone .lv-header {
 	width: 100%;
 	margin: 0;
 	padding: var(--size-2-2) var(--size-2-3);
-	min-height: var(--size-4-11, 44px);
+	min-height: var(--size-4-9);
+	max-height: 30vh;
 	resize: none;
 	background: transparent;
 	border: none;

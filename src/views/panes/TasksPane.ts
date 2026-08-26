@@ -13,6 +13,7 @@ import { makeDragSortable } from "../../ui/dragSort";
 import { editName, makeEditableName } from "../../ui/editableName";
 import { renderAddButton, submitOnEnter } from "../../ui/addButton";
 import { prettifyName } from "../../ui/prettify";
+import { autoGrow } from "../../ui/autoGrow";
 import { formatDate, todayISO } from "../../model/store";
 import {
 	SORT_OPTIONS,
@@ -573,11 +574,14 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void
 	description = box.createEl("textarea", {
 		cls: "lv-add-note",
 		attr: {
+			// One row, and as many more as the text needs. `rows="2"` reserved
+			// space nobody had used yet and ran out the moment they did.
+			rows: "1",
 			placeholder: "Add a description",
-			rows: "2",
 			"aria-label": "Description",
 		},
 	});
+	autoGrow(description);
 	description.addEventListener("keydown", (e) => {
 		// Enter inside the description adds a newline; Cmd/Ctrl+Enter submits.
 		if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {

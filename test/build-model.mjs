@@ -30,6 +30,7 @@ await esbuild.build({
 		"src/views/viewState.ts",
 		"src/ui/dragSort.ts",
 		"src/ui/notePreview.ts",
+		"src/ui/autoGrow.ts",
 		"src/ui/prettify.ts",
 		"src/views/keyboard.ts",
 		"src/views/context.ts",

@@ -352,6 +352,81 @@ for (const [what, r] of Object.entries(corners)) {
 	);
 }
 
+/* ------------------------------------------------------------------
+   Fields that are as tall as what is in them
+
+   The note box was rows="3" and the step box a fixed-height <input>:
+   an empty note reserved three lines of nothing, a long one was
+   squeezed into three with a scrollbar inside it, and a step longer
+   than the field scrolled sideways so you could not read what you had
+   typed. Tolerable in an overlay two thirds of a tablet wide; not in a
+   300px sidebar, which is what the panel is now.
+   ------------------------------------------------------------------ */
+
+const grow = await page.evaluate(async (pane) => {
+	const frame = document.querySelector(pane);
+	// The width the panel actually opens at, not the width the overlay had.
+	frame.closest(".frame")?.style.setProperty("width", "300px");
+    const sleep = () => new Promise((r) => requestAnimationFrame(() => r()));
+	await sleep();
+
+	const measure = async (sel, text) => {
+		const el = frame.querySelector(sel);
+		if (!el) return null;
+		const before = Math.round(el.getBoundingClientRect().height);
+		el.value = text;
+		el.dispatchEvent(new Event("input", { bubbles: true }));
+		await sleep();
+		const after = Math.round(el.getBoundingClientRect().height);
+		const scrolls = getComputedStyle(el).overflowY;
+		el.value = "";
+		el.dispatchEvent(new Event("input", { bubbles: true }));
+		await sleep();
+		const back = Math.round(el.getBoundingClientRect().height);
+		return { before, after, back, scrolls, wraps: getComputedStyle(el).whiteSpace };
+	};
+
+	const long = "A step title long enough that it cannot possibly fit on one line in a panel this narrow, and then some more.";
+	const veryLong = Array.from({ length: 60 }, (_, i) => `line ${i}`).join("\n");
+
+	return {
+		note: await measure(".lv-note-input", long),
+		step: await measure(".lv-step-input", long),
+		capped: await measure(".lv-note-input", veryLong),
+	};
+}, DETAIL);
+
+for (const [what, m] of Object.entries(grow)) {
+	if (!m) continue;
+	if (what === "capped") continue;
+	check(
+		`the ${what} field grows to fit what is typed`,
+		m.after > m.before,
+		`${m.before}px -> ${m.after}px at 300px wide`
+	);
+	check(
+		`and the ${what} field shrinks back when it is emptied`,
+		m.back === m.before,
+		`${m.after}px -> ${m.back}px, resting ${m.before}px`
+	);
+	check(
+		`and the ${what} field does not scroll while it fits`,
+		m.scrolls === "hidden",
+		`overflow-y=${m.scrolls}`
+	);
+}
+
+check(
+	"but past its ceiling it scrolls rather than growing without end",
+	grow.capped && grow.capped.scrolls === "auto",
+	`overflow-y=${grow.capped?.scrolls} at ${grow.capped?.after}px`
+);
+check(
+	"and the ceiling is a fraction of the panel, not the whole of it",
+	grow.capped && grow.capped.after < 1000,
+	`${grow.capped?.after}px`
+);
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 
 await browser.close();

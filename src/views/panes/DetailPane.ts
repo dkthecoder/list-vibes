@@ -5,6 +5,7 @@ import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
 import { makeDragSortable } from "../../ui/dragSort";
 import { renderCheckbox } from "../../ui/checkbox";
+import { autoGrow, boundsOf, sizeToContent } from "../../ui/autoGrow";
 import { renderAddButton, submitOnEnter } from "../../ui/addButton";
 import { renderImportance } from "../../ui/Importance";
 
@@ -119,7 +120,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 		const add = steps.createDiv({ cls: "lv-step lv-step-add" });
 		const addStep = (v: string) => void ctx.mutator.addStep(task, v);
 
-		let input: HTMLInputElement | null = null;
+		let input: HTMLTextAreaElement | null = null;
 		renderAddButton(add, {
 			cls: "lv-step-plus",
 			label: "Add step",
@@ -127,14 +128,21 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 			onCommit: addStep,
 		});
 
-		input = add.createEl("input", {
-			type: "text",
+		/*
+		 * A textarea, not a text input, so a step longer than the field wraps
+		 * instead of scrolling sideways out of sight. Enter still submits — see
+		 * the handler below — so it behaves like the single-line box it looks
+		 * like, and simply grows when what you are typing needs the room.
+		 */
+		input = add.createEl("textarea", {
 			cls: "lv-step-input",
 			attr: {
+				rows: "1",
 				placeholder: task.children.length ? "Next step" : "Add step",
 				"aria-label": "Add a step",
 			},
 		});
+		autoGrow(input);
 		submitOnEnter(input);
 		input.addEventListener("keydown", (e) => {
 			if (e.key !== "Enter") return;
@@ -142,6 +150,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 			const v = input!.value.trim();
 			if (!v) return;
 			input!.value = "";
+			sizeToContent(input!, boundsOf(input!));
 			addStep(v);
 		});
 	}
@@ -245,9 +254,12 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 	const noteCard = scroll.createDiv({ cls: "lv-card lv-note" });
 	const note = noteCard.createEl("textarea", {
 		cls: "lv-note-input",
-		attr: { placeholder: "Add note", rows: "3", "aria-label": "Task note" },
+		attr: { placeholder: "Add note", rows: "1", "aria-label": "Task note" },
 	});
 	note.value = task.note ?? "";
+	// After the value, because setting it from code fires no `input` event and
+	// an unmeasured field would open at one row with three lines inside it.
+	autoGrow(note);
 	note.addEventListener("blur", () => {
 		void ctx.mutator.setNote(task, note.value);
 	});
@@ -255,6 +267,7 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 		if (e.key === "Escape") {
 			e.preventDefault();
 			note.value = task.note ?? "";
+			sizeToContent(note, boundsOf(note));
 			note.blur();
 		}
 	});
