@@ -35,6 +35,7 @@ await esbuild.build({
 		"src/views/keyboard.ts",
 		"src/views/doubleKeyboard.ts",
 		"src/views/appCap.ts",
+		"src/diagnostics.ts",
 		"src/views/context.ts",
 		"src/ui/IconModal.ts",
 	],

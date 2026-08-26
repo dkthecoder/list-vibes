@@ -1,4 +1,11 @@
 import { Notice } from "obsidian";
+import {
+	FoundRule,
+	Sample,
+	formatReport,
+	rulesMentioning,
+	viewportGap,
+} from "./diagnostics";
 
 /**
  * A readout you can photograph, for a phone with no cable attached.
@@ -40,9 +47,22 @@ export class KeyboardReadout {
 	private peak = 0;
 	/** Anything the guard caught, kept rather than flashed past. */
 	private caught = new Set<string>();
+	/**
+	 * One sample per distinct keyboard state, not one per tick.
+	 *
+	 * The panel updates seven times a second; a report of every tick would be
+	 * thousands of identical rows with the two that matter buried in them. A row
+	 * is kept when the shape of the viewport changes, which is exactly when
+	 * something worth reading happened.
+	 */
+	private samples: Sample[] = [];
+	private lastShape = "";
+	/** Writes the report into the vault. Supplied by the plugin. */
+	private write: ((body: string) => void) | null = null;
 
-	constructor(win: Window) {
+	constructor(win: Window, write?: (body: string) => void) {
 		this.win = win;
+		this.write = write ?? null;
 	}
 
 	get open(): boolean {
@@ -81,6 +101,8 @@ export class KeyboardReadout {
 
 		this.peak = 0;
 		this.caught.clear();
+		this.samples = [];
+		this.lastShape = "";
 		this.tick();
 		this.timer = this.win.setInterval(() => this.tick(), 150);
 		new Notice("Readout on. Tap a field, let the keyboard settle, screenshot.", 6000);
@@ -91,6 +113,47 @@ export class KeyboardReadout {
 		this.timer = null;
 		this.el?.remove();
 		this.el = null;
+		// The report is most useful on the way out, when both a resting sample
+		// and a typing one have been seen.
+		this.report();
+	}
+
+	/**
+	 * Write what has been collected into the vault.
+	 *
+	 * A note rather than a screenshot: a vault syncs, and a table of fourteen
+	 * numbers per row is not something anybody should have to transcribe from a
+	 * photograph of a tablet.
+	 */
+	report(): void {
+		if (!this.write) return;
+		const doc = this.win.document;
+		const rules: FoundRule[] = rulesMentioning(
+			Array.from(doc.styleSheets) as never,
+			"keyboard-height"
+		);
+		const app = doc.querySelector(".app-container");
+		const matching: string[] = [];
+		if (app) {
+			for (const sheet of Array.from(doc.styleSheets)) {
+				let list: CSSRuleList | undefined;
+				try {
+					list = sheet.cssRules;
+				} catch {
+					continue;
+				}
+				for (let i = 0; i < list.length && matching.length < 40; i++) {
+					const sel = (list[i] as CSSStyleRule).selectorText;
+					if (!sel) continue;
+					try {
+						if (app.matches(sel)) matching.push(list[i].cssText);
+					} catch {
+						// An unsupported selector is not a match and not an error.
+					}
+				}
+			}
+		}
+		this.write(formatReport(rules, matching, this.samples));
 	}
 
 	/** Called by the scroll guard so a catch survives long enough to photograph. */
@@ -180,13 +243,45 @@ export class KeyboardReadout {
 		const dvh = Math.round(probe.getBoundingClientRect().height);
 		probe.remove();
 
+		/*
+		 * A row per change of shape, not per tick. `at` is a tick counter rather
+		 * than a clock: what matters is the order and the transition, and a
+		 * wall-clock time on a tablet adds a column nobody reads.
+		 */
+		const shape = [
+			win.innerHeight,
+			Math.round(vv?.height ?? 0),
+			kb,
+			px(app),
+		].join("/");
+		if (shape !== this.lastShape) {
+			this.lastShape = shape;
+			this.samples.push({
+				at: `t${this.samples.length}`,
+				innerHeight: win.innerHeight,
+				clientHeight: de.clientHeight,
+				vh,
+				dvh,
+				visual: Math.round(vv?.height ?? 0),
+				offsetTop: Math.round(vv?.offsetTop ?? 0),
+				scale: vv?.scale ?? 1,
+				keyboardVar: kb,
+				appHeight: px(app),
+				appMaxHeight: app ? win.getComputedStyle(app).maxHeight : "—",
+				shortened,
+				bodyClass: doc.body.className,
+			});
+			// A cap, so a readout left on all day cannot grow without bound.
+			if (this.samples.length > 200) this.samples.splice(0, 100);
+		}
+
 		this.el.setText(
 			[
 				`app h=${px(app)} cap=${app ? win.getComputedStyle(app).maxHeight : "—"}`,
 				`kb=${kb} peak=${this.peak} short=${short}`,
 				`inner=${win.innerHeight} client=${de.clientHeight} vh=${vh} dvh=${dvh}`,
 				vv
-					? `vv=${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale} gap=${Math.round(win.innerHeight - vv.height)}`
+					? `vv=${Math.round(vv.height)} top=${Math.round(vv.offsetTop)} scale=${vv.scale} gap=${viewportGap({ innerHeight: win.innerHeight, visual: Math.round(vv.height) })}`
 					: "vv=(none)",
 				`body=${doc.body.className.slice(0, 140)}`,
 				`chain=${chain}`,

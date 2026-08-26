@@ -329,7 +329,7 @@ export class ListsSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Show the keyboard readout")
 			.setDesc(
-				"A panel of live measurements, for diagnosing the mobile keyboard. Tap a text field, let the keyboard settle, and screenshot it. Temporary."
+				"A panel of live measurements for the mobile keyboard. Turn it on, tap a text field, let the keyboard settle, dismiss it, then turn this off — a report is written to \"List Vibes keyboard report.md\" at the top of the vault. Temporary."
 			)
 			.addToggle((t) =>
 				t.setValue(this.plugin.readout.open).onChange((v) => {
