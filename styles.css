@@ -799,6 +799,9 @@ body.is-phone .lv-header {
  * scroll sideways, so in a narrow panel you could not read what you had typed.
  */
 .lv-step-input {
+	/* Sized by `autoGrow`, which supplies only the number. */
+	height: var(--lv-grow-height, auto);
+	overflow-y: var(--lv-grow-overflow, hidden);
 	flex: 1 1 auto;
 	min-width: 0;
 	background: transparent;
@@ -922,6 +925,9 @@ body.is-phone .lv-header {
  * follows what they typed, which is the thing they were adjusting it to match.
  */
 .lv-note-input {
+	/* Sized by `autoGrow`, which supplies only the number. */
+	height: var(--lv-grow-height, auto);
+	overflow-y: var(--lv-grow-overflow, hidden);
 	width: 100%;
 	min-height: var(--size-4-9);
 	max-height: 40vh;
@@ -1086,6 +1092,9 @@ body.is-phone .lv-header {
  */
 
 .lv-add-note {
+	/* Sized by `autoGrow`, which supplies only the number. */
+	height: var(--lv-grow-height, auto);
+	overflow-y: var(--lv-grow-overflow, hidden);
 	width: 100%;
 	margin: 0;
 	padding: var(--size-2-2) var(--size-2-3);
@@ -1599,7 +1608,25 @@ body.is-phone .lv-header {
 	transition: transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/*
+ * Dragging: the look is here, the distance comes from JS.
+ *
+ * `--lv-drag-offset` is set per frame as a finger moves; everything else about
+ * a dragged row — that it is lifted, that it must not be scrolled by the
+ * browser mid-gesture — is a rule, not a computation.
+ */
+.lv-grip {
+	touch-action: none;
+}
+
+.lv-sortable,
+.lv-shifted,
 .lv-dragging {
+	transform: translateY(var(--lv-drag-offset, 0px));
+}
+
+.lv-dragging {
+	touch-action: none;
 	position: relative;
 	z-index: 5;
 	transition: none;

@@ -19,16 +19,32 @@ type Piece =
 	| { t: "italic"; v: string }
 	| { t: "strike"; v: string };
 
+/**
+ * Is the character before `at` something a token may start after?
+ *
+ * This used to be a lookbehind in the pattern — `(?<![A-Za-z0-9])` for a bare
+ * URL, `(?:^|(?<=\s))` for a tag. Lookbehind is unsupported on iOS before
+ * 16.4, where an unsupported group does not degrade: the whole `RegExp`
+ * constructor throws, and every task title in the plugin renders as nothing.
+ *
+ * The same question in JavaScript costs one character comparison and works
+ * everywhere. Keeping it out of the pattern also leaves the capture-group
+ * numbers alone, which the reader below depends on.
+ */
+function startsCleanly(text: string, at: number, forbidden: RegExp): boolean {
+	return at === 0 || !forbidden.test(text[at - 1]);
+}
+
 const PATTERN = new RegExp(
 	[
 		"`([^`]+)`", // 1 code
 		"\\[\\[([^\\]|]+)(?:\\|([^\\]]+))?\\]\\]", // 2 target, 3 label
 		"\\[([^\\]]*)\\]\\(([^)\\s]+)\\)", // 4 label, 5 href
-		"(?<![A-Za-z0-9])(https?://[^\\s)]+)", // 6 bare url
+		"(https?://[^\\s)]+)", // 6 bare url — boundary checked below, not by lookbehind
 		"~~([^~]+)~~", // 7 strike
 		"\\*\\*([^*]+)\\*\\*", // 8 bold
 		"\\*([^*]+)\\*", // 9 italic
-		"(?:^|(?<=\\s))(#[^\\s#\\[\\]()]+)", // 10 tag
+		"(#[^\\s#\\[\\]()]+)", // 10 tag — boundary checked below, not by lookbehind
 	].join("|"),
 	"gu"
 );
@@ -40,6 +56,15 @@ export function parseInline(text: string): Piece[] {
 	PATTERN.lastIndex = 0;
 
 	while ((m = PATTERN.exec(text)) !== null) {
+		/*
+		 * The two boundary rules the lookbehinds used to enforce. A rejected
+		 * match is left as text by *not* advancing `last`, so it is swept up by
+		 * the next text run rather than dropped — `nothttps://x.dev` keeps its
+		 * "not", and `issue#12` keeps its number.
+		 */
+		if (m[6] !== undefined && !startsCleanly(text, m.index, /[A-Za-z0-9]/)) continue;
+		if (m[10] !== undefined && !startsCleanly(text, m.index, /\S/)) continue;
+
 		if (m.index > last) out.push({ t: "text", v: text.slice(last, m.index) });
 
 		if (m[1] !== undefined) out.push({ t: "code", v: m[1] });

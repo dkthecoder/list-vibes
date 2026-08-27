@@ -56,34 +56,50 @@ describe("overflows", () => {
 	});
 });
 
-/** A stand-in field: a style object that records writes, and a content height. */
-const field = (content, applied = "") => ({
-	content,
-	style: { height: applied, overflowY: "" },
-	get scrollHeight() {
-		// The real one reports whatever height is currently set unless it has
-		// been released — which is the behaviour that makes a grown field unable
-		// to shrink, so the stand-in reproduces it.
-		const set = parseFloat(this.style.height);
-		return this.style.height === "auto" || Number.isNaN(set)
-			? this.content
-			: Math.max(set, this.content);
-	},
-});
+/**
+ * A stand-in field: a style object that records the custom properties written
+ * to it, and a content height.
+ *
+ * The height goes through `--lv-grow-height` rather than `style.height`, so the
+ * stylesheet owns the rule and this owns the number.
+ */
+const field = (content, applied = "") => {
+	const props = { "--lv-grow-height": applied };
+	return {
+		content,
+		props,
+		setCssProps: (next) => Object.assign(props, next),
+		get height() {
+			return props["--lv-grow-height"];
+		},
+		get overflowY() {
+			return props["--lv-grow-overflow"] ?? "";
+		},
+		get scrollHeight() {
+			// The real one reports whatever height is currently set unless it has
+			// been released — the behaviour that makes a grown field unable to
+			// shrink — so the stand-in reproduces it.
+			const set = parseFloat(props["--lv-grow-height"]);
+			return props["--lv-grow-height"] === "auto" || Number.isNaN(set)
+				? this.content
+				: Math.max(set, this.content);
+		},
+	};
+};
 
 describe("sizeToContent", () => {
 	test("sizes a field to its content and hides the scrollbar", () => {
 		const el = field(120);
 		sizeToContent(el, { min: MIN, max: MAX });
-		assert.equal(el.style.height, "120px");
-		assert.equal(el.style.overflowY, "hidden");
+		assert.equal(el.height, "120px");
+		assert.equal(el.overflowY, "hidden");
 	});
 
 	test("caps a long one and lets it scroll", () => {
 		const el = field(900);
 		sizeToContent(el, { min: MIN, max: MAX });
-		assert.equal(el.style.height, `${MAX}px`);
-		assert.equal(el.style.overflowY, "auto");
+		assert.equal(el.height, `${MAX}px`);
+		assert.equal(el.overflowY, "auto");
 	});
 
 	test("and a field that grew can shrink again", () => {
@@ -92,9 +108,9 @@ describe("sizeToContent", () => {
 		// the field at its largest, and it only ever grows.
 		const el = field(200);
 		sizeToContent(el, { min: MIN, max: MAX });
-		assert.equal(el.style.height, "200px");
+		assert.equal(el.height, "200px");
 		el.content = 60;
 		sizeToContent(el, { min: MIN, max: MAX });
-		assert.equal(el.style.height, "60px");
+		assert.equal(el.height, "60px");
 	});
 });

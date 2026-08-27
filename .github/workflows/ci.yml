@@ -15,7 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  # The job id is the name of the status check branch protection requires, so
+  # it says what it is rather than "test".
+  checks:
+    name: CI checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

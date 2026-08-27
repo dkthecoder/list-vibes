@@ -52,6 +52,16 @@ export function installDomHelpers(): void {
 	p.appendText = function (t: string) {
 		(this as HTMLElement).appendChild(document.createTextNode(t));
 	};
+	/*
+	 * Obsidian's own way of setting CSS custom properties from code. Real in the
+	 * app, absent in a browser — the same trap `el.win` sprang twice, so it is
+	 * mocked here rather than avoided in the source.
+	 */
+	p.setCssProps = function (props: Record<string, string>) {
+		const el = this as unknown as HTMLElement;
+		for (const [k, v] of Object.entries(props)) el.style.setProperty(k, v);
+	};
+
 	p.addClass = function (...c: string[]) {
 		(this as HTMLElement).classList.add(...c);
 	};

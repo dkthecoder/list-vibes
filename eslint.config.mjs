@@ -28,23 +28,21 @@ export default tseslint.config(
 			 * errors, so the build is honest without the list being invisible.
 			 */
 
-			// `element.style.height = …` in autoGrow and dragSort. The rule is
-			// aimed at *static* styling that belongs in a class; these are
-			// per-frame geometry — a measured height, a drag transform — which no
-			// stylesheet can know. Worth revisiting via CSS custom properties.
-			"obsidianmd/no-static-styles-assignment": "warn",
+			/*
+			 * The rule cannot tell a proper noun from a sentence, and everything
+			 * it flags here is one: "List Vibes" is the plugin's name, "My Day"
+			 * is a view's, "Google Keep" is somebody else's. Lowercasing them to
+			 * satisfy it would make the UI worse, not more consistent.
+			 */
+			"obsidianmd/ui/sentence-case": "off",
 
-			// Two lookbehinds in the inline renderer, unsupported on iOS before
-			// 16.4. Rewritable as alternations, but the capture-group *numbers*
-			// are load-bearing in the renderer, so it is a refactor with real
-			// regression risk rather than a search and replace.
-			"obsidianmd/regex-lookbehind": "warn",
-
-			// "List Vibes" is the plugin's name, not a sentence.
-			"obsidianmd/ui/sentence-case": "warn",
-
-			// Flags the settings tab for not using a declarative definition API.
-			// A rewrite of every setting, for no behaviour change.
+			/*
+			 * Wants the settings tab to declare itself through
+			 * `getSettingDefinitions()`, which would let Obsidian's global search
+			 * find individual settings. A genuine improvement and a rewrite of
+			 * every setting in the tab, so it is a warning until somebody does it
+			 * on purpose rather than in passing.
+			 */
 			"obsidianmd/settings-tab/prefer-setting-definitions": "warn",
 		},
 	}

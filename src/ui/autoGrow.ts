@@ -35,7 +35,7 @@ export function overflows(content: number, applied: number): boolean {
 }
 
 interface Sizable {
-	style: { height: string; overflowY: string };
+	setCssProps(props: Record<string, string>): void;
 	scrollHeight: number;
 }
 
@@ -47,14 +47,24 @@ export function sizeToContent(
 	el: Sizable,
 	bounds: { min: number; max: number }
 ): void {
-	// Released first, or `scrollHeight` reports the height already set rather
-	// than the height wanted — which makes a field that has grown unable to
-	// shrink again when text is deleted.
-	el.style.height = "auto";
+	/*
+	 * The height goes through a custom property rather than `style.height`, so
+	 * the stylesheet still owns the rule — `height: var(--lv-grow-height, auto)`
+	 * — and this only supplies the number. It is the same seam the drag offset
+	 * uses: CSS decides what a field looks like, JS measures how tall its
+	 * content is, and neither has an opinion about the other.
+	 *
+	 * Released to `auto` before measuring, or `scrollHeight` reports the height
+	 * already set instead of the height wanted, and a field that has grown can
+	 * never shrink again when text is deleted.
+	 */
+	el.setCssProps({ "--lv-grow-height": "auto" });
 	const wanted = el.scrollHeight;
 	const applied = clampHeight(wanted, bounds.min, bounds.max);
-	el.style.height = `${applied}px`;
-	el.style.overflowY = overflows(wanted, applied) ? "auto" : "hidden";
+	el.setCssProps({
+		"--lv-grow-height": `${applied}px`,
+		"--lv-grow-overflow": overflows(wanted, applied) ? "auto" : "hidden",
+	});
 }
 
 /**

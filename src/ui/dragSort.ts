@@ -85,6 +85,19 @@ const CLICK_SUPPRESS_MS = 400;
  * nobody should depend on. Capturing at the document is simply earlier than the
  * target, whatever the target has registered.
  */
+/**
+ * How far a row is currently offset, as a number the stylesheet turns into a
+ * transform.
+ *
+ * The transform itself is a fixed rule in CSS; only the distance changes, and
+ * that is genuinely per-frame — it follows a finger. A custom property is the
+ * seam: the stylesheet still owns what "being dragged" looks like, and this
+ * owns how far.
+ */
+function setOffset(el: HTMLElement, px: number): void {
+	el.setCssProps({ "--lv-drag-offset": `${px}px` });
+}
+
 function suppressNextClick(el: HTMLElement): void {
 	const doc = el.ownerDocument;
 	const win = doc.defaultView ?? window;
@@ -117,7 +130,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	// whether it is a drag. On the handle we can say so up front; on a whole row
 	// we cannot, or the list would stop scrolling entirely, so `touch-action` is
 	// only applied once a long press has actually armed the drag.
-	if (opts.handle) grab.style.touchAction = "none";
+	if (opts.handle) grab.addClass("lv-grip");
 
 	let startY = 0;
 	let pointerId: number | null = null;
@@ -152,7 +165,6 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		shiftPx = rect.height + gap;
 		target = opts.index;
 		row.addClass("lv-dragging");
-		row.style.touchAction = "none";
 		document.body.addClass("lv-is-dragging");
 	};
 
@@ -168,7 +180,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 			let shift = 0;
 			if (target > opts.index && i > opts.index && i <= target) shift = -1;
 			if (target < opts.index && i >= target && i < opts.index) shift = 1;
-			el.style.transform = shift ? `translateY(${shift * shiftPx}px)` : "";
+			setOffset(el, shift ? shift * shiftPx : 0);
 			el.toggleClass("lv-shifted", shift !== 0);
 		});
 	};
@@ -192,11 +204,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		suppressNextClick(row);
 
 		row.removeClass("lv-dragging");
-		row.style.transform = "";
-		row.style.touchAction = "";
+		setOffset(row, 0);
 		document.body.removeClass("lv-is-dragging");
 		for (const el of siblings) {
-			el.style.transform = "";
+			setOffset(el, 0);
 			el.removeClass("lv-shifted");
 		}
 
@@ -237,7 +248,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		}
 
 		e.preventDefault();
-		row.style.transform = `translateY(${e.clientY - startY}px)`;
+		setOffset(row, e.clientY - startY);
 		preview(e.clientY);
 	});
 
