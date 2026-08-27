@@ -7,7 +7,6 @@ import {
 	TFile,
 	WorkspaceLeaf,
 	WorkspaceParent,
-	WorkspaceSplit,
 	WorkspaceTabs,
 } from "obsidian";
 import { DEFAULT_SETTINGS, ListsSettingTab, ListsSettings } from "./settings";
@@ -62,7 +61,11 @@ export default class ListsPlugin extends Plugin {
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		// `loadData` is typed `any` by the API — it is whatever JSON was on disk.
+		// Narrowing it here is the honest boundary: everything past this line
+		// treats settings as settings.
+		const saved = (await this.loadData()) as Partial<ListsSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
 
 		// The post-it wall was called "cards" before. Settings are ours, so unlike
 		// a list's frontmatter they can be migrated in place; the reader still
@@ -198,7 +201,7 @@ export default class ListsPlugin extends Plugin {
 	private registerCommands(): void {
 		this.addCommand({
 			id: "open",
-			name: "Open List Vibes",
+			name: "Open lists",
 			callback: () => void this.activateView(),
 		});
 
@@ -334,7 +337,7 @@ export default class ListsPlugin extends Plugin {
 		// take the user to an empty sidebar pane. Put focus back where it was.
 		const previous = workspace.getMostRecentLeaf();
 		const leaf = workspace.createLeafInParent(
-			tabs as unknown as WorkspaceSplit,
+			tabs,
 			0
 		);
 		if (previous) workspace.setActiveLeaf(previous, { focus: false });

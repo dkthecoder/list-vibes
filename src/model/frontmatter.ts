@@ -127,7 +127,8 @@ export function getFrontmatterKey(content: string, key: string): string | null {
 	const raw = lines[at].slice(lines[at].indexOf(":") + 1).trim();
 	if (raw.startsWith('"') || raw.startsWith("'")) {
 		try {
-			return JSON.parse(raw.replace(/^'|'$/g, '"'));
+			// A quoted scalar, so the parse yields a string or nothing useful.
+			return JSON.parse(raw.replace(/^'|'$/g, '"')) as string;
 		} catch {
 			return raw.replace(/^['"]|['"]$/g, "");
 		}

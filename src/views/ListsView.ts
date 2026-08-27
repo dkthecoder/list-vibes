@@ -477,7 +477,7 @@ export class ListsView extends ItemView {
 		const el = document.activeElement;
 		if (!el || !this.contentEl.contains(el)) return false;
 
-		if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+		if (el.instanceOf(HTMLInputElement) || el.instanceOf(HTMLTextAreaElement)) {
 			// An empty field has no composition to break and nothing to lose, and
 			// this is exactly the state a field is left in right after it commits.
 			// Without it, adding a step would hold back the very repaint that
@@ -788,7 +788,7 @@ export class ListsView extends ItemView {
 		const cls = Array.from(el.classList).find((c) => c.startsWith("lv-"));
 		if (!cls) return null;
 		const field =
-			el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ? el : null;
+			el.instanceOf(HTMLInputElement) || el.instanceOf(HTMLTextAreaElement) ? el : null;
 		return { cls, caret: field ? field.selectionStart : null, value: field ? field.value : null };
 	}
 
@@ -798,7 +798,7 @@ export class ListsView extends ItemView {
 		if (!el) return;
 		el.focus();
 		if (
-			(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
+			(el.instanceOf(HTMLInputElement) || el.instanceOf(HTMLTextAreaElement)) &&
 			saved.value !== null
 		) {
 			el.value = saved.value;
@@ -881,7 +881,7 @@ export class ListsView extends ItemView {
 			if (el) {
 				el.focus();
 				if (
-					(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) &&
+					(el.instanceOf(HTMLInputElement) || el.instanceOf(HTMLTextAreaElement)) &&
 					typed !== null
 				) {
 					el.value = typed;
@@ -905,7 +905,7 @@ function swapPane(el: HTMLElement, render: (parent: HTMLElement) => void): HTMLE
 	const scrolled = el.querySelector<HTMLElement>(".lv-scroll, .lv-nav-scroll");
 	const keep = scrolled ? scrolled.scrollTop : 0;
 
-	const holder = document.createElement("div");
+	const holder = createDiv();
 	render(holder);
 	const next = holder.firstElementChild as HTMLElement | null;
 	if (!next) return el;

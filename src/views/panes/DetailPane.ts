@@ -147,10 +147,10 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 		input.addEventListener("keydown", (e) => {
 			if (e.key !== "Enter") return;
 			e.preventDefault();
-			const v = input!.value.trim();
+			const v = input.value.trim();
 			if (!v) return;
-			input!.value = "";
-			sizeToContent(input!, boundsOf(input!));
+			input.value = "";
+			sizeToContent(input, boundsOf(input));
 			addStep(v);
 		});
 	}

@@ -173,7 +173,17 @@ export function newTaskLine(
 	for (const field of order) {
 		const v = (meta as Record<string, unknown>)[field];
 		if (v === undefined || v === null || v === false || v === "") continue;
-		const value = v === true ? "true" : String(v);
+		/*
+		 * Only scalars are ever written. A field holding an object would
+		 * stringify to "[object Object]" and put that in the user's file, which
+		 * is a corruption rather than a formatting slip — so it is skipped.
+		 */
+		if (v === true) {
+			line += " " + renderToken(field, "true", dialect);
+			continue;
+		}
+		if (typeof v !== "string" && typeof v !== "number") continue;
+		const value = String(v);
 		line += " " + renderToken(field, value, dialect);
 	}
 	return line;

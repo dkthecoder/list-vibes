@@ -1,4 +1,3 @@
-import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";

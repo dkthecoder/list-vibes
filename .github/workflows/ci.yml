@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# A second push to a branch makes the first run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -23,11 +28,26 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Lint
+        # Errors fail; warnings are recorded debt. See eslint.config.mjs for
+        # which rules are which and why.
+        run: npx eslint src
+
       - name: Typecheck and build
         run: npm run build
 
       - name: Test
         run: npm test
+
+      # The browser suites drive the real panes: drags, renames, the mobile
+      # layout, the keyboard, and the colour audit. They were the thing that
+      # caught every layout bug this plugin has had, and until now they only
+      # ever ran on one laptop.
+      - name: Install Chromium for the UI suites
+        run: npx playwright install --with-deps chromium
+
+      - name: UI suites
+        run: npm run test:ui
 
       # The plugin is only installable if these three exist and parse.
       - name: Verify release artefacts
@@ -52,3 +72,18 @@ jobs:
             }
             console.log('manifest ok:', m.id, m.version, '(min', m.minAppVersion + ')');
           "
+
+      # A release is a tag matching manifest.version. If the version in a merge
+      # to main is one that already shipped, the tag can never be pushed and the
+      # release silently never happens.
+      - name: Version is not already released
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          git fetch --tags --quiet
+          V=$(node -p "require('./manifest.json').version")
+          if git rev-parse "refs/tags/$V" >/dev/null 2>&1; then
+            echo "::warning::$V is already tagged — bump before releasing (npm version patch|minor|major)"
+          else
+            echo "$V is unreleased and ready to tag"
+          fi

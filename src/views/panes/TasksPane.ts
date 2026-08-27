@@ -5,7 +5,6 @@ import {
 	Task,
 	TaskList,
 	ViewMode,
-	isComplete,
 } from "../../model/types";
 import { renderTaskRow } from "../../ui/TaskRow";
 import { renderTaskCard } from "../../ui/TaskCard";
