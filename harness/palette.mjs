@@ -16,10 +16,10 @@
  * assertion: these are the colours Obsidian offers, and the plugin is claiming
  * to want no others.
  */
-import { chromium } from "playwright";
+import { launch } from "./browser.mjs";
 import { readFileSync } from "fs";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await launch();
 const results = [];
 const check = (name, pass, detail = "") => {
 	results.push({ name, pass, detail });

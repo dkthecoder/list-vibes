@@ -6,10 +6,10 @@
  * that should place a caret must not open a list. That conflict only exists as
  * event handling, so it is checked by sending events.
  */
-import { chromium } from "playwright";
+import { launch } from "./browser.mjs";
 
 const url = "file://" + process.cwd() + "/harness/index.html";
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await launch();
 
 const results = [];
 const check = (name, pass, detail = "") => {

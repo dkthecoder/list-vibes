@@ -1,6 +1,6 @@
-import { chromium } from 'playwright';
+import { launch } from "./browser.mjs";
 const url = 'file://' + process.cwd() + '/harness/index.html';
-const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const b = await launch();
 for (const theme of ['light','dark']) {
   const p = await b.newPage({ viewport: { width: 1180, height: 1320 }, deviceScaleFactor: 2 });
   const errs=[]; p.on('console', m=>{ if(m.type()==='error') errs.push(m.text()); });

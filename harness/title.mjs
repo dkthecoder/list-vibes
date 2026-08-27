@@ -7,8 +7,8 @@
  * case wrong and left the list unnamed, so the rule lives in CSS and this
  * checks it against every placement Obsidian actually uses.
  */
-import { chromium } from "playwright";
-const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+import { launch } from "./browser.mjs";
+const b = await launch();
 const p = await b.newPage({ viewport: { width: 1180, height: 900 } });
 await p.goto("file://" + process.cwd() + "/harness/index.html");
 await p.waitForTimeout(250);

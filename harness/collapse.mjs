@@ -16,9 +16,9 @@
  * inside a leaf core has already shortened to `100vh - keyboard`, it eats the
  * content box and every pane inside collapses to nothing.
  */
-import { chromium } from "playwright";
+import { launch } from "./browser.mjs";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await launch();
 const results = [];
 const check = (name, pass, detail = "") => {
 	results.push({ name, pass, detail });

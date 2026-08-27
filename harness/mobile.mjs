@@ -7,10 +7,10 @@
  * reproduced by focusing a field under a phone viewport rather than reasoned
  * about.
  */
-import { chromium } from "playwright";
+import { launch } from "./browser.mjs";
 
 const url = "file://" + process.cwd() + "/harness/index.html";
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await launch();
 
 const results = [];
 const check = (name, pass, detail = "") => {

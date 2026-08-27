@@ -13,9 +13,9 @@
  * absence is not something a screenshot shows and is easy to reintroduce while
  * fixing something else.
  */
-import { chromium } from "playwright";
+import { launch } from "./browser.mjs";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await launch();
 const results = [];
 const check = (name, pass, detail = "") => {
 	results.push({ name, pass, detail });

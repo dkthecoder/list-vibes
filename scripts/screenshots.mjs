@@ -18,7 +18,7 @@
  *
  * Run with: npm run screenshots
  */
-import { chromium } from "playwright";
+import { launch } from "../harness/browser.mjs";
 import { mkdirSync } from "fs";
 
 const url = "file://" + process.cwd() + "/harness/index.html";
@@ -37,7 +37,7 @@ const SHOTS = [
 	{ name: "mobile", frame: "#m-tasks", width: 412, height: 800, body: "is-mobile is-phone" },
 ];
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const browser = await launch();
 
 for (const shot of SHOTS) {
 	const page = await browser.newPage({
