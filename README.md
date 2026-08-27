@@ -6,6 +6,16 @@ One file is a list. One line is a task. There is no database, no index and no
 cache — open any of these files in the editor and you are looking at exactly
 what the plugin is looking at.
 
+<p align="center">
+  <img src="screenshots/desktop.png" width="820" alt="A list open on the desktop: the picker on the left, tasks on the right, a completed section, and the add box along the bottom.">
+</p>
+
+<p align="center">
+  <img src="screenshots/tablet.png" width="380" alt="The same list on a tablet, still two panes.">
+  &nbsp;&nbsp;
+  <img src="screenshots/mobile.png" width="190" alt="The single-pane layout on a phone.">
+</p>
+
 ## Features
 
 ### Lists

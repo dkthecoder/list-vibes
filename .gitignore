@@ -9,3 +9,6 @@ data.json
 _to_delete/
 test/build/
 _sync/
+
+# Transfer archives, never part of the repo.
+*.tar.gz

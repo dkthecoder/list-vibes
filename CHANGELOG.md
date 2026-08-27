@@ -6,9 +6,29 @@ no `v` prefix — which `npm version` produces because `.npmrc` sets
 `tag-version-prefix=""`.
 
 ```
-npm version patch|minor|major   # bumps package, manifest and versions.json, commits, tags
-git push && git push --tags     # the tag is the release
+./scripts/release.sh patch|minor|major
 ```
+
+Write the section below first — the release notes are taken from this file, and
+the script refuses to run without one. It bumps, opens a PR, waits for CI, and
+tags **after** the squash merge: `npm version`'s own tag would point at the
+branch commit that the squash replaces, leaving a release whose commit is not in
+main's history.
+
+## 0.3.1
+
+**Task titles render on older iPads again.** The inline renderer used regex
+lookbehinds, which iOS before 16.4 does not support — and does not degrade
+gracefully: the `RegExp` constructor throws, so every task title rendered as
+nothing. 0.3.0 shipped with this. The boundary rules those lookbehinds enforced
+(a URL is not a link inside a longer token; a `#` mid-word is not a tag) are now
+a character comparison in JavaScript, with eleven tests pinning the behaviour —
+including that the parsed pieces always reassemble into the original string.
+
+**Housekeeping.** Lint runs for the first time (`eslint-plugin-obsidianmd`, the
+same scan the plugin store applies). CI runs the browser suites, which had only
+ever run on one laptop. Per-platform screenshots. A README with a features list
+rather than 585 lines of essay.
 
 ## 0.3.0
 
