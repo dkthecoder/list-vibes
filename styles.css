@@ -23,6 +23,14 @@
 	/* Shared by every row in the list; see `.lv-group`. */
 	--lv-row-inset: var(--size-4-2);
 	/*
+	 * The leading column every row keys off: the slot a checkbox, an icon or a
+	 * + sits in, and the gap between it and the text after it. Declared here
+	 * rather than per pane because the point of it is that the task list and
+	 * the detail panel agree on one column.
+	 */
+	--lv-lead: var(--size-4-6);
+	--lv-lead-gap: var(--size-4-2);
+	/*
 	 * Rounded corners, capped.
 	 *
 	 * The rest of this view borrows the theme's tokens on purpose, but radius is
@@ -423,12 +431,19 @@ body.is-phone .lv-header {
 	--checkbox-size: var(--font-ui-small);
 }
 
-/* Core applies this inside a <ul>; our rows are flex, so it must not. */
+/*
+ * Core applies a list margin inside a <ul>; our rows are flex, so it must not.
+ *
+ * A checkbox is narrower than the leading slot, so it is centred in one rather
+ * than left in it. Two controls in the same column have to share a centre
+ * line — left-aligning a 16px checkbox against a 24px icon puts the text after
+ * each on a different x, which is what this used to do.
+ */
 .lv-task > .task-list-item-checkbox,
 .lv-step > .task-list-item-checkbox,
 .lv-card-step > .task-list-item-checkbox,
 .lv-detail-title > .task-list-item-checkbox {
-	margin-inline-start: 0;
+	margin-inline: max(0px, calc((var(--lv-lead) - var(--checkbox-size, 16px)) / 2));
 }
 
 .lv-task-body {
@@ -606,7 +621,9 @@ body.is-phone .lv-header {
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
-	padding: var(--size-4-2) var(--size-4-3);
+	/* The scroller's inset plus a row's own padding, so the + lands in the
+	   same column as the checkboxes scrolling past above it. */
+	padding: var(--size-4-2) calc(var(--lv-row-inset) + var(--size-4-2));
 	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	min-height: var(--lv-row-min);
 	border-top: var(--border-width) solid var(--divider-color);
@@ -614,9 +631,23 @@ body.is-phone .lv-header {
 	background: var(--lv-surface);
 }
 
-.lv-add-icon {
+/*
+ * These are Obsidian `clickable-icon`s, which carry their own padding — 26px
+ * against a 24px slot, which is enough to push the text after them off the
+ * column. Pinned to the slot instead, so a + and a checkbox share a centre.
+ */
+.lv-add-icon,
+.lv-step-plus {
 	display: flex;
 	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	flex: 0 0 var(--lv-lead);
+	width: var(--lv-lead);
+	padding: 0;
+}
+
+.lv-add-icon {
 	color: var(--interactive-accent);
 }
 
@@ -642,6 +673,12 @@ body.is-phone .lv-header {
 	background: transparent;
 	caret-color: var(--interactive-accent);
 	padding: var(--size-2-3) var(--size-4-2);
+	/*
+	 * What lines up with the titles above is the placeholder, not the box, so
+	 * the border and padding in front of it are pulled back out of the column.
+	 * The box starts a little left of the text, hugging the +.
+	 */
+	margin-inline-start: calc(-1 * (var(--size-4-2) + var(--border-width)));
 }
 
 .lv-add-input::placeholder {
@@ -689,10 +726,6 @@ body.is-phone .lv-header {
  * three rules happening to agree.
  */
 .lv-detail {
-	/* Width of the leading slot: icon, checkbox or button, whichever the row has. */
-	--lv-lead: var(--size-4-6);
-	/* Space between that slot and the text after it. */
-	--lv-lead-gap: var(--size-4-2);
 	/* The row's own horizontal padding, inside the card's. */
 	--lv-row-pad: var(--size-4-3);
 	/* Where the text starts, and therefore where a divider starts too. */
@@ -904,6 +937,11 @@ body.is-phone .lv-header {
 	flex: 0 0 var(--size-4-8);
 	color: var(--text-faint);
 	border-radius: var(--lv-radius-s);
+}
+
+.lv-action-clear.is-empty {
+	visibility: hidden;
+	pointer-events: none;
 }
 
 .lv-action-clear:hover {
