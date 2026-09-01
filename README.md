@@ -6,14 +6,22 @@ One file is a list. One line is a task. There is no database, no index and no
 cache — open any of these files in the editor and you are looking at exactly
 what the plugin is looking at.
 
+**Desktop, tablet and phone.** One view, one codebase: the layout collapses
+from two panes to one as the space runs out, and the task detail docks in
+Obsidian's right panel or opens as a drawer, whichever the device has.
+
 <p align="center">
   <img src="screenshots/desktop.png" width="820" alt="A list open on the desktop: the picker on the left, tasks on the right, a completed section, and the add box along the bottom.">
 </p>
 
 <p align="center">
-  <img src="screenshots/tablet.png" width="380" alt="The same list on a tablet, still two panes.">
+  <img src="screenshots/desktop-detail.png" width="250" alt="A task open in Obsidian's right panel: steps, added to My Day, a reminder, a due date, repeat, and a note.">
   &nbsp;&nbsp;
-  <img src="screenshots/mobile.png" width="190" alt="The single-pane layout on a phone.">
+  <img src="screenshots/tablet.png" width="285" alt="The same list on a tablet, still two panes.">
+  &nbsp;&nbsp;
+  <img src="screenshots/mobile.png" width="145" alt="The single-pane layout on a phone.">
+  &nbsp;&nbsp;
+  <img src="screenshots/mobile-detail.png" width="145" alt="The same task detail on a phone, opened as a drawer over the list.">
 </p>
 
 ## Features
