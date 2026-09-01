@@ -13,7 +13,17 @@ thin for a store listing, where a screenshot is a claim about what someone will
 see after they install it.
 
 **So replace these with real captures before submitting.** Take them from
-Obsidian on each device, with your own lists in them, and save over these three
+Obsidian on each device, with your own lists in them, and save over these
 filenames — the README will pick them up with no edit:
 
-    desktop.png    tablet.png    mobile.png
+| file | what it shows |
+| --- | --- |
+| `desktop.png` | the picker and a list, side by side |
+| `desktop-detail.png` | a task open in Obsidian's right panel |
+| `tablet.png` | the same two panes at a tablet's width |
+| `mobile.png` | the single pane a phone collapses to |
+| `mobile-detail.png` | a task open as a drawer on a phone |
+
+The detail is shot on its own rather than beside the list because that is what
+it is: a separate leaf, docked right on a desktop and a drawer on a phone. A
+composite would be a picture of a layout the plugin does not make.
