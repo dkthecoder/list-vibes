@@ -21,7 +21,34 @@ const COUNT = 36;
 const LIFE = 900;
 const SPARKS = 14;
 const SPARK_LIFE = 550;
-const GRAVITY = 0.0015;
+const GRAVITY = 0.0006;
+/** Air resistance, per millisecond. Particles ease out instead of stopping. */
+const DRAG = 0.004;
+
+/**
+ * Where a particle is, solved rather than stepped.
+ *
+ * Integrating frame by frame ties the motion to the frame rate, so a dropped
+ * frame becomes a visible stutter. This is the closed form of velocity under
+ * linear drag plus gravity, evaluated from the particle's age — so the path is
+ * identical whether it is drawn at 120fps or 30.
+ */
+function positionAt(p: Particle, age: number): { x: number; y: number } {
+	const decay = 1 - Math.exp(-DRAG * age);
+	const terminal = GRAVITY / DRAG;
+	return {
+		x: p.x + (p.vx / DRAG) * decay,
+		y: p.y + ((p.vy + terminal) / DRAG) * decay - terminal * age,
+	};
+}
+
+/** Full, then away: a burst that starts fading at once never looks solid. */
+function fadeAt(age: number, life: number): number {
+	const t = age / life;
+	if (t < 0.45) return 1;
+	const out = (t - 0.45) / 0.55;
+	return Math.max(0, 1 - out * out);
+}
 
 interface Particle {
 	x: number;
@@ -68,6 +95,20 @@ function surface(): HTMLCanvasElement {
 	return el;
 }
 
+/**
+ * Match the bitmap to the viewport, but only when it has moved: assigning to
+ * `width` reallocates the buffer and wipes whatever is mid-flight on it.
+ */
+function fit(el: HTMLCanvasElement): void {
+	const dpr = window.devicePixelRatio || 1;
+	const w = Math.round(window.innerWidth * dpr);
+	const h = Math.round(window.innerHeight * dpr);
+	if (el.width !== w || el.height !== h) {
+		el.width = w;
+		el.height = h;
+	}
+}
+
 function tick(): void {
 	frame = null;
 	const el = canvas;
@@ -81,10 +122,9 @@ function tick(): void {
 	particles = particles.filter((p) => now - p.born < p.life);
 	for (const p of particles) {
 		const age = now - p.born;
-		const x = p.x + p.vx * age;
-		const y = p.y + p.vy * age + GRAVITY * age * age;
+		const { x, y } = positionAt(p, age);
 		ctx.save();
-		ctx.globalAlpha = Math.max(0, 1 - age / p.life) * p.alpha;
+		ctx.globalAlpha = fadeAt(age, p.life) * p.alpha;
 		ctx.translate(x * dpr, y * dpr);
 		ctx.rotate(p.angle + p.spin * age);
 		ctx.fillStyle = p.colour;
@@ -131,9 +171,7 @@ export function confettiBurst(source: HTMLElement): void {
 	const from = centre(source);
 
 	const el = surface();
-	const dpr = window.devicePixelRatio || 1;
-	el.width = window.innerWidth * dpr;
-	el.height = window.innerHeight * dpr;
+	fit(el);
 
 	const now = performance.now();
 	for (let i = 0; i < COUNT; i++) {
@@ -170,9 +208,7 @@ export function sparkleBurst(source: HTMLElement): void {
 	const from = centre(source);
 
 	const el = surface();
-	const dpr = window.devicePixelRatio || 1;
-	el.width = window.innerWidth * dpr;
-	el.height = window.innerHeight * dpr;
+	fit(el);
 
 	const now = performance.now();
 	for (let i = 0; i < SPARKS; i++) {
