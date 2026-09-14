@@ -159,6 +159,9 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		setColor: (p: string, c: ListColor | null) => {
 			calls.push(["setColor", p, c]);
 		},
+		setStripes: (p: string, v: boolean | null) => {
+			calls.push(["setStripes", p, String(v)]);
+		},
 		setIcon: (p: string, i: string | null) => {
 			calls.push(["setIcon", p, i]);
 		},

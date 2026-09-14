@@ -397,6 +397,18 @@ body.is-phone .lv-header {
 	user-select: none;
 }
 
+/*
+ * Alternate rows, when a list asks for them.
+ *
+ * `--lv-surface-alt` is already defined as the opposite of whatever surface the
+ * pane sits on, and swaps between the sidebar and the main workspace, so a
+ * stripe has contrast in both without inventing a colour. Hover is a third
+ * token, so a striped row still responds to the pointer.
+ */
+.lv-task.lv-stripe {
+	background: var(--lv-surface-alt);
+}
+
 .lv-task:hover {
 	background: var(--nav-item-background-hover, var(--background-modifier-hover));
 }

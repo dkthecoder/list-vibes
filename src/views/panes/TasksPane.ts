@@ -25,6 +25,20 @@ import {
  * The task list for the current selection, with completed tasks grouped into a
  * collapsible section beneath and an add box at the bottom that expands upward.
  */
+/**
+ * Shade every other row, after the rows exist.
+ *
+ * Not `:nth-child`, because a `##` heading is a sibling of the rows it splits,
+ * so the selector would count it and put two stripes together. Each container
+ * is striped on its own, so expanding Completed cannot reshuffle the rows above
+ * it.
+ */
+function stripe(container: HTMLElement): void {
+	container.querySelectorAll<HTMLElement>(".lv-task").forEach((row, i) => {
+		if (i % 2 === 1) row.addClass("lv-stripe");
+	});
+}
+
 export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const pane = parent.createDiv({ cls: "lv-pane lv-tasks" });
 	const sel = ctx.state.selection;
@@ -288,6 +302,11 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const sortable = sortKey === "custom" && !isSmart && mode === "list";
 	renderTasks(scroll, open, ctx, { grouped, showList: isSmart, mode, sortable });
 
+	// A list decides for itself; absent, the setting decides. Post-it view is
+	// cards rather than rows, so there is nothing to alternate.
+	const striped = mode === "list" && (list?.config.stripes ?? ctx.settings.stripeRows);
+	if (striped) stripe(scroll);
+
 	/* ---------------- completed ---------------- */
 	const showCompleted =
 		(list?.config.showCompleted ?? ctx.settings.showCompleted) !== "hidden";
@@ -326,6 +345,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 				if (mode === "postit") renderTaskCard(body, t, ctx, { showList: isSmart });
 				else renderTaskRow(body, t, ctx, { showList: isSmart });
 			}
+			if (striped) stripe(body);
 		}
 	}
 

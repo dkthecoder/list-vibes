@@ -60,6 +60,8 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
   default.
 - **Sorting** — custom order, importance, due date, date created (newest or
   oldest), or alphabetical. Remembered per list.
+- **Striped rows** — shade every other row so a long one is easier to follow
+  across. On by default; a list can opt out from its own menu.
 
 ### The detail panel
 

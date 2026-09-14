@@ -57,6 +57,8 @@ export interface ListsSettings {
 	prettyTitles: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
+	/** Shade alternate rows, for lists that have not chosen for themselves. */
+	stripeRows: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/** Last opened list, restored on reopen. */
@@ -69,6 +71,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	enableSubtasks: true,
 	side: "left",
 	showCompleted: "collapsed",
+	stripeRows: true,
 	addDoneDate: true,
 	addCreatedDate: true,
 	stampTime: true,
@@ -230,6 +233,19 @@ export class ListsSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.prettyTitles).onChange(async (v) => {
 					this.plugin.settings.prettyTitles = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Shade alternate rows")
+			.setDesc(
+				"Give every other row a slightly different background, so a long row is easier to follow across. A list can turn this on or off for itself from its own menu; this decides what the rest do."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.stripeRows).onChange(async (v) => {
+					this.plugin.settings.stripeRows = v;
 					await this.plugin.saveSettings();
 					this.plugin.refreshViews();
 				})

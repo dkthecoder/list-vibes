@@ -384,6 +384,52 @@ check(
 	`${grow.capped?.after}px`
 );
 
+/* ------------------------------------------------------------------
+   5. Alternate rows are shaded, and hover still shows
+
+   The stripe borrows `--lv-surface-alt`, the pane's own opposite. The
+   trap is picking a colour the row already uses for something else: a
+   stripe in the hover colour makes every other row look permanently
+   hovered, and hovering it does nothing.
+   ------------------------------------------------------------------ */
+
+const stripes = await page.evaluate((pane) => {
+	const rows = Array.from(document.querySelectorAll(`${pane} .lv-group .lv-task`));
+	return {
+		count: rows.length,
+		striped: rows.map((r) => r.classList.contains("lv-stripe")),
+		colours: rows.map((r) => getComputedStyle(r).backgroundColor),
+	};
+}, PANE);
+
+check(
+	"every other row carries the stripe",
+	stripes.count > 2 && stripes.striped.every((on, i) => on === (i % 2 === 1)),
+	JSON.stringify(stripes.striped)
+);
+
+check(
+	"and a striped row is a different colour from the one above it",
+	new Set(stripes.colours).size === 2,
+	JSON.stringify([...new Set(stripes.colours)])
+);
+
+// `:hover` needs a real pointer, so this is Playwright moving one rather than
+// a dispatched event, which would not match the selector.
+const stripeSel = `${PANE} .lv-group .lv-task.lv-stripe`;
+const colourOf = (sel) =>
+	page.evaluate((s) => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
+
+const stripeResting = await colourOf(stripeSel);
+await page.hover(stripeSel);
+const stripeHovered = await colourOf(stripeSel);
+
+check(
+	"and hovering a striped row still changes it",
+	stripeResting !== stripeHovered,
+	`resting=${stripeResting} hovered=${stripeHovered}`
+);
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 
 await browser.close();
