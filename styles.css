@@ -453,6 +453,7 @@ body.is-phone .lv-header {
  */
 .lv-task > .task-list-item-checkbox,
 .lv-step > .task-list-item-checkbox,
+.lv-card-head > .task-list-item-checkbox,
 .lv-card-step > .task-list-item-checkbox,
 .lv-detail-title > .task-list-item-checkbox {
 	margin-inline: max(0px, calc((var(--lv-lead) - var(--checkbox-size, 16px)) / 2));
@@ -1579,13 +1580,14 @@ body.is-phone .lv-header {
 }
 
 .lv-card-steps {
-	margin: var(--size-4-2) 0 0 var(--size-4-6);
+	margin: var(--size-4-2) 0 0 0;
 }
 
 .lv-card-step {
 	display: flex;
 	align-items: center;
-	gap: var(--size-2-3);
+	/* The head's gap, so an item's label lands on the title's column. */
+	gap: var(--lv-lead-gap);
 	min-height: var(--size-4-6);
 }
 

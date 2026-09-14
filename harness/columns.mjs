@@ -135,6 +135,54 @@ check(
 	`checkbox=${Math.round(list.taskCheck)} plus=${Math.round(list.addIcon)}`
 );
 
+/* ------------------------------------------------------------------
+   The post-it card
+
+   A card is a pinboard note, not a task with children showing. Keep draws
+   its checklist items at the note's own left edge, so a card whose items
+   are indented under its title is claiming a hierarchy this view does not
+   have.
+   ------------------------------------------------------------------ */
+
+const card = await page.evaluate(() => {
+	const pane = document.querySelector("#cards");
+	const withItems = Array.from(pane.querySelectorAll(".lv-card-task")).find((c) =>
+		c.querySelector(".lv-card-step")
+	);
+	if (!withItems) return null;
+	const left = withItems.getBoundingClientRect().left;
+	const mid = (el) => {
+		const r = el.getBoundingClientRect();
+		return r.left + r.width / 2 - left;
+	};
+	const start = (el) => el.getBoundingClientRect().left - left;
+	return {
+		boxes: [
+			mid(withItems.querySelector(".lv-card-head > .task-list-item-checkbox")),
+			...Array.from(withItems.querySelectorAll(".lv-card-step > .task-list-item-checkbox")).map(mid),
+		],
+		texts: [
+			start(withItems.querySelector(".lv-card-title")),
+			...Array.from(withItems.querySelectorAll(".lv-card-step-label")).map(start),
+		],
+	};
+});
+
+check("a post-it card with items is on screen to measure", card !== null);
+
+if (card) {
+	check(
+		"the card's tickboxes all share one centre, title included",
+		agree(card.boxes),
+		spread(card.boxes)
+	);
+	check(
+		"and every label starts on one column, so nothing is indented under anything",
+		agree(card.texts),
+		spread(card.texts)
+	);
+}
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 
 await browser.close();
