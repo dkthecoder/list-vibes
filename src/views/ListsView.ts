@@ -10,6 +10,7 @@ import {
 import { renderListsPane } from "./panes/ListsPane";
 import { renderTasksPane } from "./panes/TasksPane";
 import { keyboardOverlap } from "./keyboard";
+import { isTextEntry } from "./focus";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { SortKey } from "../model/sort";
@@ -484,16 +485,7 @@ export class ListsView extends ItemView {
 	private typing(): boolean {
 		const el = document.activeElement;
 		if (!el || !this.contentEl.contains(el)) return false;
-
-		if (el.instanceOf(HTMLInputElement) || el.instanceOf(HTMLTextAreaElement)) {
-			// An empty field has no composition to break and nothing to lose, and
-			// this is exactly the state a field is left in right after it commits.
-			// Without it, adding a step would hold back the very repaint that
-			// shows the step — so it would look like nothing had happened until
-			// you tapped away.
-			return el.value.length > 0;
-		}
-		return (el as HTMLElement).isContentEditable;
+		return isTextEntry(el);
 	}
 
 	/**
