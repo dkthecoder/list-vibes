@@ -424,6 +424,24 @@ const stripeResting = await colourOf(stripeSel);
 await page.hover(stripeSel);
 const stripeHovered = await colourOf(stripeSel);
 
+// A subtask shares its parent's stripe by not being a row at all: the pane
+// iterates root tasks and a child shows as a "1 of 3" count inside the parent.
+// Were a child ever rendered as its own row, it would take the next stripe and
+// alternate against the task it belongs to.
+const nesting = await page.evaluate((pane) => {
+	const rows = Array.from(document.querySelectorAll(`${pane} .lv-group .lv-task`));
+	return {
+		nested: rows.filter((r) => r.querySelector(".lv-task")).length,
+		withChildren: rows.filter((r) => /\d+ of \d+/.test(r.textContent ?? "")).length,
+	};
+}, PANE);
+
+check(
+	"a task with subtasks is still one row, so they share its stripe",
+	nesting.withChildren > 0 && nesting.nested === 0,
+	`${nesting.withChildren} row(s) with subtasks, ${nesting.nested} nested`
+);
+
 check(
 	"and hovering a striped row still changes it",
 	stripeResting !== stripeHovered,
