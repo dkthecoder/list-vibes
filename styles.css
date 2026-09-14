@@ -2298,7 +2298,7 @@ body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
  * Nothing on it is clickable, and it carries no colour of its own — the
  * particles are painted in the theme's own scale, read at run time.
  */
-.lv-confetti {
+.lv-burst {
 	position: fixed;
 	inset: 0;
 	/*

@@ -1,5 +1,5 @@
 /**
- * Confetti fires, and reduced motion means none of it.
+ * The bursts fire where they are aimed, and reduced motion means none of them.
  *
  * "None" rather than "less" is the whole point of the rule, and it is the
  * kind of thing that is easy to half-implement — a shorter burst still moves.
@@ -19,6 +19,8 @@ const check = (name, pass, detail = "") => {
 
 const PANE = "#drag";
 const BOX = `${PANE} .lv-task:not(.is-complete) > .task-list-item-checkbox`;
+const STAR_OFF = `${PANE} .lv-task .lv-star:not(.is-on)`;
+const STAR_ON = `${PANE} .lv-task .lv-star.is-on`;
 
 /**
  * Tick the first open task and report what landed on the page.
@@ -26,14 +28,14 @@ const BOX = `${PANE} .lv-task:not(.is-complete) > .task-list-item-checkbox`;
  * The checkbox is measured *after* the click, because clicking scrolls it into
  * view and a rect taken before would be off the page.
  */
-async function tickAndInspect(page) {
+async function tickAndInspect(page, sel = BOX) {
 	await page.goto(url);
 	await page.waitForTimeout(200);
-	await page.click(BOX);
+	await page.click(sel);
 	await page.waitForTimeout(30);
 	return page.evaluate((sel) => {
 		const target = document.querySelector(sel).getBoundingClientRect();
-		const c = document.querySelector("canvas.lv-confetti");
+		const c = document.querySelector("canvas.lv-burst");
 		if (!c) return { canvas: false };
 		const cs = getComputedStyle(c);
 		const box = c.getBoundingClientRect();
@@ -65,7 +67,7 @@ async function tickAndInspect(page) {
 			background: cs.backgroundColor,
 			painted: n,
 		};
-	}, BOX);
+	}, sel);
 }
 
 // deviceScaleFactor 2 on purpose: the canvas once rendered at twice the
@@ -114,6 +116,25 @@ check(
 	"reduced motion means no confetti at all, not a shorter burst",
 	reduced.canvas === false,
 	JSON.stringify(reduced)
+);
+
+/* ---------------- the star ---------------- */
+
+await page.emulateMedia({ reducedMotion: "no-preference" });
+
+const starred = await tickAndInspect(page, STAR_OFF);
+check("starring a task glints", starred.canvas === true, JSON.stringify(starred.canvas));
+check(
+	"and the glint comes from the star that was pressed",
+	starred.aim !== null && Math.abs(starred.aim[0]) <= 20 && Math.abs(starred.aim[1]) <= 20,
+	`centroid ${JSON.stringify(starred.aim)}px from the star`
+);
+
+const unstarred = await tickAndInspect(page, STAR_ON);
+check(
+	"but clearing importance does not — it is not an achievement",
+	unstarred.canvas === false,
+	JSON.stringify(unstarred)
 );
 
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));

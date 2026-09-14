@@ -7,6 +7,7 @@ import {
 	starsOf,
 } from "../model/sort";
 import { DetailContext } from "../views/context";
+import { centreOf, sparkleBurst } from "./burst";
 
 /**
  * The importance control, in whichever mode the user picked.
@@ -48,6 +49,8 @@ function renderStar(
 
 	const flip = (e: Event) => {
 		e.stopPropagation();
+		// Setting importance only. Clearing it is not a thing to celebrate.
+		if (!on && ctx.settings.starBurst) sparkleBurst(centreOf(el));
 		void ctx.mutator.setField(task, "priority", on ? null : STAR_PRIORITY);
 	};
 	el.addEventListener("click", flip);
@@ -99,6 +102,7 @@ function renderRating(
 			// Tapping the current rating clears it, so 5 stars is reachable
 			// and escapable without a separate clear button.
 			const next = i === value ? 0 : i;
+			if (next > 0 && ctx.settings.starBurst) sparkleBurst(centreOf(star));
 			void ctx.mutator.setField(task, "priority", PRIORITY_BY_STARS[next] ?? null);
 		};
 		star.addEventListener("click", set);

@@ -61,6 +61,8 @@ export interface ListsSettings {
 	stripeRows: boolean;
 	/** Throw confetti when a task is completed. Ignored under reduced motion. */
 	confetti: boolean;
+	/** Glint when a task is starred. Ignored under reduced motion. */
+	starBurst: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/** Last opened list, restored on reopen. */
@@ -75,6 +77,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	showCompleted: "collapsed",
 	stripeRows: true,
 	confetti: true,
+	starBurst: true,
 	addDoneDate: true,
 	addCreatedDate: true,
 	stampTime: true,
@@ -249,6 +252,18 @@ export class ListsSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.confetti).onChange(async (v) => {
 					this.plugin.settings.confetti = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Sparkle when a task is starred")
+			.setDesc(
+				"A glint from the star, in the same accent the star is drawn in. Only when importance is set, never when it is cleared. Turned off automatically if the system asks for reduced motion."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.starBurst).onChange(async (v) => {
+					this.plugin.settings.starBurst = v;
 					await this.plugin.saveSettings();
 				})
 			);

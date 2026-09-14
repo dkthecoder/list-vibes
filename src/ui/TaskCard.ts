@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
-import { centreOf, confettiBurst } from "./confetti";
+import { centreOf, confettiBurst } from "./burst";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
