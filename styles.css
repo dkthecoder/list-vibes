@@ -2301,6 +2301,15 @@ body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
 .lv-confetti {
 	position: fixed;
 	inset: 0;
+	/*
+	 * Explicit, because `inset: 0` does not stretch a replaced element: a
+	 * canvas takes its size from its `width`/`height` attributes, which are the
+	 * bitmap in device pixels. Left to resolve on its own it rendered at twice
+	 * the viewport on a retina screen, and the burst landed at twice the
+	 * coordinate it was aimed at.
+	 */
+	width: 100%;
+	height: 100%;
 	pointer-events: none;
 	z-index: var(--layer-notice);
 }
