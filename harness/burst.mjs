@@ -52,8 +52,25 @@ async function tickAndInspect(page, sel = BOX) {
 		// The canvas box in CSS pixels, against the bitmap in device pixels.
 		const scaleX = box.width / c.width;
 		const scaleY = box.height / c.height;
+		// The commonest solid pixel, against the list's own accent resolved
+		// through the DOM so the two are compared in the same notation.
+		const probe = document.createElement("span");
+		probe.style.color = getComputedStyle(document.querySelector(sel)).getPropertyValue("--lv-accent");
+		document.body.appendChild(probe);
+		const accent = getComputedStyle(probe).color;
+		probe.remove();
+		const tally = new Map();
+		for (let i = 0; i < data.length; i += 4) {
+			if (data[i + 3] < 200) continue;
+			const k = `rgb(${data[i]}, ${data[i + 1]}, ${data[i + 2]})`;
+			tally.set(k, (tally.get(k) ?? 0) + 1);
+		}
+		const commonest = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
 		return {
 			canvas: true,
+			accent,
+			commonest,
 			viewport: [window.innerWidth, window.innerHeight],
 			cssBox: [Math.round(box.width), Math.round(box.height)],
 			aim: n
@@ -104,6 +121,12 @@ check(
 	normal.pointer === "none",
 	`pointer-events=${normal.pointer}`
 );
+check(
+	"the confetti is the list's own colour",
+	normal.commonest !== null && normal.commonest === normal.accent,
+	`particles=${normal.commonest} list=${normal.accent}`
+);
+
 check(
 	"and it carries no colour of its own",
 	normal.background === "rgba(0, 0, 0, 0)",

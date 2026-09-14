@@ -62,10 +62,10 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
   oldest), or alphabetical. Remembered per list.
 - **Striped rows** — shade every other row so a long one is easier to follow
   across. On by default; a list can opt out from its own menu.
-- **Confetti and glints** — a short burst in your theme's own colours when a
-  task is completed, and a sparkle from the star when you mark one important.
-  Each has its own switch, and both are off automatically if your system asks
-  for reduced motion.
+- **Confetti and glints** — a short burst in the list's own colour when a task
+  is completed, and a sparkle from the star when you mark one important. Each
+  has its own switch, and both are off automatically if your system asks for
+  reduced motion.
 
 ### The detail panel
 

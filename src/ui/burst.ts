@@ -8,24 +8,14 @@
  *   comes back as a vault event and repaints the pane, so the row that was
  *   clicked is gone within about 30ms. The canvas therefore hangs off
  *   `document.body`, outside everything this plugin redraws.
- * - **The colours are the theme's.** Obsidian's own colour scale is read at
- *   run time rather than written down here, so the burst matches whatever
- *   theme is loaded — and the palette audit stays true when it says no colour
- *   in this plugin is its own.
+ * - **The colour is the list's.** `--lv-accent` is read off the element that
+ *   was clicked — custom properties inherit, so a list with `color:` in its
+ *   frontmatter throws its own colour and an uncoloured one throws the
+ *   accent from Obsidian's appearance settings. Nothing is written down here,
+ *   so the palette audit stays true when it says no colour in this plugin is
+ *   its own.
  * - **Reduced motion means none.** Not fewer, not slower.
  */
-
-/** Obsidian's colour scale. Absent ones are skipped, not substituted. */
-const TOKENS = [
-	"--color-red",
-	"--color-orange",
-	"--color-yellow",
-	"--color-green",
-	"--color-cyan",
-	"--color-blue",
-	"--color-purple",
-	"--color-pink",
-];
 
 const COUNT = 36;
 const LIFE = 900;
@@ -45,19 +35,30 @@ interface Particle {
 	born: number;
 	shape: "chip" | "spark";
 	life: number;
+	/** Varied per particle, so one colour still reads as a crowd. */
+	alpha: number;
 }
 
 let canvas: HTMLCanvasElement | null = null;
 let particles: Particle[] = [];
 let frame: number | null = null;
 
-function palette(): string[] {
-	const cs = getComputedStyle(document.body);
-	const scale = TOKENS.map((t) => cs.getPropertyValue(t).trim()).filter(Boolean);
-	if (scale.length) return scale;
-	// A theme with no colour scale still has an accent; with neither, no burst.
-	const accent = cs.getPropertyValue("--interactive-accent").trim();
-	return accent ? [accent] : [];
+/**
+ * The colour of the list the element belongs to, or the theme's accent where
+ * there is no list. Empty means no burst rather than a colour of our own.
+ */
+function accentOf(el: HTMLElement): string {
+	const cs = getComputedStyle(el);
+	return (
+		cs.getPropertyValue("--lv-accent").trim() ||
+		cs.getPropertyValue("--interactive-accent").trim()
+	);
+}
+
+/** The centre of an element, for a burst thrown from the thing clicked. */
+function centre(el: HTMLElement): { x: number; y: number } {
+	const r = el.getBoundingClientRect();
+	return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
 function surface(): HTMLCanvasElement {
@@ -83,7 +84,7 @@ function tick(): void {
 		const x = p.x + p.vx * age;
 		const y = p.y + p.vy * age + GRAVITY * age * age;
 		ctx.save();
-		ctx.globalAlpha = Math.max(0, 1 - age / p.life);
+		ctx.globalAlpha = Math.max(0, 1 - age / p.life) * p.alpha;
 		ctx.translate(x * dpr, y * dpr);
 		ctx.rotate(p.angle + p.spin * age);
 		ctx.fillStyle = p.colour;
@@ -123,10 +124,11 @@ const stop = stopConfetti;
  * Throw a burst from a point on screen, usually a checkbox that was just
  * ticked. Silently does nothing when motion is not wanted.
  */
-export function confettiBurst(from: { x: number; y: number }): void {
+export function confettiBurst(source: HTMLElement): void {
 	if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-	const colours = palette();
-	if (!colours.length) return;
+	const colour = accentOf(source);
+	if (!colour) return;
+	const from = centre(source);
 
 	const el = surface();
 	const dpr = window.devicePixelRatio || 1;
@@ -146,31 +148,26 @@ export function confettiBurst(from: { x: number; y: number }): void {
 			spin: (Math.random() - 0.5) * 0.02,
 			angle: Math.random() * Math.PI,
 			size: 5 + Math.random() * 5,
-			colour: colours[i % colours.length],
+			colour,
 			born: now,
 			shape: "chip",
 			life: LIFE,
+			alpha: 0.55 + Math.random() * 0.45,
 		});
 	}
 	if (frame === null) frame = window.requestAnimationFrame(tick);
 }
 
-/** The centre of an element, for a burst thrown from the thing clicked. */
-export function centreOf(el: HTMLElement): { x: number; y: number } {
-	const r = el.getBoundingClientRect();
-	return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-}
 
 /**
  * A tighter, quieter burst for the star: fewer particles, thrown outward
  * rather than up, in the accent the set star itself is drawn in.
  */
-export function sparkleBurst(from: { x: number; y: number }): void {
+export function sparkleBurst(source: HTMLElement): void {
 	if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-	const accent = getComputedStyle(document.body)
-		.getPropertyValue("--interactive-accent")
-		.trim();
+	const accent = accentOf(source);
 	if (!accent) return;
+	const from = centre(source);
 
 	const el = surface();
 	const dpr = window.devicePixelRatio || 1;
@@ -195,6 +192,7 @@ export function sparkleBurst(from: { x: number; y: number }): void {
 			born: now,
 			shape: "spark",
 			life: SPARK_LIFE,
+			alpha: 0.6 + Math.random() * 0.4,
 		});
 	}
 	if (frame === null) frame = window.requestAnimationFrame(tick);

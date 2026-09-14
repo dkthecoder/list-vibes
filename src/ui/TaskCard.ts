@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
-import { centreOf, confettiBurst } from "./burst";
+import { confettiBurst } from "./burst";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
@@ -36,7 +36,7 @@ export function renderTaskCard(
 	renderCheckbox(head, task, (e) => {
 		e.stopPropagation();
 		if (ctx.settings.confetti && !isComplete(task)) {
-			confettiBurst(centreOf(e.target as HTMLElement));
+			confettiBurst(e.target as HTMLElement);
 		}
 		void ctx.mutator.toggle(task);
 	});
