@@ -59,6 +59,8 @@ export interface ListsSettings {
 	defaultView: ViewMode;
 	/** Shade alternate rows, for lists that have not chosen for themselves. */
 	stripeRows: boolean;
+	/** Throw confetti when a task is completed. Ignored under reduced motion. */
+	confetti: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/** Last opened list, restored on reopen. */
@@ -72,6 +74,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	side: "left",
 	showCompleted: "collapsed",
 	stripeRows: true,
+	confetti: true,
 	addDoneDate: true,
 	addCreatedDate: true,
 	stampTime: true,
@@ -235,6 +238,18 @@ export class ListsSettingTab extends PluginSettingTab {
 					this.plugin.settings.prettyTitles = v;
 					await this.plugin.saveSettings();
 					this.plugin.refreshViews();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Confetti when a task is completed")
+			.setDesc(
+				"A short burst from the checkbox, in the theme's own colours. Subtasks and steps do not set it off, only the task itself. Turned off automatically if the system asks for reduced motion."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.confetti).onChange(async (v) => {
+					this.plugin.settings.confetti = v;
+					await this.plugin.saveSettings();
 				})
 			);
 

@@ -2289,3 +2289,18 @@ body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
    detection behind it has been deleted rather than left standing as
    dead machinery aimed at a fault this device does not have.
    ------------------------------------------------------------------ */
+
+/*
+ * The confetti canvas.
+ *
+ * On `document.body` rather than in the view: completing a task repaints the
+ * pane, which would take the canvas with it a few frames into the burst.
+ * Nothing on it is clickable, and it carries no colour of its own — the
+ * particles are painted in the theme's own scale, read at run time.
+ */
+.lv-confetti {
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: var(--layer-notice);
+}

@@ -62,6 +62,8 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
   oldest), or alphabetical. Remembered per list.
 - **Striped rows** — shade every other row so a long one is easier to follow
   across. On by default; a list can opt out from its own menu.
+- **Confetti** — a short burst in your theme's own colours when a task is
+  completed. Off automatically if your system asks for reduced motion.
 
 ### The detail panel
 
