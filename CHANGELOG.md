@@ -15,6 +15,38 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.4.0
+
+**A ticked task drops into Completed straight away.** It used to sit in the open
+list looking done until you clicked elsewhere — and if you unticked it in that
+window, the box cleared but the task went into Completed anyway. The repaint was
+being held back because a checkbox is an `<input>` whose value is the string
+"on", which the guard against repainting over a half-typed word read as typing.
+Nothing was ever written wrongly; the screen was just a step behind the file.
+
+**Everything lines up.** The panel's checkboxes, icons and the + share one
+column, and so do the labels after them. The add box's placeholder sits on the
+same line as the task titles above it. A row in the task detail no longer slides
+its chevron 32px sideways when it has nothing to clear.
+
+**The add box is the list's next row.** It was a bar pinned to the foot of the
+pane, which put a gulf of empty space between the last task and the box you add
+the next one into. It sits with the list now, and the Completed section closes
+things off beneath it.
+
+**Striped rows, optional.** Every other row takes a slightly different
+background so a long one is easier to follow across. On by default; a list can
+opt out from its own menu, and the setting decides for the rest.
+
+**Confetti, and a glint on the star.** A burst in the list's own colour when you
+complete something, a bloom from the star when you mark something important.
+Each has its own switch, and both are skipped entirely if your system asks for
+reduced motion.
+
+**Post-it cards read as notes rather than tasks with children.** Items sit at
+the card's own left edge instead of indented under its title, which is what
+makes a pinboard feel like a pinboard.
+
 ## 0.3.1
 
 **Task titles render on older iPads again.** The inline renderer used regex
