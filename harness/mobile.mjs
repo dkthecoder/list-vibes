@@ -273,13 +273,23 @@ check(
 );
 
 /* ------------------------------------------------------------------
-   2b-bis. The add box is the pane's footer, not the list's last item
+   2b-bis. The add box is the list's next row, above Completed
 
-   It lived inside the scroller for a while, as a workaround for a
-   keyboard that was being subtracted twice. What that produced on a
-   tablet was a box floating just under the last task with the whole
-   lower screen empty below it — dk's "the add task is just floating,
-   neither with the tasks nor at the bottom". It is a footer now.
+   This has been both ways round. It lived in the scroller once as a
+   workaround for a keyboard being subtracted twice, and what that
+   produced on a tablet was a box floating under the last task with the
+   whole lower screen empty — "neither with the tasks nor at the
+   bottom" — so it became a footer.
+
+   Pinned, though, a short list put a gulf of empty pane between the
+   last task and the box you add the next one into, and that is the
+   complaint that stuck. It is the next row now, with Completed closing
+   the list beneath it.
+
+   The old failure can still happen on a list with nothing completed,
+   where there is no Completed row to close it. That is the trade, taken
+   deliberately: the space is below the list either way, and this way it
+   is not between two things that belong together.
    ------------------------------------------------------------------ */
 
 const footer = await page.evaluate((pane) => {
@@ -295,6 +305,14 @@ const footer = await page.evaluate((pane) => {
 		gap: Math.round(
 			frame.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom
 		),
+		hasCompleted: !!frame.querySelector(".lv-completed"),
+		beforeCompleted: (() => {
+			const done = frame.querySelector(".lv-completed");
+			if (!done) return true;
+			return !!(
+				box.compareDocumentPosition(done) & Node.DOCUMENT_POSITION_FOLLOWING
+			);
+		})(),
 		lastRow: (() => {
 			const rows = frame.querySelectorAll(".lv-task");
 			const last = rows[rows.length - 1];
@@ -308,16 +326,16 @@ const footer = await page.evaluate((pane) => {
 	frame.style.height = was;
 	return out;
 }, PANE);
-check("the add box is not a row in the list", !footer.insideScroller);
+check("the add box is a row in the list", footer.insideScroller);
 check(
-	"it sits at the foot of the pane",
-	footer.gap <= 2,
-	`${footer.gap}px below it`
+	"it follows the last task rather than the pane",
+	footer.lastRow >= 0 && footer.lastRow <= 24,
+	`${footer.lastRow}px between the last task and the box`
 );
 check(
-	"so a short list leaves the space between, not below",
-	footer.lastRow > 100,
-	`${footer.lastRow}px between the last task and the box`
+	"and Completed closes the list beneath it",
+	footer.beforeCompleted,
+	`completed section present: ${footer.hasCompleted}`
 );
 
 /* ------------------------------------------------------------------

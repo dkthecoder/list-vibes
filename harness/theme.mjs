@@ -152,10 +152,16 @@ await apply({
 after = await sample();
 check("text colour follows the theme", after.textColour !== before.textColour,
 	`${before.textColour} -> ${after.textColour}`);
+const transparentValue = (v) => v === "transparent" || /,\s*0\)$/.test(v);
+
+// The add box used to be the one opaque bar in this pane and was what this
+// asked about. It is a row in the list now and paints nothing, so what has to
+// hold is that it stays that way — the surface rule is asked of the detail
+// panel below, which is what still has to be opaque.
 check(
-	"opaque surfaces follow the theme",
-	after.addBackground !== before.addBackground,
-	`${before.addBackground} -> ${after.addBackground}`
+	"the add box paints nothing, like the rows around it",
+	transparentValue(after.addBackground),
+	after.addBackground
 );
 check("row hover follows the theme", after.rowHover !== before.rowHover,
 	`${before.rowHover} -> ${after.rowHover}`);
@@ -185,7 +191,8 @@ const surfaces = await page.evaluate(() => {
 	const frameBg = (f) => getComputedStyle(document.querySelector(f)).backgroundColor;
 	return {
 		mainLeaf: frameBg("#drag"),
-		mainAdd: read("#drag", ".lv-add"),
+		detailLeaf: frameBg("#desktop"),
+		detail: read("#desktop", ".lv-detail"),
 		sideLeaf: frameBg("#m-nav"),
 		sidePane: read("#m-nav", ".lv-pane"),
 		sideRow: read("#m-nav", ".lv-nav-row"),
@@ -198,9 +205,9 @@ check(
 	`sidebar=${surfaces.sideLeaf} main=${surfaces.mainLeaf}`
 );
 check(
-	"an opaque bar matches the leaf it is sitting in, rather than a fixed colour",
-	surfaces.mainAdd === surfaces.mainLeaf,
-	`add=${surfaces.mainAdd} leaf=${surfaces.mainLeaf}`
+	"an opaque surface matches the leaf it is sitting in, rather than a fixed colour",
+	surfaces.detail === surfaces.detailLeaf,
+	`detail=${surfaces.detail} leaf=${surfaces.detailLeaf}`
 );
 check(
 	"and in the sidebar the pane still paints nothing over it",

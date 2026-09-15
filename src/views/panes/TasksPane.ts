@@ -307,6 +307,34 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const striped = mode === "list" && (list?.config.stripes ?? ctx.settings.stripeRows);
 	if (striped) stripe(scroll);
 
+	/* ---------------- add box ---------------- */
+	if (!isSmart || sel.view === "myday") {
+		/*
+		 * The next row in the list, above Completed.
+		 *
+		 * It was a bar pinned to the foot of the pane, which put a gulf of empty
+		 * pane between the last task and the box you add the next one into. Here
+		 * it sits where the task it is about to make will sit, and the Completed
+		 * section closes the list beneath it.
+		 *
+		 * Being inside the scroller is also what lets a keyboard be scrolled
+		 * clear of: a bar outside every scroller cannot be, which is the reason
+		 * this lived here once before.
+		 *
+		 * `simple` is a separate question from where it lives, and stays: on
+		 * touch the box is one line, because expanding a description field, five
+		 * chips and two buttons under a keyboard covering half the screen is not
+		 * what tapping "add a task" was asking for.
+		 *
+		 * Read off `is-mobile` on the body rather than `Platform`, because that
+		 * is the same signal the stylesheet keys off — so the two can never
+		 * disagree — and because it follows Obsidian's desktop mobile emulation,
+		 * which makes this testable without a phone.
+		 */
+		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
+		renderAddBox(scroll, ctx, touch);
+	}
+
 	/* ---------------- completed ---------------- */
 	const showCompleted =
 		(list?.config.showCompleted ?? ctx.settings.showCompleted) !== "hidden";
@@ -349,34 +377,6 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		}
 	}
 
-	/* ---------------- add box ---------------- */
-	if (!isSmart || sel.view === "myday") {
-		/*
-		 * Pinned to the foot of the pane on every platform, and simplified on
-		 * touch.
-		 *
-		 * It spent a while *inside* the scroller on touch, as an answer to the
-		 * keyboard: a field in the same scroller as the tasks can be scrolled
-		 * clear of a keyboard, and a bar outside every scroller cannot. That was
-		 * treating a symptom of a viewport being shortened twice, and it cost the
-		 * thing this pane is for — the box ended up floating after the last task
-		 * with the rest of the screen empty below it, which is neither a list nor
-		 * a footer. The cap is now undone where it happens, so the box can sit
-		 * where a footer belongs.
-		 *
-		 * `simple` is a separate question from where it lives, and stays: on
-		 * touch the box is one line, because expanding a description field, five
-		 * chips and two buttons under a keyboard covering half the screen is not
-		 * what tapping "add a task" was asking for.
-		 *
-		 * Read off `is-mobile` on the body rather than `Platform`, because that
-		 * is the same signal the stylesheet keys off — so the two can never
-		 * disagree — and because it follows Obsidian's desktop mobile emulation,
-		 * which makes this testable without a phone.
-		 */
-		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
-		renderAddBox(pane, ctx, touch);
-	}
 }
 
 /** Render tasks as rows or post-it notes, optionally grouped under headings. */

@@ -626,22 +626,18 @@ body.is-phone .lv-header {
  *
  * This carried its own background, radius and — when open — an accent border,
  * which is what made it read as a form pasted on top of the list rather than
- * part of it. Obsidian separates a footer from its pane with a divider and
- * leaves the background alone, so this does too.
+ * part of it. It is the next row now: no background of its own, nothing
+ * scrolling underneath it, and the scroller it sits in carries the navbar and
+ * keyboard clearance a pinned footer used to need for itself.
  */
 .lv-add {
-	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
 	/* The scroller's inset plus a row's own padding, so the + lands in the
-	   same column as the checkboxes scrolling past above it. */
+	   same column as the checkboxes above it. */
 	padding: var(--size-4-2) calc(var(--lv-row-inset) + var(--size-4-2));
-	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	min-height: var(--lv-row-min);
-	border-top: var(--border-width) solid var(--divider-color);
-	/* Opaque, because rows scroll underneath it. */
-	background: var(--lv-surface);
 }
 
 /*
