@@ -42,9 +42,15 @@ function positionAt(p: Particle, age: number): { x: number; y: number } {
 	};
 }
 
-/** Full, then away: a burst that starts fading at once never looks solid. */
-function fadeAt(age: number, life: number): number {
-	const t = age / life;
+/**
+ * Full, then away: a burst that starts fading at once never looks solid.
+ *
+ * A bloom is the exception — it is light, so it fades the whole way out as it
+ * spreads. Holding it at full would read as a disc sitting on the star.
+ */
+function fadeAt(age: number, p: Particle): number {
+	const t = Math.min(1, age / p.life);
+	if (p.shape === "glow") return Math.pow(1 - t, 1.5);
 	if (t < 0.45) return 1;
 	const out = (t - 0.45) / 0.55;
 	return Math.max(0, 1 - out * out);
@@ -60,7 +66,7 @@ interface Particle {
 	size: number;
 	colour: string;
 	born: number;
-	shape: "chip" | "spark";
+	shape: "chip" | "spark" | "glow";
 	life: number;
 	/** Varied per particle, so one colour still reads as a crowd. */
 	alpha: number;
@@ -124,11 +130,22 @@ function tick(): void {
 		const age = now - p.born;
 		const { x, y } = positionAt(p, age);
 		ctx.save();
-		ctx.globalAlpha = fadeAt(age, p.life) * p.alpha;
+		ctx.globalAlpha = fadeAt(age, p) * p.alpha;
 		ctx.translate(x * dpr, y * dpr);
 		ctx.rotate(p.angle + p.spin * age);
 		ctx.fillStyle = p.colour;
-		if (p.shape === "chip") {
+		if (p.shape === "glow") {
+			// Light, not a shape: a small disc carrying a large shadow of its own
+			// colour, widening as it goes. `shadowBlur` rather than a gradient
+			// because it takes the theme's colour string as it comes, whatever
+			// notation the theme wrote it in.
+			const r = p.size * (0.35 + (age / p.life) * 1.9) * dpr;
+			ctx.shadowColor = p.colour;
+			ctx.shadowBlur = r;
+			ctx.beginPath();
+			ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+			ctx.fill();
+		} else if (p.shape === "chip") {
 			ctx.fillRect((-p.size / 2) * dpr, (-p.size / 4) * dpr, p.size * dpr, (p.size / 2) * dpr);
 		} else {
 			// A four-point sparkle: two tapered spikes crossed, pinched at the
@@ -211,6 +228,23 @@ export function sparkleBurst(source: HTMLElement): void {
 	fit(el);
 
 	const now = performance.now();
+
+	// The bloom is the thing; the sparks are what stop it being a disc.
+	particles.push({
+		x: from.x,
+		y: from.y,
+		vx: 0,
+		vy: 0,
+		spin: 0,
+		angle: 0,
+		size: 20,
+		colour: accent,
+		born: now,
+		shape: "glow",
+		life: SPARK_LIFE,
+		alpha: 0.85,
+	});
+
 	for (let i = 0; i < SPARKS; i++) {
 		// Radiating rather than sprayed, but loosely: evenly spaced at one speed
 		// draws a clock face, so both the angle and the reach are scattered.
