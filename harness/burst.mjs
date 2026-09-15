@@ -28,11 +28,11 @@ const STAR_ON = `${PANE} .lv-task .lv-star.is-on`;
  * The checkbox is measured *after* the click, because clicking scrolls it into
  * view and a rect taken before would be off the page.
  */
-async function tickAndInspect(page, sel = BOX) {
+async function tickAndInspect(page, sel = BOX, settle = 30) {
 	await page.goto(url);
 	await page.waitForTimeout(200);
 	await page.click(sel);
-	await page.waitForTimeout(30);
+	await page.waitForTimeout(settle);
 	return page.evaluate((sel) => {
 		const target = document.querySelector(sel).getBoundingClientRect();
 		const c = document.querySelector("canvas.lv-burst");
@@ -67,8 +67,25 @@ async function tickAndInspect(page, sel = BOX) {
 		}
 		const commonest = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
+		// How far the burst has actually got, in CSS pixels. Aim, colour and
+		// presence can all be right while the thing is too small to notice.
+		let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+		for (let i = 3; i < data.length; i += 4) {
+			if (data[i] === 0) continue;
+			const px = ((i - 3) / 4) % c.width;
+			const py = Math.floor((i - 3) / 4 / c.width);
+			if (px < x0) x0 = px;
+			if (px > x1) x1 = px;
+			if (py < y0) y0 = py;
+			if (py > y1) y1 = py;
+		}
+		const spread = n
+			? [Math.round((x1 - x0) * scaleX), Math.round((y1 - y0) * scaleY)]
+			: null;
+
 		return {
 			canvas: true,
+			spread,
 			accent,
 			commonest,
 			viewport: [window.innerWidth, window.innerHeight],
@@ -145,7 +162,11 @@ check(
 
 await page.emulateMedia({ reducedMotion: "no-preference" });
 
-const starred = await tickAndInspect(page, STAR_OFF);
+// Two samples, because aim and reach are true at different moments: where the
+// burst starts is only measurable before it has gone anywhere, and how far it
+// gets is only measurable once it has.
+const starred = await tickAndInspect(page, STAR_OFF, 30);
+const travelled = await tickAndInspect(page, STAR_OFF, 260);
 check("starring a task glints", starred.canvas === true, JSON.stringify(starred.canvas));
 check(
 	"and the glint comes from the star that was pressed",
@@ -154,6 +175,15 @@ check(
 );
 
 const unstarred = await tickAndInspect(page, STAR_ON);
+// Adding drag once shrank this to a smudge against the star: reach under drag
+// is velocity / DRAG, not velocity × time, so a change nowhere near these
+// numbers halved them. Every other check still passed.
+check(
+	"and it is big enough to notice",
+	travelled.spread !== null && travelled.spread[0] >= 60 && travelled.spread[1] >= 60,
+	`${JSON.stringify(travelled.spread)}px across`
+);
+
 check(
 	"but clearing importance does not — it is not an achievement",
 	unstarred.canvas === false,

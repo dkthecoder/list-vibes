@@ -19,7 +19,7 @@
 
 const COUNT = 36;
 const LIFE = 900;
-const SPARKS = 14;
+const SPARKS = 18;
 const SPARK_LIFE = 550;
 const GRAVITY = 0.0006;
 /** Air resistance, per millisecond. Particles ease out instead of stopping. */
@@ -214,8 +214,12 @@ export function sparkleBurst(source: HTMLElement): void {
 	for (let i = 0; i < SPARKS; i++) {
 		// Radiating rather than sprayed, but loosely: evenly spaced at one speed
 		// draws a clock face, so both the angle and the reach are scattered.
+		//
+		// Reach under drag is velocity / DRAG, not velocity × time, so these are
+		// larger than they look: adding drag once shrank the glint to a smudge
+		// against the star without changing a single number here.
 		const angle = (i / SPARKS) * Math.PI * 2 + (Math.random() - 0.5) * 0.9;
-		const power = 0.05 + Math.random() * 0.18;
+		const power = 0.18 + Math.random() * 0.22;
 		particles.push({
 			x: from.x,
 			y: from.y,
@@ -223,7 +227,7 @@ export function sparkleBurst(source: HTMLElement): void {
 			vy: Math.sin(angle) * power,
 			spin: (Math.random() - 0.5) * 0.01,
 			angle: Math.random() * Math.PI,
-			size: 3 + Math.random() * 3,
+			size: 4 + Math.random() * 4,
 			colour: accent,
 			born: now,
 			shape: "spark",
