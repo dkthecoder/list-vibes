@@ -176,6 +176,8 @@ export interface ListConfig {
 	view?: ViewMode;
 	sort?: "manual" | "due" | "priority" | "alpha" | "created";
 	showCompleted?: "collapsed" | "expanded" | "hidden";
+	/** Absent means "whatever the setting says"; see `stripeRows`. */
+	stripes?: boolean;
 	defaultDue?: string;
 }
 

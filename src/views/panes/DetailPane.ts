@@ -372,7 +372,14 @@ function action(parent: HTMLElement, ctx: DetailContext, o: ActionOpts): void {
 		setIcon(chev, open ? "chevron-up" : "chevron-down");
 	}
 
-	if (o.onClear) {
+	/*
+	 * The clear slot is always in the row, empty where there is nothing to
+	 * clear, so the chevron beside it keeps its column either way. Without it
+	 * a row like Repeat pulled its chevron 32px right into the vacant space.
+	 */
+	if (!o.onClear) {
+		row.createDiv({ cls: "lv-action-clear is-empty" });
+	} else {
 		const clear = row.createDiv({ cls: "lv-action-clear" });
 		setIcon(clear, "x");
 		clear.setAttribute("aria-label", `Clear ${o.label}`);

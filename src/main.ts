@@ -13,6 +13,7 @@ import { DEFAULT_SETTINGS, ListsSettingTab, ListsSettings } from "./settings";
 import { ListStore, todayISO } from "./model/store";
 import { Task, TaskList, normalizeViewMode } from "./model/types";
 import { Mutator } from "./model/mutate";
+import { stopConfetti } from "./ui/burst";
 import { ListsView, VIEW_TYPE_LISTS } from "./views/ListsView";
 import { DetailView, VIEW_TYPE_DETAIL } from "./views/DetailView";
 import { TaskPickerModal } from "./ui/TaskPickerModal";
@@ -58,6 +59,10 @@ export default class ListsPlugin extends Plugin {
 	onunload(): void {
 		// Leaves are deliberately not detached here: Obsidian restores them, and
 		// detaching on unload is a documented review failure.
+		//
+		// The confetti canvas is ours and lives on `document.body`, so it would
+		// outlive the plugin if left.
+		stopConfetti();
 	}
 
 	async loadSettings(): Promise<void> {

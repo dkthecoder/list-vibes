@@ -7,6 +7,7 @@ import { FILES } from "./fixtures";
 import { parseFile } from "../src/model/parse";
 import { Task, TaskList, isComplete } from "../src/model/types";
 import { DEFAULT_SETTINGS } from "../src/settings";
+import { isTextEntry } from "../src/views/focus";
 import { PaneName, Selection, ViewContext, ViewState } from "../src/views/context";
 import { renderListsPane } from "../src/views/panes/ListsPane";
 import { renderTasksPane } from "../src/views/panes/TasksPane";
@@ -159,6 +160,9 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		setColor: (p: string, c: ListColor | null) => {
 			calls.push(["setColor", p, c]);
 		},
+		setStripes: (p: string, v: boolean | null) => {
+			calls.push(["setStripes", p, String(v)]);
+		},
 		setIcon: (p: string, i: string | null) => {
 			calls.push(["setIcon", p, i]);
 		},
@@ -309,3 +313,7 @@ paint();
 	}
 	return pinned.map((n) => n.className || n.tagName);
 };
+
+// Exposed so the suite can ask the real predicate, rather than a copy of it
+// that could drift from the one the view uses.
+(window as unknown as Record<string, unknown>).isTextEntry = isTextEntry;

@@ -43,18 +43,33 @@ const before = await rows();
 check("rows render and are sortable", before.length >= 3, `${before.length} rows`);
 
 /*
- * And on a desktop it stays pinned below the list.
+ * The add box is the next row, not a bar under the pane.
  *
- * The in-list arrangement exists for the soft keyboard, which a desktop does
- * not have; there a bar always within reach is simply better, and it is what
- * the reference UI does. This suite runs without `is-mobile` on the body, so it
- * is the other half of the same decision.
+ * Pinned to the foot it left a gulf of empty pane between the last task and
+ * the box you add the next one into. It sits where the task it is about to
+ * make will sit, with Completed closing the list beneath it — and being inside
+ * the scroller is also what lets a soft keyboard be scrolled clear of.
  */
-const addPinned = await page.$eval(
-	`${PANE} .lv-add`,
-	(e) => !e.closest(".lv-scroll") && e.parentElement.classList.contains("lv-tasks")
+const addPlacement = await page.$eval(PANE, (pane) => {
+	const add = pane.querySelector(".lv-add");
+	if (!add) return null;
+	const group = pane.querySelector(".lv-group");
+	const completed = pane.querySelector(".lv-completed");
+	const follows = (a, b) =>
+		!!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+	return {
+		inScroller: !!add.closest(".lv-scroll"),
+		afterTasks: !!group && follows(group, add),
+		beforeCompleted: !completed || follows(add, completed),
+	};
+});
+
+check("the add box is inside the list's own scroller", addPlacement?.inScroller === true);
+check(
+	"below the last task and above Completed",
+	addPlacement?.afterTasks === true && addPlacement?.beforeCompleted === true,
+	JSON.stringify(addPlacement)
 );
-check("with a pointer the add box stays pinned below the list", addPinned);
 
 const sortableCount = await page.$$eval(`${PANE} .lv-task.lv-sortable`, (e) => e.length);
 check("every row is marked sortable", sortableCount === before.length,

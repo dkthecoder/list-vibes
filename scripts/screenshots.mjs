@@ -13,8 +13,10 @@
  * dropped straight over the top with no README edit:
  *
  *   screenshots/desktop.png
+ *   screenshots/desktop-detail.png
  *   screenshots/tablet.png
  *   screenshots/mobile.png
+ *   screenshots/mobile-detail.png
  *
  * Run with: npm run screenshots
  */
@@ -30,11 +32,24 @@ mkdirSync("screenshots", { recursive: true });
  * `frame` names which of the harness's rendered panes to capture: the desktop
  * one shows the picker and the list side by side, the tablet one the same at a
  * narrower width, and the phone one the single-pane layout it collapses to.
+ *
+ * The task detail is a separate leaf — Obsidian's right panel on a desktop, a
+ * drawer on a phone — so it is a shot of its own rather than drawn beside the
+ * list. A composite would be a picture of a layout the plugin does not make.
+ * Its width is the one a right split actually opens at.
  */
 const SHOTS = [
 	{ name: "desktop", frame: "#drag", width: 1280, height: 800, body: "" },
+	{ name: "desktop-detail", frame: "#desktop", width: 400, height: 580, body: "" },
 	{ name: "tablet", frame: "#drag", width: 900, height: 1000, body: "is-mobile is-tablet" },
 	{ name: "mobile", frame: "#m-tasks", width: 412, height: 800, body: "is-mobile is-phone" },
+	{
+		name: "mobile-detail",
+		frame: "#m-detail",
+		width: 412,
+		height: 800,
+		body: "is-mobile is-phone",
+	},
 ];
 
 const browser = await launch();

@@ -31,6 +31,16 @@ function applyInfo(el: HTMLElement, info?: ElInfo | string) {
 export function installDomHelpers(): void {
 	const p = HTMLElement.prototype as unknown as Record<string, unknown>;
 
+	// Obsidian's cross-window-safe type check. One window here, so the plain
+	// operator is the same answer — but the source uses the API, and a DOM
+	// augmentation missing from the browser is how three bugs have got through.
+	(Node.prototype as unknown as Record<string, unknown>).instanceOf = function (
+		this: Node,
+		cls: unknown
+	) {
+		return this instanceof (cls as new () => unknown);
+	};
+
 	p.createEl = function (tag: string, info?: ElInfo) {
 		const el = document.createElement(tag);
 		applyInfo(el, info);

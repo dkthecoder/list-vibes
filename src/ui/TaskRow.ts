@@ -1,4 +1,5 @@
 import { renderCheckbox } from "./checkbox";
+import { confettiBurst } from "./burst";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
@@ -28,6 +29,10 @@ export function renderTaskRow(
 	/* --- checkbox --- */
 	renderCheckbox(row, task, (e) => {
 		e.stopPropagation();
+		// Completing only. Un-ticking is a correction, not an achievement.
+		if (ctx.settings.confetti && !isComplete(task)) {
+			confettiBurst(e.target as HTMLElement);
+		}
 		void ctx.mutator.toggle(task);
 	});
 
