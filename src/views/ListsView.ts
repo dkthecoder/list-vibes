@@ -266,6 +266,21 @@ export class ListsView extends ItemView {
 		 */
 		result.history = movedList || opening;
 		this.render();
+
+		/*
+		 * A tab retargeted from outside has to be told to reread its own name.
+		 *
+		 * There are two ways the list in a tab changes. Picking inside it goes
+		 * through `select`, which ends by persisting so the header follows. Being
+		 * retargeted — the sidebar is a picker, so choosing a list there reuses an
+		 * open tab through `setViewState` — arrives here instead, and used to
+		 * render the new list under the previous list's name.
+		 *
+		 * `persistState` guards its own reentry, and the round trip lands back
+		 * here with the selection already current, so `movedList` is false the
+		 * second time and this does not recur.
+		 */
+		if (movedList && this.inMainWorkspace()) void this.persistState();
 	}
 
 	onResize(): void {
