@@ -81,6 +81,7 @@ const state: ViewState = {
 };
 
 let sortKey: SortKey = "custom";
+const folded = new Set<string>();
 let viewMode: ViewMode = "list";
 let pinned = false;
 
@@ -146,6 +147,16 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			paint();
 		},
 		sortKey: () => sortKey,
+
+		// Folding is view-only, so the harness keeps it in a set rather than in
+		// anything that pretends to be settings.
+		sectionCollapsed: (path: string, name: string) => folded.has(`${path}::${name}`),
+		toggleSection: (path: string, name: string) => {
+			const key = `${path}::${name}`;
+			if (folded.has(key)) folded.delete(key);
+			else folded.add(key);
+			paint();
+		},
 		setSortKey: (k: SortKey) => {
 			sortKey = k;
 			paint();
@@ -251,6 +262,17 @@ function paint(): void {
 	state.selectedTask = null;
 	renderInto(document.getElementById("drag") as HTMLElement, true, "tasks", false);
 	state.selectedTask = dragSel;
+
+	// A list with `##` headings, in file order and nothing selected: the state
+	// the section harness drives. A different list from every other pane, because
+	// the one they share has no headings at all.
+	const sectionSel = state.selection;
+	const sectionTask = state.selectedTask;
+	state.selection = { kind: "list", path: "lists/📺Movies & TV - new.md" };
+	state.selectedTask = null;
+	renderInto(document.getElementById("sections") as HTMLElement, true, "tasks", false);
+	state.selection = sectionSel;
+	state.selectedTask = sectionTask;
 
 	// The detail panel pinned open as a column rather than sliding over.
 	pinned = true;
