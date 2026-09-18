@@ -274,6 +274,18 @@ function paint(): void {
 	state.selection = { kind: "list", path: "lists/📺Movies & TV - new.md" };
 	state.selectedTask = null;
 	renderInto(document.getElementById("sections") as HTMLElement, true, "tasks", false);
+
+	// The same list as a wall, which is where a completed card has to carry the
+	// section it came from: Completed is not grouped, so the heading is gone.
+	viewMode = "postit";
+	renderInto(
+		document.getElementById("sections-cards") as HTMLElement,
+		true,
+		"tasks",
+		false
+	);
+	viewMode = "list";
+
 	state.selection = sectionSel;
 	state.selectedTask = sectionTask;
 

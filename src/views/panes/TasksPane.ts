@@ -395,8 +395,12 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			// file, so its rows are not adjacent lines and a splice between two of
 			// them would land in the middle of the open tasks above.
 			for (const t of done) {
-				if (mode === "postit") renderTaskCard(body, t, ctx, { showList: isSmart });
-				else renderTaskRow(body, t, ctx, { showList: isSmart });
+				// Completed is never grouped — it is a filtered subset of the
+				// file — so a task here has left its heading behind and has to
+				// carry it.
+				const o = { showList: isSmart, showSection: true };
+				if (mode === "postit") renderTaskCard(body, t, ctx, o);
+				else renderTaskRow(body, t, ctx, o);
 			}
 			if (striped) stripe(body);
 		}
@@ -426,7 +430,10 @@ function renderTasks(
 	const cls = postit ? "lv-group lv-postit" : "lv-group";
 	const draw = (parent: HTMLElement, t: Task) =>
 		postit
-			? renderTaskCard(parent, t, ctx, { showList: opts.showList })
+			? renderTaskCard(parent, t, ctx, {
+					showList: opts.showList,
+					showSection: !opts.grouped,
+				})
 			: renderTaskRow(parent, t, ctx, {
 					showList: opts.showList,
 					showSection: !opts.grouped,

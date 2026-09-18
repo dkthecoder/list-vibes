@@ -66,6 +66,49 @@ check(
 	`${repeats} rows restate their section`
 );
 
+/* ---------------- completed carries the section it left ---------------- */
+
+/* One click, not one per pane: `completedOpen` is a single piece of view state
+   shared by every pane on this page, so opening the second would close the
+   first. */
+await page.evaluate(() => {
+	document
+		.querySelector("#sections .lv-completed-head")
+		?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+});
+await page.waitForTimeout(200);
+
+for (const [what, sel] of [
+	["row", "#sections"],
+	["card", "#sections-cards"],
+]) {
+	const found = await page.evaluate((s) => {
+		const body = document.querySelector(`${s} .lv-completed-body`);
+		if (!body) return { total: 0, tagged: 0 };
+		const items = [...body.querySelectorAll(".lv-task, .lv-card-task")];
+		return {
+			total: items.length,
+			tagged: items.filter((i) => i.querySelector(".lv-section-badge")).length,
+			text: body.querySelector(".lv-section-badge")?.textContent ?? "",
+		};
+	}, sel);
+
+	check(
+		`a completed ${what} says which section it came from`,
+		found.total > 0 && found.tagged === found.total,
+		`${found.tagged}/${found.total} tagged, e.g. ${found.text}`
+	);
+}
+
+/* An open task sits under its heading, so the badge would be the same word
+   twice — once in the heading and once on every item beneath it. */
+const openTagged = await page.evaluate((sel) => {
+	const groups = [...document.querySelectorAll(`${sel} .lv-group`)];
+	return groups.flatMap((g) => [...g.querySelectorAll(".lv-section-badge")]).length;
+}, PANE);
+
+check("an open row under its heading does not", openTagged === 0, `${openTagged} tagged`);
+
 /* ---------------- the drag reaches across a heading ---------------- */
 
 await page.evaluate(() => (window.lvCalls.length = 0));

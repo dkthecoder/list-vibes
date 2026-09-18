@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
+import { renderSectionBadge } from "./sectionBadge";
 import { confettiBurst } from "./burst";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
@@ -19,7 +20,7 @@ export function renderTaskCard(
 	parent: HTMLElement,
 	task: Task,
 	ctx: ViewContext,
-	opts: { showList?: boolean } = {}
+	opts: { showList?: boolean; showSection?: boolean } = {}
 ): HTMLElement {
 	const card = parent.createDiv({ cls: "lv-card-task" });
 	card.toggleClass("is-complete", isComplete(task));
@@ -44,6 +45,12 @@ export function renderTaskCard(
 
 	const titleEl = head.createDiv({ cls: "lv-card-title" });
 	renderInline(titleEl, task.title, ctx);
+
+	// In the corner, and in the flow rather than over it. Laid on top it fought
+	// the star for the same corner and forced the title into a column four words
+	// wide; as the last item in the row it reaches the same place and costs the
+	// title only what it actually occupies.
+	if (opts.showSection) renderSectionBadge(head, task);
 
 	renderImportance(head, task, ctx, { size: "sm" });
 

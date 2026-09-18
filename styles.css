@@ -1576,6 +1576,33 @@ body.is-mobile .lv-section-more {
 	column-count: 3;
 }
 
+/* Which section a task came from, where it is shown away from its heading.
+
+   Reads as a tag because that is what it is — a grouping rather than a fact
+   about the task, so it is kept clear of the chips that carry dates and state. */
+.lv-section-badge {
+	flex: none;
+	align-self: flex-start;
+	max-width: 14ch;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	line-height: var(--lv-row-line, 1.5);
+	color: var(--text-faint);
+}
+
+/* On a card it sits against the corner, next to the star rather than under it. */
+.lv-card-task .lv-section-badge {
+	max-width: 10ch;
+	padding: 0 var(--size-2-1);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+}
+
 .lv-card-task {
 	break-inside: avoid;
 	display: block;
