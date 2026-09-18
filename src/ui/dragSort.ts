@@ -33,6 +33,20 @@ export interface DragSortOptions {
 	onDrop: (from: number, to: number) => void;
 	/** Optional grab area. Without one the whole row starts the drag. */
 	handle?: HTMLElement;
+	/**
+	 * Every run the row may be dropped into, this row's own among them, in the
+	 * order the view lays them out. Omit it and the drag stays one-dimensional,
+	 * which is exactly what a list of steps wants.
+	 */
+	containers?: () => DragContainer[];
+	/** Called instead of `onDrop` when the row lands in a different run. */
+	onDropAcross?: (toContainer: number, toIndex: number) => void;
+}
+
+/** One run a drag may land in: the element that bounds it, and its rows. */
+export interface DragContainer {
+	el: HTMLElement;
+	rows: HTMLElement[];
 }
 
 /**
@@ -183,6 +197,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	// only applied once a long press has actually armed the drag.
 	if (opts.handle) grab.addClass("lv-grip");
 
+	let startX = 0;
 	let startY = 0;
 	let pointerId: number | null = null;
 	let longPress: number | null = null;
@@ -191,6 +206,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	let centres: number[] = [];
 	let shiftPx = 0;
 	let target = opts.index;
+	let groups: DragContainer[] = [];
+	let boxes: DropBox[] = [];
+	let home = 0;
+	let over = 0;
 
 	const cancelLongPress = () => {
 		if (longPress !== null) {
@@ -199,13 +218,22 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		}
 	};
 
-	const begin = () => {
-		live = true;
-		siblings = opts.siblings();
-		centres = siblings.map((el) => {
+	const measure = (els: HTMLElement[]): number[] =>
+		els.map((el) => {
 			const r = el.getBoundingClientRect();
 			return r.top + r.height / 2;
 		});
+
+	const begin = () => {
+		live = true;
+		siblings = opts.siblings();
+
+		groups = opts.containers?.() ?? [];
+		boxes = groups.map((g) => g.el.getBoundingClientRect());
+		home = Math.max(0, groups.findIndex((g) => g.rows === siblings));
+		over = home;
+
+		centres = measure(siblings);
 		// Rows are not all the same height — a task with steps is taller than a
 		// bare one — so the gap opens by the height of the row being moved, in
 		// pixels. A percentage would resolve against each row's own height and
@@ -219,7 +247,38 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		document.body.addClass("lv-is-dragging");
 	};
 
-	const preview = (y: number) => {
+	/** Clear every row offset in the home run, for when the pointer leaves it. */
+	const settle = () => {
+		for (const el of siblings) {
+			setOffset(el, 0);
+			el.removeClass("lv-shifted");
+		}
+	};
+
+	const preview = (x: number, y: number) => {
+		if (groups.length) {
+			const next = dropContainer(boxes, x, y, over);
+			if (next !== over) {
+				groups[over]?.el.removeClass("lv-drop-target");
+				over = next;
+				if (over !== home) {
+					// Nothing in a foreign run gets shifted: the gap would have to
+					// open for a row that is not one of its own, and the run is
+					// highlighted instead so the destination is still obvious.
+					settle();
+					groups[over]?.el.addClass("lv-drop-target");
+				}
+				target = -1;
+			}
+			if (over !== home) {
+				const rows = groups[over]?.rows ?? [];
+				// No index of our own in a foreign run, so nothing is excluded
+				// from the count and every row counts as passed or not.
+				target = dropIndex(measure(rows), -1, y);
+				return;
+			}
+		}
+
 		const next = dropIndex(centres, opts.index, y);
 		if (next === target) return;
 		target = next;
@@ -257,12 +316,16 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		row.removeClass("lv-dragging");
 		setOffset(row, 0);
 		document.body.removeClass("lv-is-dragging");
-		for (const el of siblings) {
-			setOffset(el, 0);
-			el.removeClass("lv-shifted");
-		}
+		settle();
+		for (const g of groups) g.el.removeClass("lv-drop-target");
 
-		if (commit && target !== opts.index) opts.onDrop(opts.index, target);
+		const across = groups.length > 0 && over !== home;
+		groups = [];
+		boxes = [];
+
+		if (!commit) return;
+		if (across) opts.onDropAcross?.(over, Math.max(0, target));
+		else if (target !== opts.index) opts.onDrop(opts.index, target);
 	};
 
 	grab.addEventListener("pointerdown", (e: PointerEvent) => {
@@ -270,6 +333,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		if (e.button !== 0) return;
 		if (!opts.handle && (e.target as HTMLElement).closest(".lv-no-drag")) return;
 
+		startX = e.clientX;
 		startY = e.clientY;
 		pointerId = e.pointerId;
 		grab.setPointerCapture(e.pointerId);
@@ -286,7 +350,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		if (pointerId !== e.pointerId) return;
 
 		if (!live) {
-			const moved = Math.abs(e.clientY - startY);
+			// Distance in both axes. A board is dragged sideways as well as up
+			// and down, and a horizontal wander during the long press is the
+			// mobile drawer being swiped — which must stay the drawer's gesture.
+			const moved = Math.hypot(e.clientX - startX, e.clientY - startY);
 			if (longPress !== null) {
 				// Still waiting out the long press: any real movement means the
 				// user is scrolling, so give the gesture back to the browser.
@@ -300,7 +367,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 		e.preventDefault();
 		setOffset(row, e.clientY - startY);
-		preview(e.clientY);
+		preview(e.clientX, e.clientY);
 	});
 
 	grab.addEventListener("pointerup", () => finish(true));

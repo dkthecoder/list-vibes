@@ -1,6 +1,7 @@
 import { Menu, setIcon } from "obsidian";
 import { SMART_VIEWS, ViewContext } from "../context";
 import {
+	ListSection,
 	Priority,
 	Task,
 	TaskList,
@@ -296,11 +297,19 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	 * having failed. Smart views are excluded for a stronger reason: their rows
 	 * come from several files at once, so there is no single order to rewrite.
 	 *
-	 * Post-it mode is excluded for now because the wall wraps into a grid, and a
-	 * vertical drag preview cannot describe a move in two dimensions.
+	 * Post-it mode used to be excluded because the wall wraps into a grid and a
+	 * vertical drag preview cannot describe a move in two dimensions. It no
+	 * longer has to: a drop is now a run picked by hit-test plus an index within
+	 * it, so neither half of the arithmetic thinks in two dimensions.
 	 */
-	const sortable = sortKey === "custom" && !isSmart && mode === "list";
-	renderTasks(scroll, open, ctx, { grouped, showList: isSmart, mode, sortable });
+	const sortable = sortKey === "custom" && !isSmart;
+	renderTasks(scroll, open, ctx, {
+		grouped,
+		showList: isSmart,
+		mode,
+		sortable,
+		sections: list?.sections ?? [],
+	});
 
 	// A list decides for itself; absent, the setting decides. Post-it view is
 	// cards rather than rows, so there is nothing to alternate.
@@ -390,6 +399,8 @@ function renderTasks(
 		mode: ViewMode;
 		/** Whether rows may be dragged into a new order. */
 		sortable: boolean;
+		/** The list's headings, for naming the section a drop lands in. */
+		sections: ListSection[];
 	}
 ): void {
 	const postit = opts.mode === "postit";
@@ -400,57 +411,85 @@ function renderTasks(
 			: renderTaskRow(parent, t, ctx, { showList: opts.showList });
 
 	/**
-	 * Wire up dragging for one contiguous run of rows.
+	 * Every run on screen, built first and wired afterwards.
 	 *
-	 * A run is passed rather than the whole list because `##` headings split a
-	 * list into groups, and a drag has to stay inside the group it started in —
-	 * the file order within a group is contiguous, so a splice inside one is a
-	 * plain reorder, whereas dragging across a heading would silently move a task
-	 * to another section.
+	 * A run used to be wired the moment it was finished, because a drag stayed
+	 * inside the group it started in. Crossing a heading is now deliberate
+	 * rather than an accident to be prevented, and a row cannot be told about
+	 * runs that have not been drawn yet — so the drawing and the wiring are two
+	 * passes.
 	 */
-	const makeSortable = (rows: HTMLElement[], run: Task[]) => {
-		if (!opts.sortable || run.length < 2) return;
-		rows.forEach((row, index) => {
-			row.addClass("lv-sortable");
-			makeDragSortable(row, {
-				index,
-				siblings: () => rows,
-				onDrop: (from, to) => void ctx.mutator.reorder(run[from], run, to),
+	const runs: { el: HTMLElement; tasks: Task[]; rows: HTMLElement[] }[] = [];
+
+	/**
+	 * The heading a run sits under, found by line rather than by name.
+	 *
+	 * Two sections may be called the same thing, so the last heading above the
+	 * run's first task is the only honest answer.
+	 */
+	const sectionLineFor = (run: Task[]): number | null => {
+		const first = run[0];
+		if (!first) return null;
+		let found: number | null = null;
+		for (const sec of opts.sections) {
+			if (sec.line > first.line) break;
+			found = sec.line;
+		}
+		return found;
+	};
+
+	const wire = () => {
+		if (!opts.sortable) return;
+		const containers = () => runs.map((r) => ({ el: r.el, rows: r.rows }));
+
+		for (const run of runs) {
+			// A lone row in a lone run has nowhere to go.
+			if (run.tasks.length < 2 && runs.length < 2) continue;
+
+			run.rows.forEach((row, index) => {
+				row.addClass("lv-sortable");
+				makeDragSortable(row, {
+					index,
+					siblings: () => run.rows,
+					containers,
+					onDrop: (from, to) => void ctx.mutator.reorder(run.tasks[from], run.tasks, to),
+					onDropAcross: (toContainer, toIndex) => {
+						const dest = runs[toContainer];
+						if (!dest) return;
+						void ctx.mutator.moveToSection(
+							run.tasks[index],
+							dest.tasks,
+							toIndex,
+							sectionLineFor(dest.tasks)
+						);
+					},
+				});
 			});
-		});
+		}
 	};
 
 	if (!opts.grouped) {
-		const group = scroll.createDiv({ cls });
-		makeSortable(
-			tasks.map((t) => draw(group, t)),
-			tasks
-		);
+		const el = scroll.createDiv({ cls });
+		runs.push({ el, tasks, rows: tasks.map((t) => draw(el, t)) });
+		wire();
 		return;
 	}
 
 	let current: string | undefined | null = null;
 	let container: HTMLElement | null = null;
-	let run: Task[] = [];
-	let rows: HTMLElement[] = [];
-
-	const flush = () => {
-		makeSortable(rows, run);
-		run = [];
-		rows = [];
-	};
 
 	for (const t of tasks) {
 		if (t.section !== current || !container) {
-			flush();
 			current = t.section;
 			if (t.section) scroll.createDiv({ cls: "lv-section", text: t.section });
 			container = scroll.createDiv({ cls });
+			runs.push({ el: container, tasks: [], rows: [] });
 		}
-		rows.push(draw(container, t));
-		run.push(t);
+		const run = runs[runs.length - 1];
+		run.rows.push(draw(container, t));
+		run.tasks.push(t);
 	}
-	flush();
+	wire();
 }
 
 async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {

@@ -1683,6 +1683,18 @@ body.is-phone .lv-header {
 	opacity: 0.95;
 }
 
+/* The run a drop would land in.
+
+   A foreign run shifts none of its rows — the gap would have to open for a row
+   that is not one of its own — so the destination is named by lighting the run
+   instead. Every colour here is an Obsidian token, like the rest of the file. */
+.lv-drop-target {
+	background: var(--background-modifier-hover);
+	border-radius: var(--radius-m);
+	outline: var(--border-width) solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
 /* While a drag is live, nothing else on the page should look interactive or
    select under the pointer. */
 body.lv-is-dragging {
