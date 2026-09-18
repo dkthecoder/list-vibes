@@ -1,5 +1,5 @@
 import { App, MarkdownView, Notice, TFile } from "obsidian";
-import { parseLine } from "./parse";
+import { HEADING_RE, parseLine } from "./parse";
 import { setFrontmatterKey } from "./frontmatter";
 import { nextOccurrence } from "./recurrence";
 import { stampNow } from "./datetime";
@@ -219,6 +219,63 @@ export class Mutator {
 	 * A root task has no indent to copy, so its existing children are the only
 	 * evidence of whether this file uses tabs or spaces.
 	 */
+	/* ---------------- sections ---------------- */
+
+	/**
+	 * The file's lines as they stand right now.
+	 *
+	 * From the editor when one is open, so an unsaved buffer is what gets read,
+	 * and from the vault otherwise. Every caller re-verifies its anchor line
+	 * before writing, so a stale read costs an abandoned edit and never a
+	 * misplaced one.
+	 */
+	private async currentLines(path: string): Promise<string[] | null> {
+		const editor = this.editorFor(path);
+		if (editor) {
+			const out: string[] = [];
+			for (let i = 0; i < editor.lineCount(); i++) out.push(editor.getLine(i));
+			return out;
+		}
+		const file = this.fileFor(path);
+		if (!file) return null;
+		return (await this.app.vault.read(file)).split("\n");
+	}
+
+	/**
+	 * Rename the heading on `line`, keeping the level it was written at.
+	 *
+	 * Addressed by line rather than by name because a name does not identify a
+	 * section: a list may have two called the same thing.
+	 */
+	async renameSection(path: string, line: number, name: string): Promise<void> {
+		const clean = name.replace(/[\r\n]+/g, " ").trim();
+		if (!clean) return;
+
+		const lines = await this.currentLines(path);
+		const raw = lines?.[line];
+		if (raw === undefined) return;
+
+		const h = HEADING_RE.exec(raw);
+		if (!h) return;
+
+		await this.replaceLine(path, line, raw, `${h[1]} ${clean}`);
+	}
+
+	/** Add an empty section at the end of the file. */
+	async createSection(path: string, name: string): Promise<void> {
+		const clean = name.replace(/[\r\n]+/g, " ").trim();
+		if (!clean) return;
+
+		const lines = await this.currentLines(path);
+		if (!lines) return;
+
+		// A blank line before the heading, unless the file already ends in one:
+		// two headings jammed against the last task reads as part of it.
+		const trailing = lines.length && lines[lines.length - 1].trim() === "";
+		const insert = trailing ? [`## ${clean}`, ""] : ["", `## ${clean}`, ""];
+		await this.insertLines(path, lines.length, insert);
+	}
+
 	private childIndent(task: Task): string {
 		const child = task.children[0];
 		if (child && child.indent.length > task.indent.length) return child.indent;
