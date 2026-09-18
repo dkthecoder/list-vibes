@@ -407,6 +407,28 @@ export class Mutator {
 		});
 	}
 
+	/**
+	 * Nudge a section one place in either direction.
+	 *
+	 * The menu thinks in "up" and "down"; `moveSection` thinks in positions. A
+	 * step past either end is deliberately nothing rather than a clamp, so the
+	 * menu item at the end of the list is inert instead of silently rewriting
+	 * the file to the order it already had.
+	 */
+	async moveSectionBy(path: string, line: number, delta: -1 | 1): Promise<void> {
+		const lines = await this.currentLines(path);
+		if (!lines) return;
+
+		const heads = this.headingLines(lines);
+		const from = heads.indexOf(line);
+		if (from < 0) return;
+
+		const to = from + delta;
+		if (to < 0 || to >= heads.length) return;
+
+		await this.moveSection(path, line, to);
+	}
+
 	private childIndent(task: Task): string {
 		const child = task.children[0];
 		if (child && child.indent.length > task.indent.length) return child.indent;

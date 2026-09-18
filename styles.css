@@ -345,12 +345,64 @@ body.is-phone .lv-header {
 /* ---------------- task rows ---------------- */
 
 .lv-section {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
 	padding: var(--size-4-3) var(--size-4-2) var(--size-4-1);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--text-faint);
+	cursor: pointer;
+}
+
+.lv-section-chevron {
+	display: flex;
+	align-items: center;
+	color: var(--text-faint);
+}
+
+.lv-section-chevron svg {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+/* Takes the slack so the count and the menu sit hard right. */
+.lv-section-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.lv-section-name[contenteditable="plaintext-only"] {
+	cursor: text;
+	white-space: pre-wrap;
+	overflow: visible;
+}
+
+.lv-section-count {
+	font-variant-numeric: tabular-nums;
+	color: var(--text-faint);
+	text-transform: none;
+}
+
+/* Revealed on hover, like Obsidian's own row affordances; always present on a
+   touch screen, where there is no hover to reveal it with. */
+.lv-section-more {
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.lv-section:hover .lv-section-more,
+.lv-section-more:focus-visible {
+	opacity: 1;
+}
+
+body.is-mobile .lv-section-more {
+	opacity: 1;
 }
 
 /*

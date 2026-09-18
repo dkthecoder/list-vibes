@@ -309,6 +309,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		mode,
 		sortable,
 		sections: list?.sections ?? [],
+		path: list?.path ?? "",
 	});
 
 	// A list decides for itself; absent, the setting decides. Post-it view is
@@ -401,9 +402,12 @@ function renderTasks(
 		sortable: boolean;
 		/** The list's headings, for naming the section a drop lands in. */
 		sections: ListSection[];
+		/** The list file, for the section edits the headings offer. */
+		path: string;
 	}
 ): void {
 	const postit = opts.mode === "postit";
+	const path = opts.path;
 	const cls = postit ? "lv-group lv-postit" : "lv-group";
 	const draw = (parent: HTMLElement, t: Task) =>
 		postit
@@ -475,21 +479,158 @@ function renderTasks(
 		return;
 	}
 
-	let current: string | undefined | null = null;
-	let container: HTMLElement | null = null;
+	/*
+	 * Walked by heading rather than by run of tasks.
+	 *
+	 * Grouping the tasks would skip a section that has none, and an empty
+	 * section has to be on screen or it can never be dropped into — which would
+	 * make creating one a dead end. Bounds come from the headings' own lines, so
+	 * two sections sharing a name stay separate.
+	 */
+	const bounds = opts.sections.map((sec, i) => ({
+		...sec,
+		end: opts.sections[i + 1]?.line ?? Infinity,
+	}));
 
-	for (const t of tasks) {
-		if (t.section !== current || !container) {
-			current = t.section;
-			if (t.section) scroll.createDiv({ cls: "lv-section", text: t.section });
-			container = scroll.createDiv({ cls });
-			runs.push({ el: container, tasks: [], rows: [] });
-		}
-		const run = runs[runs.length - 1];
-		run.rows.push(draw(container, t));
-		run.tasks.push(t);
+	const addRun = (run: Task[]) => {
+		const el = scroll.createDiv({ cls });
+		runs.push({ el, tasks: run, rows: run.map((t) => draw(el, t)) });
+	};
+
+	const firstHeading = bounds[0]?.line ?? Infinity;
+	const loose = tasks.filter((t) => t.line < firstHeading);
+	// The space above the first heading is a run whether or not anything is in
+	// it, so a task can always be dragged back out of every section.
+	if (loose.length || bounds.length) addRun(loose);
+
+	for (const sec of bounds) {
+		const folded = ctx.sectionCollapsed(path, sec.name);
+		const mine = tasks.filter((t) => t.line > sec.line && t.line < sec.end);
+		renderSectionHead(scroll, ctx, path, sec, mine.length, folded);
+		if (folded) continue;
+		addRun(mine);
 	}
 	wire();
+}
+
+/**
+ * A section's heading: fold control, name, count, and its menu.
+ *
+ * The name is editable in place for the same reason a list's is — the heading
+ * *is* the section, so renaming it here is the honest edit rather than a dialog
+ * that writes somewhere you cannot see.
+ */
+function renderSectionHead(
+	scroll: HTMLElement,
+	ctx: ViewContext,
+	path: string,
+	sec: ListSection,
+	count: number,
+	folded: boolean
+): HTMLElement {
+	const head = scroll.createDiv({ cls: "lv-section" });
+	head.toggleClass("is-collapsed", folded);
+	head.setAttribute("aria-expanded", String(!folded));
+
+	const chev = head.createDiv({ cls: "lv-section-chevron" });
+	setIcon(chev, folded ? "chevron-right" : "chevron-down");
+
+	const name = head.createDiv({ cls: "lv-section-name", text: sec.name });
+	makeEditableName(name, {
+		value: sec.name,
+		onCommit: (next) => void ctx.mutator.renameSection(path, sec.line, next),
+	});
+
+	if (count) head.createDiv({ cls: "lv-section-count", text: String(count) });
+
+	const more = head.createDiv({ cls: "clickable-icon lv-section-more" });
+	setIcon(more, "more-horizontal");
+	more.setAttribute("aria-label", "Section options");
+	more.addEventListener("click", (e) => {
+		e.stopPropagation();
+		showSectionMenu(e, ctx, path, sec, count);
+	});
+
+	head.addEventListener("click", () => ctx.toggleSection(path, sec.name));
+	return head;
+}
+
+/**
+ * What a section can have done to it.
+ *
+ * Deleting keeps the tasks by default and moves them into the section above:
+ * removing a grouping should not be a way to lose the things grouped. Taking
+ * the tasks too is a separate, confirmed choice.
+ */
+function showSectionMenu(
+	e: MouseEvent,
+	ctx: ViewContext,
+	path: string,
+	sec: ListSection,
+	count: number
+): void {
+	const menu = new Menu();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Rename section")
+			.setIcon("pencil")
+			.onClick(() => {
+				void import("../../ui/PromptModal").then(({ PromptModal }) => {
+					new PromptModal(ctx.app, {
+						title: "Rename section",
+						value: sec.name,
+						onSubmit: (next) =>
+							void ctx.mutator.renameSection(path, sec.line, next),
+					}).open();
+				});
+			})
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Move up")
+			.setIcon("arrow-up")
+			.onClick(() => void ctx.mutator.moveSectionBy(path, sec.line, -1))
+	);
+	menu.addItem((i) =>
+		i
+			.setTitle("Move down")
+			.setIcon("arrow-down")
+			.onClick(() => void ctx.mutator.moveSectionBy(path, sec.line, 1))
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
+			.setTitle(count ? "Delete section, keep tasks" : "Delete section")
+			.setIcon("trash-2")
+			.onClick(() => void ctx.mutator.removeSection(path, sec.line))
+	);
+
+	if (count) {
+		menu.addItem((i) =>
+			i
+				.setTitle("Delete section and its tasks")
+				.setIcon("trash-2")
+				.onClick(() => {
+					void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
+						new ConfirmModal(ctx.app, {
+							title: `Delete "${sec.name}"?`,
+							body: `${count} task${count === 1 ? "" : "s"} will be deleted with it. This cannot be undone from inside the plugin.`,
+							cta: "Delete",
+							onConfirm: () =>
+								void ctx.mutator.removeSection(path, sec.line, { withTasks: true }),
+						}).open();
+					});
+				})
+		);
+	}
+
+	menu.showAtMouseEvent(e);
 }
 
 async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {

@@ -65,6 +65,15 @@ export interface ListsSettings {
 	starBurst: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
+	/**
+	 * Folded sections, keyed by file path, holding section names.
+	 *
+	 * By name rather than by line, because a line moves the moment anything above
+	 * it is edited and a fold that jumps to a different section is worse than one
+	 * that is occasionally shared by two headings of the same name. View-only,
+	 * like sort: never written to the file.
+	 */
+	collapsedSections: Record<string, string[]>;
 	/** Last opened list, restored on reopen. */
 	lastList?: string;
 }
@@ -87,6 +96,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	prettyTitles: true,
 	defaultView: "list",
 	viewByList: {},
+	collapsedSections: {},
 	openOnStartup: true,
 	sidebarFirst: false,
 	notesFolder: "tasks",

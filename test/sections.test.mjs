@@ -295,3 +295,31 @@ describe("moveToSection", () => {
 		assert.deepEqual(s.lines(), before);
 	});
 });
+
+describe("moveSectionBy", () => {
+	test("moves a section one place down", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.moveSectionBy(s.path, sectionAt(s, "Work"), 1);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Home", "Work", "Empty"]
+		);
+	});
+
+	test("moves a section one place up", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.moveSectionBy(s.path, sectionAt(s, "Empty"), -1);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Work", "Empty", "Home"]
+		);
+	});
+
+	test("moving past either end is not a write", async () => {
+		const s = setup(BLOCKS);
+		const before = s.lines();
+		await s.mutator.moveSectionBy(s.path, sectionAt(s, "Work"), -1);
+		await s.mutator.moveSectionBy(s.path, sectionAt(s, "Empty"), 1);
+		assert.deepEqual(s.lines(), before);
+	});
+});

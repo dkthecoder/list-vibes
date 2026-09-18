@@ -414,6 +414,20 @@ export class ListsView extends ItemView {
 				this.render("tasks");
 			},
 
+			sectionCollapsed: (path: string, name: string) =>
+				(this.plugin.settings.collapsedSections[path] ?? []).includes(name),
+
+			toggleSection: (path: string, name: string) => {
+				const folded = this.plugin.settings.collapsedSections[path] ?? [];
+				const next = folded.includes(name)
+					? folded.filter((n) => n !== name)
+					: [...folded, name];
+				if (next.length) this.plugin.settings.collapsedSections[path] = next;
+				else delete this.plugin.settings.collapsedSections[path];
+				void this.plugin.saveSettings();
+				this.render("tasks");
+			},
+
 			setViewMode: (mode: ViewMode) => {
 				const sel = this.state.selection;
 				if (sel.kind !== "list") return;

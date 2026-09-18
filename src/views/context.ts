@@ -91,6 +91,10 @@ export interface ViewContext extends DetailContext {
 	defaultViewMode: () => ViewMode;
 	setDefaultViewMode: (mode: ViewMode) => void;
 
+	/** Is this section folded, and fold or unfold it. View-only. */
+	sectionCollapsed: (path: string, name: string) => boolean;
+	toggleSection: (path: string, name: string) => void;
+
 	/** Colour is a property of the list, so it lives in its frontmatter. */
 	setColor: (path: string, color: ListColor | null) => void;
 	setIcon: (path: string, icon: string | null) => void;
