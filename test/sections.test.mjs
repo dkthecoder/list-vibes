@@ -222,3 +222,76 @@ describe("moveSection", () => {
 		assert.deepEqual(s.lines().slice(0, 3), ["---", "icon: 💼", "---"]);
 	});
 });
+
+/* ------------------------------------------------------------------ *
+ * Moving a task between sections.
+ *
+ * Reorder assumes one contiguous run. Crossing a heading is a different
+ * operation: the destination may be empty, or may be the space above the
+ * first heading, where there is no sibling to aim at.
+ * ------------------------------------------------------------------ */
+
+const BLOCKS = [
+	"## Work", //                0
+	"- [ ] First", //            1
+	"- [ ] Second", //           2
+	"\t- [x] step one", //       3
+	"\tA note under it.", //     4
+	"", //                       5
+	"## Home", //                6
+	"- [ ] Third", //            7
+	"", //                       8
+	"## Empty", //               9
+].join("\n");
+
+const sectionAt = (s, name) => s.parse().sections.find((x) => x.name === name).line;
+const titlesIn = (s, name) =>
+	s.parse().all.filter((t) => t.section === name && t.depth === 0).map((t) => t.title);
+
+describe("moveToSection", () => {
+	test("a task lands in the target section at the index given", async () => {
+		const s = setup(BLOCKS);
+		const task = s.parse().all.find((t) => t.title === "First");
+		const home = s.parse().tasks.filter((t) => t.section === "Home");
+		await s.mutator.moveToSection(task, home, 0, sectionAt(s, "Home"));
+		assert.deepEqual(titlesIn(s, "Home"), ["First", "Third"]);
+		assert.deepEqual(titlesIn(s, "Work"), ["Second"]);
+	});
+
+	test("the task's steps and note travel with it", async () => {
+		const s = setup(BLOCKS);
+		const task = s.parse().all.find((t) => t.title === "Second");
+		const home = s.parse().tasks.filter((t) => t.section === "Home");
+		await s.mutator.moveToSection(task, home, 1, sectionAt(s, "Home"));
+		const moved = s.parse().all.find((t) => t.title === "Second");
+		assert.equal(moved.section, "Home");
+		assert.equal(moved.children.length, 1);
+		assert.equal(moved.note, "A note under it.");
+	});
+
+	test("a task can be dropped into an empty section", async () => {
+		const s = setup(BLOCKS);
+		const task = s.parse().all.find((t) => t.title === "Third");
+		await s.mutator.moveToSection(task, [], 0, sectionAt(s, "Empty"));
+		assert.deepEqual(titlesIn(s, "Empty"), ["Third"]);
+		assert.deepEqual(titlesIn(s, "Home"), []);
+	});
+
+	test("a null section means the space above the first heading", async () => {
+		const s = setup(BLOCKS);
+		const task = s.parse().all.find((t) => t.title === "Third");
+		await s.mutator.moveToSection(task, [], 0, null);
+		const moved = s.parse().all.find((t) => t.title === "Third");
+		assert.equal(moved.section, undefined);
+		assert.equal(moved.line < sectionAt(s, "Work"), true);
+	});
+
+	test("a stale task is abandoned rather than moved", async () => {
+		const s = setup(BLOCKS);
+		const task = s.parse().all.find((t) => t.title === "First");
+		const stale = { ...task, raw: "- [ ] Something else" };
+		const before = s.lines();
+		await s.mutator.moveToSection(stale, [], 0, sectionAt(s, "Empty"));
+		assert.deepEqual(s.lines(), before);
+	});
+});

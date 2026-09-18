@@ -341,6 +341,72 @@ export class Mutator {
 		await this.spliceLines(path, line, raw, start, lines.length - start, blocks.flat());
 	}
 
+	/** First line of the body, i.e. past the frontmatter block if there is one. */
+	private bodyStart(lines: string[]): number {
+		if (lines[0]?.trim() !== "---") return 0;
+		for (let i = 1; i < lines.length; i++) if (lines[i].trim() === "---") return i + 1;
+		return 0;
+	}
+
+	/**
+	 * Move a task into a different section.
+	 *
+	 * `reorder` assumes one contiguous run and splices within it. Crossing a
+	 * heading is a different problem: the destination may hold nothing to aim
+	 * at, or may be the space above the first heading where there is no heading
+	 * either. So the insertion point is worked out from whatever the target
+	 * offers — a sibling, a heading, or the top of the body.
+	 *
+	 * `sectionLine` is the heading being dropped into, or null for the ungrouped
+	 * space above the first one.
+	 */
+	async moveToSection(
+		task: Task,
+		siblings: Task[],
+		toIndex: number,
+		sectionLine: number | null
+	): Promise<void> {
+		const file = this.fileFor(task.filePath);
+		if (!file) return;
+
+		// The task never counts as its own drop target.
+		const targets = siblings.filter((s) => s.line !== task.line);
+
+		await this.app.vault.process(file, (data) => {
+			const lines = data.split("\n");
+
+			// Every anchor this move reads is re-verified. The indices came from
+			// a parse that may be a frame or two old, and splicing against a file
+			// that shifted underneath us would move the wrong block.
+			if (lines[task.line] !== task.raw) return data;
+			for (const t of targets) if (lines[t.line] !== t.raw) return data;
+			if (sectionLine !== null && !HEADING_RE.test(lines[sectionLine] ?? "")) return data;
+
+			const self = blockRange(task);
+			const size = self.end - self.start;
+
+			let at: number;
+			if (targets.length) {
+				const i = Math.max(0, Math.min(targets.length, toIndex));
+				at =
+					i >= targets.length
+						? blockRange(targets[targets.length - 1]).end
+						: blockRange(targets[i]).start;
+			} else if (sectionLine !== null) {
+				at = sectionLine + 1;
+			} else {
+				at = this.bodyStart(lines);
+			}
+
+			const moving = lines.splice(self.start, size);
+			// Removing the block shifts everything below it up, so a target that
+			// sat after it has to be measured again.
+			if (at > self.start) at -= size;
+			lines.splice(at, 0, ...moving);
+			return lines.join("\n");
+		});
+	}
+
 	private childIndent(task: Task): string {
 		const child = task.children[0];
 		if (child && child.indent.length > task.indent.length) return child.indent;
