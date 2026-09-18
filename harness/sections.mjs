@@ -47,6 +47,25 @@ check("it counts what is in it", /^\d+$/.test(parts.count), parts.count);
 check("it offers a menu", parts.more);
 check("it reports its state to a screen reader", parts.expanded === "true");
 
+/* ---------------- the row does not repeat its heading ---------------- */
+
+const repeats = await page.evaluate((sel) => {
+	const rows = [...document.querySelectorAll(`${sel} .lv-task`)];
+	const heads = [...document.querySelectorAll(`${sel} .lv-section-name`)].map(
+		(h) => h.textContent?.trim() ?? ""
+	);
+	return rows.filter((r) => {
+		const meta = r.querySelector(".lv-task-meta")?.textContent ?? "";
+		return heads.some((h) => h && meta.includes(h));
+	}).length;
+}, PANE);
+
+check(
+	"a grouped row does not repeat the heading above it",
+	repeats === 0,
+	`${repeats} rows restate their section`
+);
+
 /* ---------------- the drag reaches across a heading ---------------- */
 
 await page.evaluate(() => (window.lvCalls.length = 0));

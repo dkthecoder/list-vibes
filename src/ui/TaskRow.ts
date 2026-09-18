@@ -15,7 +15,7 @@ export function renderTaskRow(
 	parent: HTMLElement,
 	task: Task,
 	ctx: ViewContext,
-	opts: { showList?: boolean } = {}
+	opts: { showList?: boolean; showSection?: boolean } = {}
 ): HTMLElement {
 	const row = parent.createDiv({ cls: "lv-task" });
 	row.toggleClass("is-complete", isComplete(task));
@@ -57,7 +57,15 @@ export function renderTaskRow(
 		const name = task.filePath.split("/").pop()?.replace(/\.md$/, "");
 		if (name) bits.push({ text: name });
 	}
-	if (task.section) bits.push({ text: task.section });
+	/*
+	 * Only where the section is not already named above the row.
+	 *
+	 * A grouped list draws a heading and then every row under it repeated that
+	 * heading in its own metadata — the same word twice, once per task. Smart
+	 * views and computed sorts have no heading to sit under, and there the
+	 * section is the only thing saying where the task came from.
+	 */
+	if (task.section && opts.showSection !== false) bits.push({ text: task.section });
 	if (task.meta.myDay) bits.push({ text: "My Day" });
 
 	if (ctx.settings.enableSubtasks && task.children.length) {

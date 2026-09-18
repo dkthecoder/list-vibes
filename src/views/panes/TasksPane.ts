@@ -427,7 +427,10 @@ function renderTasks(
 	const draw = (parent: HTMLElement, t: Task) =>
 		postit
 			? renderTaskCard(parent, t, ctx, { showList: opts.showList })
-			: renderTaskRow(parent, t, ctx, { showList: opts.showList });
+			: renderTaskRow(parent, t, ctx, {
+					showList: opts.showList,
+					showSection: !opts.grouped,
+				});
 
 	/**
 	 * Every run on screen, built first and wired afterwards.
