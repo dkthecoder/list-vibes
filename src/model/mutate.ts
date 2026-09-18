@@ -165,6 +165,52 @@ export class Mutator {
 
 
 	/**
+	 * Rewrite the whole line array, through whichever path the file requires.
+	 *
+	 * `fn` returns the new lines, or null to abandon the edit — which is how
+	 * every caller refuses to write against a file that has shifted underneath
+	 * it. The two paths are not interchangeable: Vault.process on a file that is
+	 * open writes to disk and lets the editor reconcile from the file watcher
+	 * afterwards, which loses the cursor, the selection and every fold.
+	 */
+	private async applyLines(
+		path: string,
+		fn: (lines: string[]) => string[] | null
+	): Promise<boolean> {
+		const editor = this.editorFor(path);
+		if (editor) {
+			const lines: string[] = [];
+			for (let i = 0; i < editor.lineCount(); i++) lines.push(editor.getLine(i));
+			const next = fn(lines);
+			if (!next) return false;
+			editor.transaction({
+				changes: [
+					{
+						from: { line: 0, ch: 0 },
+						to: {
+							line: editor.lastLine(),
+							ch: editor.getLine(editor.lastLine()).length,
+						},
+						text: next.join("\n"),
+					},
+				],
+			});
+			return true;
+		}
+
+		const file = this.fileFor(path);
+		if (!file) return false;
+		let wrote = false;
+		await this.app.vault.process(file, (data) => {
+			const next = fn(data.split("\n"));
+			if (!next) return data;
+			wrote = true;
+			return next.join("\n");
+		});
+		return wrote;
+	}
+
+	/**
 	 * Atomically rewrite a contiguous run of lines. `expect` guards the anchor
 	 * line: if it no longer matches, the edit is abandoned rather than applied
 	 * somewhere it does not belong.
@@ -366,22 +412,18 @@ export class Mutator {
 		toIndex: number,
 		sectionLine: number | null
 	): Promise<void> {
-		const file = this.fileFor(task.filePath);
-		if (!file) return;
-
 		// The task never counts as its own drop target.
 		const targets = siblings.filter((s) => s.line !== task.line);
 
-		await this.app.vault.process(file, (data) => {
-			const lines = data.split("\n");
-
+		await this.applyLines(task.filePath, (lines) => {
 			// Every anchor this move reads is re-verified. The indices came from
 			// a parse that may be a frame or two old, and splicing against a file
 			// that shifted underneath us would move the wrong block.
-			if (lines[task.line] !== task.raw) return data;
-			for (const t of targets) if (lines[t.line] !== t.raw) return data;
-			if (sectionLine !== null && !HEADING_RE.test(lines[sectionLine] ?? "")) return data;
+			if (lines[task.line] !== task.raw) return null;
+			for (const t of targets) if (lines[t.line] !== t.raw) return null;
+			if (sectionLine !== null && !HEADING_RE.test(lines[sectionLine] ?? "")) return null;
 
+			const next = [...lines];
 			const self = blockRange(task);
 			const size = self.end - self.start;
 
@@ -398,12 +440,12 @@ export class Mutator {
 				at = this.bodyStart(lines);
 			}
 
-			const moving = lines.splice(self.start, size);
+			const moving = next.splice(self.start, size);
 			// Removing the block shifts everything below it up, so a target that
 			// sat after it has to be measured again.
 			if (at > self.start) at -= size;
-			lines.splice(at, 0, ...moving);
-			return lines.join("\n");
+			next.splice(at, 0, ...moving);
+			return next;
 		});
 	}
 
@@ -835,34 +877,27 @@ export class Mutator {
 		const to = Math.max(0, Math.min(siblings.length - 1, toIndex));
 		if (to === from) return;
 
-		const file = this.fileFor(task.filePath);
-		if (!file) return;
-
 		const self = blockRange(task);
 		const block = self.end - self.start;
 		const target = siblings[to];
 		const targetRange = blockRange(target);
 
-		await this.app.vault.process(file, (data) => {
-			const lines = data.split("\n");
-
+		await this.applyLines(task.filePath, (lines) => {
 			// Every sibling's first line is re-verified, not just the two being
 			// swapped. The indices came from a parse that may be a frame or two
 			// old, and splicing against a file that has shifted underneath us
 			// would move the wrong block.
 			for (const s of siblings) {
-				if (lines[s.line] !== s.raw) return data;
+				if (lines[s.line] !== s.raw) return null;
 			}
 
-			const moving = lines.splice(self.start, block);
+			const next = [...lines];
+			const moving = next.splice(self.start, block);
 			// Splicing the block out shifts everything below it up by `block`
 			// lines, so a downward move has to be measured after the removal.
-			const insertAt =
-				to < from
-					? targetRange.start
-					: targetRange.end - block;
-			lines.splice(insertAt, 0, ...moving);
-			return lines.join("\n");
+			const insertAt = to < from ? targetRange.start : targetRange.end - block;
+			next.splice(insertAt, 0, ...moving);
+			return next;
 		});
 	}
 }

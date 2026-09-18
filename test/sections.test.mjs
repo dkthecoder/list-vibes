@@ -66,6 +66,7 @@ function setup(content, { open = false } = {}) {
 	const path = "lists/Test.md";
 	const app = makeApp({ [path]: content }, open ? [path] : []);
 	return {
+		app,
 		mutator: new Mutator(app, WRITE_OPTS),
 		path,
 		lines: () => app.__store.get(path).split("\n"),
@@ -322,4 +323,31 @@ describe("moveSectionBy", () => {
 		await s.mutator.moveSectionBy(s.path, sectionAt(s, "Empty"), 1);
 		assert.deepEqual(s.lines(), before);
 	});
+});
+
+describe("section writes take the right path", () => {
+	for (const op of [
+		["moveToSection", async (s) => {
+			const task = s.parse().all.find((t) => t.title === "First");
+			await s.mutator.moveToSection(task, [], 0, sectionAt(s, "Empty"));
+		}],
+		["moveSection", async (s) => s.mutator.moveSection(s.path, sectionAt(s, "Work"), 1)],
+		["renameSection", async (s) => s.mutator.renameSection(s.path, sectionAt(s, "Work"), "Office")],
+		["removeSection", async (s) => s.mutator.removeSection(s.path, sectionAt(s, "Home"))],
+	]) {
+		const [name, run] = op;
+
+		test(`${name} uses the editor when the file is open`, async () => {
+			const s = setup(BLOCKS, { open: true });
+			await run(s);
+			assert.equal(s.app.__paths.process, 0, "used Vault.process on an open file");
+			assert.ok(s.app.__paths.editor > 0, "never touched the editor");
+		});
+
+		test(`${name} uses Vault.process when the file is closed`, async () => {
+			const s = setup(BLOCKS, { open: false });
+			await run(s);
+			assert.ok(s.app.__paths.process > 0, "never used Vault.process");
+		});
+	}
 });

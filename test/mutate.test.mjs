@@ -862,3 +862,42 @@ describe("stamping the time", () => {
 		assert.equal(t.meta.done, "2026-08-20T14:32");
 	});
 });
+
+/* ------------------------------------------------------------------ *
+ * The write path is a rule, not a detail.
+ *
+ * Both paths land in the same file, so a test on the result cannot tell them
+ * apart — and the rule is about the path: an open file written through
+ * Vault.process is reconciled from the file watcher afterwards, which loses the
+ * cursor, the selection and every fold.
+ * ------------------------------------------------------------------ */
+
+describe("write path", () => {
+	test("a reorder on an open file goes through the editor", async () => {
+		const s = setup(SAMPLE, { open: true });
+		const roots = s.parse().tasks;
+		await s.mutator.reorder(roots[0], roots, 2);
+		assert.equal(s.app.__paths.process, 0, "used Vault.process on an open file");
+		assert.ok(s.app.__paths.editor > 0, "never touched the editor");
+	});
+
+	test("a reorder on a closed file goes through Vault.process", async () => {
+		const s = setup(SAMPLE, { open: false });
+		const roots = s.parse().tasks;
+		await s.mutator.reorder(roots[0], roots, 2);
+		assert.ok(s.app.__paths.process > 0, "never used Vault.process");
+	});
+
+	test("the reorder itself still lands, whichever path it took", async () => {
+		for (const open of [false, true]) {
+			const s = setup(SAMPLE, { open });
+			const roots = s.parse().tasks;
+			await s.mutator.reorder(roots[0], roots, 2);
+			assert.deepEqual(
+				s.parse().tasks.map((t) => t.title),
+				["Second task", "Third task", "First task"],
+				`open: ${open}`
+			);
+		}
+	});
+});
