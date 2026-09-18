@@ -74,6 +74,14 @@ export interface ListsSettings {
 	 * like sort: never written to the file.
 	 */
 	collapsedSections: Record<string, string[]>;
+	/**
+	 * The order the lists were dragged into, by path.
+	 *
+	 * Empty means alphabetical, because an order nobody has set orders nothing —
+	 * so there is no mode to choose and no setting to explain. View-only, like
+	 * every other ordering the plugin keeps.
+	 */
+	listOrder: string[];
 	/** Last opened list, restored on reopen. */
 	lastList?: string;
 }
@@ -97,6 +105,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	defaultView: "list",
 	viewByList: {},
 	collapsedSections: {},
+	listOrder: [],
 	openOnStartup: true,
 	sidebarFirst: false,
 	notesFolder: "tasks",

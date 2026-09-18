@@ -13,7 +13,7 @@ import { keyboardOverlap } from "./keyboard";
 import { isTextEntry } from "./focus";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
-import { SortKey } from "../model/sort";
+import { SortKey, orderLists } from "../model/sort";
 import {
 	RenderScope,
 	decodeSelection,
@@ -412,6 +412,23 @@ export class ListsView extends ItemView {
 				this.plugin.settings.defaultView = mode;
 				void this.plugin.saveSettings();
 				this.render("tasks");
+			},
+
+			orderedLists: () => {
+				const lists = this.plugin.store.getLists();
+				const order = orderLists(
+					lists.map((l) => l.path),
+					this.plugin.settings.listOrder
+				);
+				const byPath = new Map(lists.map((l) => [l.path, l]));
+				return order.flatMap((p) => byPath.get(p) ?? []);
+			},
+
+			reorderLists: (paths: string[]) => {
+				this.plugin.settings.listOrder = paths;
+				void this.plugin.saveSettings();
+				// The picker lives outside the task pane, so this is the whole tree.
+				this.render("all");
 			},
 
 			sectionCollapsed: (path: string, name: string) =>

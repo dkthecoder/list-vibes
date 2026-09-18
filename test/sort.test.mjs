@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseFile, sortTasks, starsOf, isStarred, PRIORITY_BY_STARS, STARS_BY_PRIORITY, partitionCompleted } from "./model.mjs";
+import { parseFile, sortTasks, starsOf, isStarred, PRIORITY_BY_STARS, STARS_BY_PRIORITY, partitionCompleted, orderLists } from "./model.mjs";
 
 const MD = [
 	"- [ ] Banana 📅 2026-09-05 ➕ 2026-01-03 🔼",
@@ -151,4 +151,44 @@ test("numeric-aware collation orders 2 before 10", () => {
 	const md = ["- [ ] Item 10", "- [ ] Item 2", "- [ ] Item 1"].join("\n");
 	const ts = parseFile(md, "x.md").tasks;
 	assert.deepEqual(titles(sortTasks(ts, "alpha-asc")), ["Item 1", "Item 2", "Item 10"]);
+});
+
+/**
+ * A custom order for the lists themselves.
+ *
+ * Task order is file order, so dragging a task is a real edit. A list has no
+ * file order — the picker sorts by filename — so a custom one has to be stored,
+ * and stored somewhere that is not the user's markdown. That makes it settings,
+ * and settings drift: files get created, renamed and deleted while the plugin
+ * is not looking, so the stored order is a preference to be honoured rather
+ * than a truth to be trusted.
+ */
+test("a stored order is honoured", () => {
+	const paths = ["a.md", "b.md", "c.md"];
+	assert.deepEqual(orderLists(paths, ["c.md", "a.md", "b.md"]), ["c.md", "a.md", "b.md"]);
+});
+
+test("a list missing from the order goes to the end", () => {
+	const paths = ["a.md", "b.md", "new.md"];
+	assert.deepEqual(orderLists(paths, ["b.md", "a.md"]), ["b.md", "a.md", "new.md"]);
+});
+
+test("several new lists keep the order they arrived in", () => {
+	const paths = ["a.md", "y.md", "z.md"];
+	assert.deepEqual(orderLists(paths, ["a.md"]), ["a.md", "y.md", "z.md"]);
+});
+
+test("an order naming a list that no longer exists ignores it", () => {
+	const paths = ["a.md", "b.md"];
+	assert.deepEqual(orderLists(paths, ["gone.md", "b.md", "a.md"]), ["b.md", "a.md"]);
+});
+
+test("an empty order leaves the lists as they came", () => {
+	const paths = ["a.md", "b.md"];
+	assert.deepEqual(orderLists(paths, []), ["a.md", "b.md"]);
+});
+
+test("a duplicated entry is used once", () => {
+	const paths = ["a.md", "b.md"];
+	assert.deepEqual(orderLists(paths, ["b.md", "b.md", "a.md"]), ["b.md", "a.md"]);
 });

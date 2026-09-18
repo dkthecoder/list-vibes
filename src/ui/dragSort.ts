@@ -226,6 +226,20 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 	const begin = () => {
 		live = true;
+
+		/*
+		 * The pointer is claimed here rather than on pointerdown.
+		 *
+		 * Capturing it early retargets every later pointer event to this row,
+		 * which is exactly what a live drag wants and exactly what a row that is
+		 * not being dragged must not do: a name that is renamed by double-click
+		 * never sees the second press, because the row swallowed it. Capture is
+		 * for a gesture we have decided to take.
+		 */
+		if (pointerId !== null && !grab.hasPointerCapture(pointerId)) {
+			grab.setPointerCapture(pointerId);
+		}
+
 		siblings = opts.siblings();
 
 		groups = opts.containers?.() ?? [];
@@ -336,7 +350,6 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		startX = e.clientX;
 		startY = e.clientY;
 		pointerId = e.pointerId;
-		grab.setPointerCapture(e.pointerId);
 
 		if (e.pointerType === "touch" && !opts.handle) {
 			longPress = window.setTimeout(() => {

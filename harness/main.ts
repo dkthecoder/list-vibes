@@ -148,6 +148,9 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		},
 		sortKey: () => sortKey,
 
+		orderedLists: () => store.getLists(),
+		reorderLists: () => paint(),
+
 		// Folding is view-only, so the harness keeps it in a set rather than in
 		// anything that pretends to be settings.
 		sectionCollapsed: (path: string, name: string) => folded.has(`${path}::${name}`),

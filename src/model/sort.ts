@@ -130,3 +130,31 @@ export function partitionCompleted(tasks: Task[]): {
 	for (const t of tasks) (isComplete(t) ? done : open).push(t);
 	return { open, done };
 }
+
+/**
+ * Put the lists in the order the user dragged them into.
+ *
+ * Task order is file order, so moving a task is a real edit to a real file. A
+ * list has no file order — the picker reads the folder — so a custom one is
+ * stored in settings, and settings drift: files are created, renamed and
+ * deleted while the plugin is not looking.
+ *
+ * So the stored order is treated as a preference rather than a truth. Anything
+ * it names that has gone is skipped, and anything it has never heard of keeps
+ * the order it arrived in, at the end — a list that appears in the folder
+ * should turn up somewhere predictable rather than wherever a sort happens to
+ * put it.
+ */
+export function orderLists(paths: string[], order: string[]): string[] {
+	const available = new Set(paths);
+	const placed = new Set<string>();
+	const out: string[] = [];
+
+	for (const path of order) {
+		if (!available.has(path) || placed.has(path)) continue;
+		placed.add(path);
+		out.push(path);
+	}
+	for (const path of paths) if (!placed.has(path)) out.push(path);
+	return out;
+}

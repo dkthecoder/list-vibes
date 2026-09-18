@@ -41,13 +41,12 @@ export class ConfirmModal extends Modal {
 				window.setTimeout(() => b.buttonEl.focus(), 0);
 			})
 			.addButton((b) => {
-				b.setButtonText(this.opts.cta ?? "Delete")
-					.setCta()
-					.onClick(() => {
-						this.close();
-						void this.opts.onConfirm();
-					});
-				if (this.opts.destructive !== false) b.setWarning();
+				b.setButtonText(this.opts.cta ?? "Delete").onClick(() => {
+					this.close();
+					void this.opts.onConfirm();
+				});
+				if (this.opts.destructive === false) b.setCta();
+				else b.setDestructive().setCta();
 			});
 	}
 
