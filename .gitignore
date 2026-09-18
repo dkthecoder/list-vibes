@@ -12,3 +12,6 @@ _sync/
 
 # Transfer archives, never part of the repo.
 *.tar.gz
+
+# Design specs are scratch, not shipped with the plugin.
+docs/superpowers/
