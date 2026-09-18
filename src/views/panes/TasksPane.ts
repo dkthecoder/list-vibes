@@ -240,6 +240,21 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			menu.addSeparator();
 			menu.addItem((i) =>
 				i
+					.setTitle("New section")
+					.setIcon("heading")
+					.onClick(() => {
+						void import("../../ui/PromptModal").then(({ PromptModal }) => {
+							new PromptModal(ctx.app, {
+								title: "New section",
+								placeholder: "Section name",
+								cta: "Add",
+								onSubmit: (name) => void ctx.mutator.createSection(list.path, name),
+							}).open();
+						});
+					})
+			);
+			menu.addItem((i) =>
+				i
 					.setTitle("Open as note")
 					.setIcon("file-text")
 					.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
@@ -503,13 +518,35 @@ function renderTasks(
 	// it, so a task can always be dragged back out of every section.
 	if (loose.length || bounds.length) addRun(loose);
 
+	const heads: HTMLElement[] = [];
 	for (const sec of bounds) {
 		const folded = ctx.sectionCollapsed(path, sec.name);
 		const mine = tasks.filter((t) => t.line > sec.line && t.line < sec.end);
-		renderSectionHead(scroll, ctx, path, sec, mine.length, folded);
+		heads.push(renderSectionHead(scroll, ctx, path, sec, mine.length, folded));
 		if (folded) continue;
 		addRun(mine);
 	}
+
+	/*
+	 * Headings are their own drag group, and a one-dimensional one.
+	 *
+	 * A section moves among sections; there is nowhere else for it to go, so the
+	 * container hit-test the rows need would only ever return the one answer.
+	 * Only the heading moves under the pointer — its tasks travel with it in the
+	 * file, not on screen — because shifting a whole band would mean animating
+	 * every row in it to describe a move that is really about order alone.
+	 */
+	if (opts.sortable && heads.length > 1) {
+		heads.forEach((head, index) => {
+			head.addClass("lv-sortable");
+			makeDragSortable(head, {
+				index,
+				siblings: () => heads,
+				onDrop: (from, to) => void ctx.mutator.moveSection(path, bounds[from].line, to),
+			});
+		});
+	}
+
 	wire();
 }
 

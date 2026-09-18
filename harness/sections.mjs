@@ -51,47 +51,58 @@ check("it reports its state to a screen reader", parts.expanded === "true");
 
 await page.evaluate(() => (window.lvCalls.length = 0));
 
-/* Second section's first card, dragged up into the first section. A card rather
-   than a row: the wall was the mode that could not be dragged at all, so it is
-   the one worth driving. */
-const move = await page.evaluate(async (sel) => {
+/* A real mouse, not a synthesised PointerEvent: pointer capture only works
+   against a pointer the browser believes is down, and the capture is half of
+   what makes the gesture survive leaving the row.
+
+   Which means the pane has to actually be on screen. This harness page is
+   thousands of pixels tall and every pane below the fold has a bounding box the
+   mouse can never reach. */
+await page.evaluate((sel) => {
+	document.querySelector(`${sel} .lv-group`)?.scrollIntoView({ block: "start" });
+}, PANE);
+await page.waitForTimeout(120);
+
+const boxes = await page.evaluate((sel) => {
+	// Runs 1 and 2 are the first two headed sections. Run 0 is the space above
+	// the first heading, which this list leaves empty.
 	const groups = [...document.querySelectorAll(`${sel} .lv-group`)];
-	if (groups.length < 2) return { ok: false, why: `${groups.length} groups` };
-
-	const from = groups[1].querySelector(".lv-task, .lv-card-task");
-	const to = groups[0].getBoundingClientRect();
-	if (!from) return { ok: false, why: "no row in the second group" };
-
-	const r = from.getBoundingClientRect();
-	const send = (type, x, y) =>
-		from.dispatchEvent(
-			new PointerEvent(type, {
-				pointerId: 1,
-				pointerType: "mouse",
-				button: 0,
-				clientX: x,
-				clientY: y,
-				bubbles: true,
-				cancelable: true,
-			})
-		);
-
-	const startX = r.left + r.width / 2;
-	const startY = r.top + r.height / 2;
-	send("pointerdown", startX, startY);
-	// Past the mouse threshold first, then into the other section.
-	send("pointermove", startX, startY - 20);
-	send("pointermove", to.left + to.width / 2, to.top + 10);
-	const lit = document.querySelectorAll(`${sel} .lv-drop-target`).length;
-	send("pointerup", to.left + to.width / 2, to.top + 10);
-	return { ok: true, lit };
+	const card = groups[2]?.querySelector(".lv-task, .lv-card-task");
+	if (!card || !groups[1]) return null;
+	const c = card.getBoundingClientRect();
+	const g = groups[1].getBoundingClientRect();
+	return {
+		from: { x: c.left + c.width / 2, y: c.top + c.height / 2 },
+		to: { x: g.left + g.width / 2, y: g.top + 12 },
+		groups: groups.length,
+	};
 }, PANE);
 
-check("a drag can be started on the wall", move.ok, move.why ?? "");
-check("the destination section is lit while over it", move.lit === 1, `${move.lit} lit`);
+check("the wall has runs to drag between", !!boxes && boxes.groups >= 2, `${boxes?.groups ?? 0} runs`);
 
-const calls = await page.evaluate(() => window.lvCalls);
-const kinds = calls.map((c) => c[0]);
+await page.mouse.move(boxes.from.x, boxes.from.y);
+await page.mouse.down();
+await page.mouse.move(boxes.from.x, boxes.from.y - 20);
+await page.mouse.move(boxes.to.x, boxes.to.y, { steps: 6 });
+
+const lit = await page.evaluate(
+	(sel) => document.querySelectorAll(`${sel} .lv-drop-target`).length,
+	PANE
+);
+check("the destination run is lit while over it", lit === 1, `${lit} lit`);
+
+/* An empty section is drawn so it can be dropped into, and a div with no
+   children has no height to drop onto. It has to grow while a drag is live or
+   the drop target it exists to be is unreachable. */
+const emptyDuringDrag = await page.evaluate(
+	(sel) => document.querySelector(`${sel} .lv-group`)?.getBoundingClientRect().height ?? -1,
+	PANE
+);
+check("an empty run opens a drop zone mid-drag", emptyDuringDrag > 20, `${emptyDuringDrag}px`);
+
+await page.mouse.up();
+
+const kinds = (await page.evaluate(() => window.lvCalls)).map((c) => c[0]);
 check(
 	"crossing a heading asks for the cross-section move",
 	kinds.includes("moveToSection"),
@@ -99,7 +110,10 @@ check(
 );
 check("and not a plain reorder", !kinds.includes("reorder"), kinds.join(", "));
 
-const left = await page.evaluate((sel) => document.querySelectorAll(`${sel} .lv-drop-target`).length, PANE);
+const left = await page.evaluate(
+	(sel) => document.querySelectorAll(`${sel} .lv-drop-target`).length,
+	PANE
+);
 check("the highlight is cleared on drop", left === 0, `${left} left lit`);
 
 /* ---------------- folding ---------------- */
@@ -107,7 +121,45 @@ check("the highlight is cleared on drop", left === 0, `${left} left lit`);
 await page.evaluate(() => (window.lvCalls.length = 0));
 await page.click(`${PANE} .lv-section .lv-section-name`, { force: true }).catch(() => {});
 await page.waitForTimeout(80);
-check("clicking a heading does not write to the file", (await page.evaluate(() => window.lvCalls)).length === 0);
+check(
+	"clicking a heading folds without writing to the file",
+	(await page.evaluate(() => window.lvCalls)).length === 0
+);
+
+/* ---------------- a heading is dragged to reorder ---------------- */
+
+await page.evaluate(() => (window.lvCalls.length = 0));
+
+await page.evaluate((sel) => {
+	document.querySelector(`${sel} .lv-group`)?.scrollIntoView({ block: "start" });
+}, PANE);
+await page.waitForTimeout(120);
+
+const hs = await page.evaluate((sel) => {
+	const list = [...document.querySelectorAll(`${sel} .lv-section`)];
+	if (list.length < 2) return null;
+	const a = list[0].getBoundingClientRect();
+	const b = list[1].getBoundingClientRect();
+	return {
+		from: { x: a.left + 60, y: a.top + a.height / 2 },
+		to: { x: a.left + 60, y: b.top + b.height },
+	};
+}, PANE);
+
+check("there are headings to reorder", !!hs);
+
+await page.mouse.move(hs.from.x, hs.from.y);
+await page.mouse.down();
+await page.mouse.move(hs.from.x, hs.from.y + 20);
+await page.mouse.move(hs.to.x, hs.to.y, { steps: 6 });
+await page.mouse.up();
+
+const moved = (await page.evaluate(() => window.lvCalls)).map((c) => c[0]);
+check(
+	"dragging a heading reorders the section",
+	moved.includes("moveSection"),
+	moved.join(", ") || "nothing"
+);
 
 check("no page errors", errors.length === 0, errors[0] ?? "");
 

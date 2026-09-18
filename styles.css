@@ -1735,6 +1735,24 @@ body.is-mobile .lv-section-more {
 	opacity: 0.95;
 }
 
+/* An empty run.
+
+   A section with nothing in it is drawn so it can be dropped into, and a div
+   with no children has no height to drop onto — so it is given one. Only while
+   a drag is live: an empty band sitting there outlined when nothing is moving
+   reads as a rendering fault rather than as an invitation. */
+.lv-group:empty {
+	min-height: 0;
+	transition: min-height 120ms ease;
+}
+
+body.lv-is-dragging .lv-group:empty {
+	min-height: calc(var(--size-4-12, 48px));
+	margin: 0 var(--lv-gutter) var(--size-4-2);
+	border: var(--border-width) dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
 /* The run a drop would land in.
 
    A foreign run shifts none of its rows — the gap would have to open for a row
