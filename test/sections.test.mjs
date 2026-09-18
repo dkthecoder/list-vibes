@@ -121,3 +121,104 @@ describe("createSection", () => {
 		);
 	});
 });
+
+describe("removeSection", () => {
+	test("deleting an empty section removes only its heading", async () => {
+		const s = setup(SAMPLE + "\n## Empty\n");
+		const line = s.parse().sections.find((x) => x.name === "Empty").line;
+		const before = s.parse().all.map((t) => t.raw);
+		await s.mutator.removeSection(s.path, line);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Work", "Home"]
+		);
+		assert.deepEqual(
+			s.parse().all.map((t) => t.raw),
+			before
+		);
+	});
+
+	test("deleting a section keeps its tasks, promoting them to the section above", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.removeSection(s.path, 9);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Work"]
+		);
+		assert.deepEqual(
+			s.parse().all.map((t) => t.title),
+			["First task", "Second task", "Third task"]
+		);
+	});
+
+	test("withTasks discards the tasks along with the heading", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.removeSection(s.path, 9, { withTasks: true });
+		assert.deepEqual(
+			s.parse().all.map((t) => t.title),
+			["First task", "Second task"]
+		);
+	});
+
+	test("removing the first section leaves the second intact", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.removeSection(s.path, 4, { withTasks: true });
+		assert.deepEqual(
+			s.parse().all.map((t) => t.title),
+			["Third task"]
+		);
+	});
+
+	test("a line that is not a heading is not a delete", async () => {
+		const s = setup(SAMPLE);
+		const before = s.lines();
+		await s.mutator.removeSection(s.path, 6);
+		assert.deepEqual(s.lines(), before);
+	});
+});
+
+describe("moveSection", () => {
+	test("moving a section down carries its tasks with it", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.moveSection(s.path, 4, 1);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Home", "Work"]
+		);
+		assert.deepEqual(
+			s.parse().all.map((t) => t.title),
+			["Third task", "First task", "Second task"]
+		);
+	});
+
+	test("moving a section up is the same move in reverse", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.moveSection(s.path, 9, 0);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Home", "Work"]
+		);
+	});
+
+	test("moving a section onto itself is not a write", async () => {
+		const s = setup(SAMPLE);
+		const before = s.lines();
+		await s.mutator.moveSection(s.path, 4, 0);
+		assert.deepEqual(s.lines(), before);
+	});
+
+	test("an out-of-range index is clamped rather than thrown", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.moveSection(s.path, 4, 99);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Home", "Work"]
+		);
+	});
+
+	test("content above the first heading is never swept into a move", async () => {
+		const s = setup(SAMPLE);
+		await s.mutator.moveSection(s.path, 4, 1);
+		assert.deepEqual(s.lines().slice(0, 3), ["---", "icon: 💼", "---"]);
+	});
+});

@@ -252,7 +252,8 @@ export class Mutator {
 		if (!clean) return;
 
 		const lines = await this.currentLines(path);
-		const raw = lines?.[line];
+		if (!lines) return;
+		const raw = lines[line];
 		if (raw === undefined) return;
 
 		const h = HEADING_RE.exec(raw);
@@ -274,6 +275,70 @@ export class Mutator {
 		const trailing = lines.length && lines[lines.length - 1].trim() === "";
 		const insert = trailing ? [`## ${clean}`, ""] : ["", `## ${clean}`, ""];
 		await this.insertLines(path, lines.length, insert);
+	}
+
+	/** Line numbers of every heading in the file, in order. */
+	private headingLines(lines: string[]): number[] {
+		const out: number[] = [];
+		for (let i = 0; i < lines.length; i++) if (HEADING_RE.test(lines[i])) out.push(i);
+		return out;
+	}
+
+	/**
+	 * Delete a section.
+	 *
+	 * By default only the heading goes, and the tasks under it join the section
+	 * above — deleting a column should not be a way to lose work by accident.
+	 * `withTasks` is the deliberate version, and is what the confirm dialog asks
+	 * about.
+	 */
+	async removeSection(
+		path: string,
+		line: number,
+		opts: { withTasks?: boolean } = {}
+	): Promise<void> {
+		const lines = await this.currentLines(path);
+		if (!lines) return;
+		const raw = lines[line];
+		if (raw === undefined || !HEADING_RE.test(raw)) return;
+
+		if (!opts.withTasks) {
+			await this.spliceLines(path, line, raw, line, 1, []);
+			return;
+		}
+
+		// To the next heading, or to the end of the file.
+		const next = this.headingLines(lines).find((h) => h > line) ?? lines.length;
+		await this.spliceLines(path, line, raw, line, next - line, []);
+	}
+
+	/**
+	 * Move a section to another position among its siblings.
+	 *
+	 * Rebuilt as a list of whole blocks rather than spliced by offset: a section
+	 * is a heading plus everything under it, and reasoning about where that
+	 * lands after a removal is where the off-by-ones live. Anything above the
+	 * first heading is not part of any section and is never touched.
+	 */
+	async moveSection(path: string, line: number, toIndex: number): Promise<void> {
+		const lines = await this.currentLines(path);
+		if (!lines) return;
+		const raw = lines[line];
+		if (raw === undefined || !HEADING_RE.test(raw)) return;
+
+		const heads = this.headingLines(lines);
+		const from = heads.indexOf(line);
+		if (from < 0) return;
+
+		const to = Math.max(0, Math.min(heads.length - 1, toIndex));
+		if (to === from) return;
+
+		const blocks = heads.map((h, i) => lines.slice(h, heads[i + 1] ?? lines.length));
+		const [moving] = blocks.splice(from, 1);
+		blocks.splice(to, 0, moving);
+
+		const start = heads[0];
+		await this.spliceLines(path, line, raw, start, lines.length - start, blocks.flat());
 	}
 
 	private childIndent(task: Task): string {
