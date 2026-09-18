@@ -59,6 +59,57 @@ export function dropIndex(centres: number[], from: number, y: number): number {
 	return Math.max(0, Math.min(centres.length - 1, to));
 }
 
+/** A container's bounds, in the same coordinate space as the pointer. */
+export interface DropBox {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
+/** How far a point sits outside a box. Zero on both axes means inside it. */
+function gap(box: DropBox, x: number, y: number): number {
+	const dx = Math.max(box.left - x, 0, x - box.right);
+	const dy = Math.max(box.top - y, 0, y - box.bottom);
+	return dx * dx + dy * dy;
+}
+
+/**
+ * Which container the pointer is aiming at.
+ *
+ * `dropIndex` answers where a row lands within one run; this answers which run,
+ * and the two compose into a move in two dimensions without either of them
+ * having to think in two dimensions.
+ *
+ * A pointer outside every container falls to the nearest rather than to nothing.
+ * Containers do not tile the pane — there are gutters between them, and a band
+ * with one card in it is mostly empty space — so "over no container" is a normal
+ * position during a drag, not a mistake, and refusing to answer there would make
+ * the drop indicator flicker out in the gaps.
+ *
+ * Kept pure and exported so the arithmetic can be tested without a browser.
+ */
+export function dropContainer(
+	boxes: DropBox[],
+	x: number,
+	y: number,
+	current: number
+): number {
+	if (!boxes.length) return current;
+
+	let best = 0;
+	let bestGap = Infinity;
+	for (let i = 0; i < boxes.length; i++) {
+		const d = gap(boxes[i], x, y);
+		if (d === 0) return i;
+		if (d < bestGap) {
+			bestGap = d;
+			best = i;
+		}
+	}
+	return best;
+}
+
 /**
  * How long to keep watching for the click a finished drag leaves behind.
  *

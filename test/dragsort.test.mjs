@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { dropIndex } from "./build/ui/dragSort.js";
+import { dropContainer, dropIndex } from "./build/ui/dragSort.js";
 
 /**
  * The index a drag lands on. Off-by-one errors here are invisible in review and
@@ -99,5 +99,51 @@ describe("dropIndex", () => {
 
 	test("no siblings at all leaves the index alone rather than throwing", () => {
 		assert.equal(dropIndex([], 3, 50), 3);
+	});
+});
+
+/**
+ * Which container the pointer is over.
+ *
+ * `dropIndex` answers where a row lands within one run. A board needs the
+ * question before that one: which run is being aimed at. Kept separate and pure
+ * for the same reason — the arithmetic is invisible in review and obvious in
+ * use, and it has to be testable without a browser.
+ */
+describe("dropContainer", () => {
+	// Two side-by-side columns, each 100 wide and 200 tall.
+	const COLUMNS = [
+		{ left: 0, right: 100, top: 0, bottom: 200 },
+		{ left: 120, right: 220, top: 0, bottom: 200 },
+	];
+
+	test("a pointer inside a container picks it", () => {
+		assert.equal(dropContainer(COLUMNS, 50, 100, 0), 0);
+		assert.equal(dropContainer(COLUMNS, 170, 100, 0), 1);
+	});
+
+	test("a pointer in the gap picks the nearer container", () => {
+		assert.equal(dropContainer(COLUMNS, 105, 100, 0), 0);
+		assert.equal(dropContainer(COLUMNS, 115, 100, 0), 1);
+	});
+
+	test("a pointer past the edge still picks the outermost container", () => {
+		assert.equal(dropContainer(COLUMNS, -500, 100, 1), 0);
+		assert.equal(dropContainer(COLUMNS, 9999, 100, 0), 1);
+	});
+
+	test("stacked bands are separated vertically, not horizontally", () => {
+		const bands = [
+			{ left: 0, right: 200, top: 0, bottom: 100 },
+			{ left: 0, right: 200, top: 120, bottom: 220 },
+		];
+		assert.equal(dropContainer(bands, 100, 50, 1), 0);
+		assert.equal(dropContainer(bands, 100, 200, 0), 1);
+		assert.equal(dropContainer(bands, 100, 105, 0), 0);
+		assert.equal(dropContainer(bands, 100, 115, 0), 1);
+	});
+
+	test("with no containers the current one is kept", () => {
+		assert.equal(dropContainer([], 50, 50, 3), 3);
 	});
 });
