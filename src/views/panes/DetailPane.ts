@@ -45,15 +45,49 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 
 	renderCheckbox(card, task, () => void ctx.mutator.toggle(task));
 
+	/*
+	 * Rendered at rest, raw the moment it is edited.
+	 *
+	 * The same rule the list title follows, for the same reason: what you edit
+	 * has to be what gets written. A title carrying a markdown link showed its
+	 * brackets and URL here while the row beside it rendered them, so the panel
+	 * read as broken on exactly the lists that use links most — and rendering it
+	 * permanently would mean typing into a field that is not showing the text it
+	 * is about to save.
+	 */
 	const titleEl = card.createDiv({ cls: "lv-detail-title-text" });
 	titleEl.toggleClass("is-complete", isComplete(task));
-	titleEl.setAttribute("contenteditable", "plaintext-only");
 	titleEl.setAttribute("role", "textbox");
 	titleEl.setAttribute("aria-label", "Task name");
-	titleEl.setText(task.title);
+
+	let editing = false;
+
+	const show = () => {
+		titleEl.empty();
+		renderInline(titleEl, task.title, ctx);
+		titleEl.setAttribute("contenteditable", "false");
+	};
+
+	const edit = () => {
+		if (editing) return;
+		editing = true;
+		titleEl.setText(task.title);
+		titleEl.setAttribute("contenteditable", "plaintext-only");
+		titleEl.focus();
+	};
+
+	show();
+
+	// A click on a link inside the title never reaches here: renderInline stops
+	// it, so following a link and editing around it stay separate gestures.
+	titleEl.addEventListener("click", edit);
+	titleEl.addEventListener("focus", edit);
 
 	const commit = () => {
+		if (!editing) return;
+		editing = false;
 		const next = (titleEl.textContent ?? "").trim();
+		show();
 		if (next && next !== task.title) void ctx.mutator.rename(task, next);
 	};
 	titleEl.addEventListener("blur", commit);
