@@ -271,16 +271,21 @@ export class ListsView extends ItemView {
 		 * A tab retargeted from outside has to be told to reread its own name.
 		 *
 		 * There are two ways the list in a tab changes. Picking inside it goes
-		 * through `select`, which ends by persisting so the header follows. Being
-		 * retargeted — the sidebar is a picker, so choosing a list there reuses an
-		 * open tab through `setViewState` — arrives here instead, and used to
-		 * render the new list under the previous list's name.
+		 * through `select`, which persists a state the leaf does not have yet, and
+		 * the header follows. Being retargeted — the sidebar is a picker, so
+		 * choosing a list there reuses an open tab through `setViewState` —
+		 * arrives *here*, where the leaf already holds this exact state. Persisting
+		 * it again is a no-op, which is why doing that left the new list showing
+		 * under the previous list's name.
 		 *
-		 * `persistState` guards its own reentry, and the round trip lands back
-		 * here with the selection already current, so `movedList` is false the
-		 * second time and this does not recur.
+		 * `updateHeader` is what asks a leaf to reread `getDisplayText`. It is real
+		 * but absent from the public typings, so it is called only if it is there
+		 * — a wrong tab title is worth fixing and not worth throwing for.
 		 */
-		if (movedList && this.inMainWorkspace()) void this.persistState();
+		if (movedList && this.inMainWorkspace()) {
+			const leaf = this.leaf as WorkspaceLeaf & { updateHeader?: () => void };
+			leaf.updateHeader?.();
+		}
 	}
 
 	onResize(): void {
@@ -478,13 +483,6 @@ export class ListsView extends ItemView {
 				void this.plugin.promote(task);
 			},
 
-			setStripes: (path: string, stripes: boolean | null) => {
-				void this.plugin.mutator.setListConfig(
-					path,
-					"stripes",
-					stripes === null ? null : String(stripes)
-				);
-			},
 
 			setIcon: (path: string, icon: string | null) => {
 				// Frontmatter, not the filename: renaming a file to change its icon

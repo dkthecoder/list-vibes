@@ -57,12 +57,18 @@ export interface ListsSettings {
 	prettyTitles: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
-	/** Shade alternate rows, for lists that have not chosen for themselves. */
-	stripeRows: boolean;
 	/** Throw confetti when a task is completed. Ignored under reduced motion. */
 	confetti: boolean;
 	/** Glint when a task is starred. Ignored under reduced motion. */
 	starBurst: boolean;
+	/**
+	 * Remove a `##` heading once the last task leaves it.
+	 *
+	 * Off by default: an empty section you are about to fill is a normal thing
+	 * to want, and one that vanishes under you as you drag the last task out is
+	 * worse than a heading left behind for you to delete yourself.
+	 */
+	autoRemoveEmptySections: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/**
@@ -92,7 +98,6 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	enableSubtasks: true,
 	side: "left",
 	showCompleted: "collapsed",
-	stripeRows: true,
 	confetti: true,
 	starBurst: true,
 	addDoneDate: true,
@@ -104,6 +109,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	prettyTitles: true,
 	defaultView: "list",
 	viewByList: {},
+	autoRemoveEmptySections: false,
 	collapsedSections: {},
 	listOrder: [],
 	openOnStartup: true,
@@ -206,6 +212,18 @@ export class ListsSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Tidy away empty sections")
+			.setDesc(
+				"Remove a heading once the last task leaves it. Off by default, so a section you are about to fill does not vanish as you drag."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.autoRemoveEmptySections).onChange(async (v) => {
+					this.plugin.settings.autoRemoveEmptySections = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
 			.setName("Completed section")
 			.setDesc("Default state for the completed group at the bottom of a list.")
 			.addDropdown((d) =>
@@ -287,18 +305,6 @@ export class ListsSettingTab extends PluginSettingTab {
 				})
 			);
 
-		new Setting(containerEl)
-			.setName("Shade alternate rows")
-			.setDesc(
-				"Give every other row a slightly different background, so a long row is easier to follow across. A list can turn this on or off for itself from its own menu; this decides what the rest do."
-			)
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.stripeRows).onChange(async (v) => {
-					this.plugin.settings.stripeRows = v;
-					await this.plugin.saveSettings();
-					this.plugin.refreshViews();
-				})
-			);
 
 		new Setting(containerEl)
 			.setName("New lists start as")

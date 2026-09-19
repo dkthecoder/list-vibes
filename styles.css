@@ -396,12 +396,24 @@ body.is-phone .lv-header {
 	transition: opacity 120ms ease;
 }
 
+.lv-section-bin {
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
 .lv-section:hover .lv-section-more,
-.lv-section-more:focus-visible {
+.lv-section:hover .lv-section-bin,
+.lv-section-more:focus-visible,
+.lv-section-bin:focus-visible {
 	opacity: 1;
 }
 
-body.is-mobile .lv-section-more {
+.lv-section-bin:hover {
+	color: var(--text-error);
+}
+
+body.is-mobile .lv-section-more,
+body.is-mobile .lv-section-bin {
 	opacity: 1;
 }
 
@@ -419,14 +431,17 @@ body.is-mobile .lv-section-more {
 }
 
 /*
- * Flat, like every list Obsidian draws.
+ * A box, like the cards on the wall.
  *
- * These rows used to carry `background: var(--background-secondary)` and a
- * radius, which made them read as cards. No core list row has a resting
- * background — the file explorer, search results, backlinks and the outline all
- * paint one only on hover, active or selected. That single difference was the
- * biggest reason the plugin looked foreign, and it is worth more than any
- * amount of token discipline elsewhere.
+ * These were flat for a long time, on the argument that no core list row has a
+ * resting background — the file explorer, search results and backlinks all
+ * paint one only on hover. That kept the pane looking native and made the two
+ * layouts look like different apps: the wall is a grid of cards, and the rows
+ * were a grid of nothing.
+ *
+ * So the row wears the card's surface. It replaces the stripe, which was doing
+ * the same job — separating one row from the next — with half the contrast and
+ * a rule about odd and even that broke whenever a section split the list.
  */
 .lv-task {
 	display: flex;
@@ -441,24 +456,18 @@ body.is-mobile .lv-section-more {
 	 */
 	--lv-line: calc(var(--font-ui-medium) * 1.4);
 	padding: var(--size-4-2) var(--size-4-2);
-	margin-bottom: var(--size-2-1);
+	margin-bottom: var(--size-2-2);
 	border-radius: var(--lv-radius-s);
+	/*
+	 * Surface only, no border. A border shifts the row's content by its own
+	 * width, and the add box below the list has none — the two stopped sharing
+	 * a column by exactly one pixel, which the column harness caught.
+	 */
+	background: var(--lv-surface-alt);
 	color: var(--nav-item-color, var(--text-normal));
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
-}
-
-/*
- * Alternate rows, when a list asks for them.
- *
- * `--lv-surface-alt` is already defined as the opposite of whatever surface the
- * pane sits on, and swaps between the sidebar and the main workspace, so a
- * stripe has contrast in both without inventing a colour. Hover is a third
- * token, so a striped row still responds to the pointer.
- */
-.lv-task.lv-stripe {
-	background: var(--lv-surface-alt);
 }
 
 .lv-task:hover {

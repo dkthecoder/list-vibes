@@ -36,6 +36,7 @@ export default class ListsPlugin extends Plugin {
 			addDoneDate: () => this.settings.addDoneDate,
 			addCreatedDate: () => this.settings.addCreatedDate,
 			stampTime: () => this.settings.stampTime,
+			autoRemoveEmptySections: () => this.settings.autoRemoveEmptySections,
 		});
 
 		this.registerView(VIEW_TYPE_LISTS, (leaf) => new ListsView(leaf, this));

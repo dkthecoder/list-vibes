@@ -351,3 +351,79 @@ describe("section writes take the right path", () => {
 		});
 	}
 });
+
+/* ------------------------------------------------------------------ *
+ * Tidying away a section the last task just left.
+ *
+ * Off by default: an empty column you are about to fill is a normal thing to
+ * want, and having it vanish under you is worse than a heading left behind.
+ * ------------------------------------------------------------------ */
+
+function setupAuto(content, on) {
+	const path = "lists/Test.md";
+	const app = makeApp({ [path]: content }, []);
+	return {
+		app,
+		path,
+		mutator: new Mutator(app, { ...WRITE_OPTS, autoRemoveEmptySections: () => on }),
+		parse: () => parseFile(app.__store.get(path), path),
+		lines: () => app.__store.get(path).split("\n"),
+	};
+}
+
+describe("auto-remove empty sections", () => {
+	test("is off by default, so the emptied heading stays", async () => {
+		const s = setup(BLOCKS);
+		const task = s.parse().all.find((t) => t.title === "Third");
+		await s.mutator.moveToSection(task, [], 0, sectionAt(s, "Empty"));
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Work", "Home", "Empty"]
+		);
+	});
+
+	test("switched on, the section the last task left is removed", async () => {
+		const s = setupAuto(BLOCKS, true);
+		const empty = s.parse().sections.find((x) => x.name === "Empty").line;
+		const task = s.parse().all.find((t) => t.title === "Third");
+		await s.mutator.moveToSection(task, [], 0, empty);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Work", "Empty"],
+			"Home emptied and should have gone"
+		);
+	});
+
+	test("the section moved into is never removed, even while empty", async () => {
+		const s = setupAuto(BLOCKS, true);
+		const empty = s.parse().sections.find((x) => x.name === "Empty").line;
+		const task = s.parse().all.find((t) => t.title === "Third");
+		await s.mutator.moveToSection(task, [], 0, empty);
+		assert.equal(
+			s.parse().all.find((t) => t.title === "Third").section,
+			"Empty"
+		);
+	});
+
+	test("a section that still holds tasks is left alone", async () => {
+		const s = setupAuto(BLOCKS, true);
+		const empty = s.parse().sections.find((x) => x.name === "Empty").line;
+		const task = s.parse().all.find((t) => t.title === "First");
+		await s.mutator.moveToSection(task, [], 0, empty);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Work", "Home", "Empty"],
+			"Work still has Second, so it stays"
+		);
+	});
+
+	test("moving out of the ungrouped space removes no heading", async () => {
+		const s = setupAuto("- [ ] Loose\n\n## Somewhere\n", true);
+		const task = s.parse().all[0];
+		await s.mutator.moveToSection(task, [], 0, s.parse().sections[0].line);
+		assert.deepEqual(
+			s.parse().sections.map((x) => x.name),
+			["Somewhere"]
+		);
+	});
+});

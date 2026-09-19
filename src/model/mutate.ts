@@ -32,6 +32,7 @@ export class Mutator {
 	private addDoneDate: () => boolean;
 	private addCreatedDate: () => boolean;
 	private stampTime: () => boolean;
+	private autoRemoveEmptySections: () => boolean;
 
 	constructor(
 		app: App,
@@ -40,6 +41,8 @@ export class Mutator {
 			addDoneDate: () => boolean;
 			addCreatedDate: () => boolean;
 			stampTime: () => boolean;
+			/** Tidy away a heading the last task just left. Off unless given. */
+			autoRemoveEmptySections?: () => boolean;
 		}
 	) {
 		this.app = app;
@@ -47,6 +50,7 @@ export class Mutator {
 		this.addDoneDate = opts.addDoneDate;
 		this.addCreatedDate = opts.addCreatedDate;
 		this.stampTime = opts.stampTime;
+		this.autoRemoveEmptySections = opts.autoRemoveEmptySections ?? (() => false);
 	}
 
 	/**
@@ -323,6 +327,23 @@ export class Mutator {
 		await this.insertLines(path, lines.length, insert);
 	}
 
+	/**
+	 * Which heading a line sits under, as an index into `headingLines`.
+	 *
+	 * An index rather than a line number, because a task move shifts lines but
+	 * never reorders headings — so the index still names the same heading on the
+	 * other side of the splice, and a line number would not.
+	 */
+	private sectionIndexOf(lines: string[], line: number): number {
+		const heads = this.headingLines(lines);
+		let found = -1;
+		for (let i = 0; i < heads.length; i++) {
+			if (heads[i] > line) break;
+			found = i;
+		}
+		return found;
+	}
+
 	/** Line numbers of every heading in the file, in order. */
 	private headingLines(lines: string[]): number[] {
 		const out: number[] = [];
@@ -424,6 +445,12 @@ export class Mutator {
 			if (sectionLine !== null && !HEADING_RE.test(lines[sectionLine] ?? "")) return null;
 
 			const next = [...lines];
+			// Taken before anything moves: afterwards the lines have shifted but
+			// the headings are in the same order, so the indices still hold.
+			const from = this.sectionIndexOf(lines, task.line);
+			const dest =
+				sectionLine === null ? -1 : this.sectionIndexOf(lines, sectionLine);
+
 			const self = blockRange(task);
 			const size = self.end - self.start;
 
@@ -445,6 +472,28 @@ export class Mutator {
 			// sat after it has to be measured again.
 			if (at > self.start) at -= size;
 			next.splice(at, 0, ...moving);
+
+			/*
+			 * The heading the task just left, if nothing is under it any more.
+			 *
+			 * Part of the same write, so the move and the tidy are one edit and a
+			 * file cannot be left with the task gone and the heading still there.
+			 * The destination is never removed even when it is still empty — the
+			 * task is in it, and a section you are dropping into is by definition
+			 * one you want.
+			 */
+			if (this.autoRemoveEmptySections() && from >= 0 && from !== dest) {
+				const heads = this.headingLines(next);
+				const start = heads[from];
+				if (start !== undefined) {
+					const end = heads[from + 1] ?? next.length;
+					const holds = next
+						.slice(start + 1, end)
+						.some((l) => parseLine(l, 0, task.filePath));
+					if (!holds) next.splice(start, 1);
+				}
+			}
+
 			return next;
 		});
 	}

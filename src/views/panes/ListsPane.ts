@@ -310,19 +310,6 @@ function showListMenu(
 			.onClick(() => void pickColor(ctx, list))
 	);
 
-	// Three states, not two: on, off, and "whatever the setting says". Checking
-	// the item off returns the list to the default rather than pinning it.
-	const striped = list.config.stripes ?? ctx.settings.stripeRows;
-	menu.addItem((i) =>
-		i
-			.setTitle("Shade alternate rows")
-			.setIcon("rows-3")
-			.setChecked(striped)
-			.onClick(() =>
-				ctx.setStripes(list.path, striped === ctx.settings.stripeRows ? !striped : null)
-			)
-	);
-
 	menu.addSeparator();
 
 	menu.addItem((i) =>
