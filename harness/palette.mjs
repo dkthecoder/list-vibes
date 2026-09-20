@@ -62,6 +62,7 @@ const COLOUR_TOKENS = [
 	"--color-purple",
 	"--color-pink",
 	"--shadow-l",
+	"--shadow-s",
 ];
 
 /* ---- 0. The list is still the whole list ---- */
@@ -187,10 +188,12 @@ await page.evaluate(
 		COLOUR_TOKENS.forEach((token, i) => {
 			// Distinct per token, so nothing can accidentally match its old value.
 			const hue = (i * 37) % 360;
-			const value =
-				token === "--shadow-l"
-					? `0 1px 2px hsl(${hue} 90% 40%)`
-					: `hsl(${hue} 90% 40%)`;
+			// A shadow is not a bare colour: repainted as a colour it stops being
+			// a valid box-shadow and the rule using it is dropped, which reads as
+			// the plugin ignoring the token rather than following it.
+			const value = token.startsWith("--shadow-")
+				? `0 1px 2px hsl(${hue} 90% 40%)`
+				: `hsl(${hue} 90% 40%)`;
 			document.body.style.setProperty(token, value);
 		});
 	},

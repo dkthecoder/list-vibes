@@ -459,11 +459,16 @@ body.is-mobile .lv-section-bin {
 	margin-bottom: var(--size-2-2);
 	border-radius: var(--lv-radius-s);
 	/*
-	 * Surface only, no border. A border shifts the row's content by its own
-	 * width, and the add box below the list has none — the two stopped sharing
-	 * a column by exactly one pixel, which the column harness caught.
+	 * Surface and a shadow, no border.
+	 *
+	 * A border shifts the row's content by its own width, and the add box below
+	 * the list has none — the two stopped sharing a column by exactly one pixel,
+	 * which the column harness caught. An outline also draws a hard edge the
+	 * card wall does not have; the shadow lifts the row off the pane instead,
+	 * which is the same thing said more quietly.
 	 */
 	background: var(--lv-surface-alt);
+	box-shadow: var(--shadow-s);
 	color: var(--nav-item-color, var(--text-normal));
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
@@ -1357,7 +1362,13 @@ body.is-mobile .lv-section-bin {
  * `color-mix` keeps the untinted surface rather than an invalid custom property
  * — which is not "no colour" but a broken one, and would take the whole item's
  * background with it.
+ *
+ * `.lv-root` is in the list because a list that has chosen no colour still has
+ * one: `--lv-accent` falls back to the theme's own accent. Leaving the root out
+ * gave it an accent with no pastel derived from it, so the default list was the
+ * single case that stayed flat while all nine named colours worked.
  */
+.lv-root,
 .lv-color-red,
 .lv-color-orange,
 .lv-color-yellow,
@@ -1405,7 +1416,6 @@ body.is-mobile .lv-section-bin {
 .lv-tasks.is-accented .lv-card-task,
 .lv-tasks.is-accented .lv-task {
 	background: var(--lv-accent-soft);
-	box-shadow: inset 0 0 0 var(--border-width) var(--lv-accent-edge);
 }
 
 .lv-tasks.is-accented .lv-card-task {
@@ -1674,7 +1684,7 @@ body.is-mobile .lv-section-bin {
 	padding: var(--size-4-3);
 	border-radius: var(--lv-radius);
 	background: var(--lv-surface-alt);
-	border: var(--border-width) solid var(--divider-color);
+	box-shadow: var(--shadow-s);
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
