@@ -314,7 +314,23 @@ function showListMenu(
 
 	menu.addItem((i) =>
 		i
-			.setTitle("Delete list")
+			.setTitle("Open as note")
+			.setIcon("file-text")
+			.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
+	);
+
+	/*
+	 * Last, behind its own separator, and marked.
+	 *
+	 * It sat between "Change colour" and "Open as note", which is where an
+	 * accident happens: the one item that throws a file away, shelved among the
+	 * ones that change how it looks. Bottom of the menu is where a destructive
+	 * action is looked for and, more usefully, where it is not found by mistake.
+	 */
+	menu.addSeparator();
+
+	menu.addItem((i) => {
+		i.setTitle("Delete list")
 			.setIcon("trash-2")
 			.onClick(() => {
 				const open = list.all.filter((t) => !isComplete(t)).length;
@@ -322,7 +338,7 @@ function showListMenu(
 					new ConfirmModal(ctx.app, {
 						title: `Delete "${list.name}"?`,
 						// Named rather than counted away: the file is the list, and
-						// what happens to it is the vault's setting, not ours.
+						// where it goes is the vault's setting, not ours.
 						body: open
 							? `${list.name}.md holds ${open} unfinished task${open === 1 ? "" : "s"}. It goes wherever your vault sends deleted files.`
 							: `${list.name}.md goes wherever your vault sends deleted files.`,
@@ -330,17 +346,9 @@ function showListMenu(
 						onConfirm: () => ctx.deleteList(list.path),
 					}).open();
 				});
-			})
-	);
-
-	menu.addSeparator();
-
-	menu.addItem((i) =>
-		i
-			.setTitle("Open as note")
-			.setIcon("file-text")
-			.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
-	);
+			});
+		i.setWarning(true);
+	});
 
 	menu.showAtMouseEvent(e);
 }
