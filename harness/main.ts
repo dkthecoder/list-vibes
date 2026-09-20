@@ -149,6 +149,7 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 		sortKey: () => sortKey,
 
 		orderedLists: () => store.getLists(),
+		deleteList: () => paint(),
 		reorderLists: () => paint(),
 
 		// Folding is view-only, so the harness keeps it in a set rather than in

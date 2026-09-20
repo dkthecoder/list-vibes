@@ -490,6 +490,19 @@ export class ListsView extends ItemView {
 				void this.plugin.mutator.setListConfig(path, "icon", icon);
 			},
 
+			deleteList: (path: string) => {
+				// Whatever it was showing is gone, so the view falls back to the
+				// picker rather than to a list that is not there any more.
+				if (
+					this.state.selection.kind === "list" &&
+					this.state.selection.path === path
+				) {
+					this.state.selection = { kind: "smart", view: "all" };
+					this.state.selectedTask = null;
+				}
+				void this.plugin.mutator.deleteList(path);
+			},
+
 			renameList: (path: string, name: string) => {
 				void this.plugin.mutator.renameList(path, name).then((next) => {
 					if (!next) return;

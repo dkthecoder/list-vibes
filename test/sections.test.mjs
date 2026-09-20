@@ -427,3 +427,33 @@ describe("auto-remove empty sections", () => {
 		);
 	});
 });
+
+/* ------------------------------------------------------------------ *
+ * Deleting a list.
+ *
+ * Through Obsidian's own trash rather than a raw unlink, so the vault's
+ * "Deleted files" setting decides where it goes — system trash, the vault's
+ * .trash, or gone. A plugin that ignores that setting is a plugin that deletes
+ * someone's file more permanently than they asked it to.
+ * ------------------------------------------------------------------ */
+
+describe("deleteList", () => {
+	test("trashes the file", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.deleteList(s.path);
+		assert.deepEqual(s.app.__trashed, [s.path]);
+	});
+
+	test("the file is gone from the vault", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.deleteList(s.path);
+		assert.equal(s.app.__store.has(s.path), false);
+	});
+
+	test("a path that is not there is a no-op rather than a throw", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.deleteList("lists/Nope.md");
+		assert.deepEqual(s.app.__trashed, []);
+		assert.equal(s.app.__store.has(s.path), true);
+	});
+});

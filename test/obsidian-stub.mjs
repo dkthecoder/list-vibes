@@ -54,6 +54,7 @@ export function makeApp(files, openEditors = []) {
 	 * folds are lost when the file watcher reconciles.
 	 */
 	const paths = { process: 0, editor: 0 };
+	const trashed = [];
 
 	const editorFor = (path) => {
 		const lines = () => store.get(path).split("\n");
@@ -106,6 +107,7 @@ export function makeApp(files, openEditors = []) {
 	return {
 		__store: store,
 		__paths: paths,
+		__trashed: trashed,
 		vault: {
 			/*
 			 * Folders exist here only as a set of names. The real vault has
@@ -133,6 +135,16 @@ export function makeApp(files, openEditors = []) {
 			},
 		},
 		fileManager: {
+			/*
+			 * Obsidian's own delete, which honours the vault's "Deleted files"
+			 * setting — system trash, the vault's .trash, or permanent. Recorded
+			 * rather than just performed, so a test can tell a trashed file from
+			 * one removed some other way.
+			 */
+			trashFile: async (file) => {
+				trashed.push(file.path);
+				store.delete(file.path);
+			},
 			renameFile: async (file, target) => {
 				const content = store.get(file.path);
 				store.delete(file.path);

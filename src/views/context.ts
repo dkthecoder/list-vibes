@@ -106,6 +106,8 @@ export interface ViewContext extends DetailContext {
 	setIcon: (path: string, icon: string | null) => void;
 	/** The list's name is its filename, so this renames the file. */
 	renameList: (path: string, name: string) => void;
+	/** Throws the file away, through the vault's own deleted-files setting. */
+	deleteList: (path: string) => void;
 }
 
 export function sameSelection(a: Selection, b: Selection): boolean {

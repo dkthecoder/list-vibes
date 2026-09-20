@@ -314,6 +314,29 @@ function showListMenu(
 
 	menu.addItem((i) =>
 		i
+			.setTitle("Delete list")
+			.setIcon("trash-2")
+			.onClick(() => {
+				const open = list.all.filter((t) => !isComplete(t)).length;
+				void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
+					new ConfirmModal(ctx.app, {
+						title: `Delete "${list.name}"?`,
+						// Named rather than counted away: the file is the list, and
+						// what happens to it is the vault's setting, not ours.
+						body: open
+							? `${list.name}.md holds ${open} unfinished task${open === 1 ? "" : "s"}. It goes wherever your vault sends deleted files.`
+							: `${list.name}.md goes wherever your vault sends deleted files.`,
+						cta: "Delete list",
+						onConfirm: () => ctx.deleteList(list.path),
+					}).open();
+				});
+			})
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
 			.setTitle("Open as note")
 			.setIcon("file-text")
 			.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))

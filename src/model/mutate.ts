@@ -620,6 +620,20 @@ export class Mutator {
 	 *
 	 * Returns the new path, or null if it did not happen.
 	 */
+	/**
+	 * Delete a list.
+	 *
+	 * Through `fileManager.trashFile`, which honours the vault's "Deleted files"
+	 * setting — the system trash, the vault's own `.trash`, or permanently —
+	 * rather than deciding on the user's behalf. A list is a file somebody wrote,
+	 * and how carefully it is thrown away is their setting to make, not ours.
+	 */
+	async deleteList(listPath: string): Promise<void> {
+		const file = this.fileFor(listPath);
+		if (!file) return;
+		await this.app.fileManager.trashFile(file);
+	}
+
 	async renameList(listPath: string, name: string): Promise<string | null> {
 		const file = this.fileFor(listPath);
 		if (!file) return null;
