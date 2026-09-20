@@ -180,6 +180,20 @@ export class ListsView extends ItemView {
 		});
 
 		/*
+		 * Undo, scoped to this view.
+		 *
+		 * Registered on the view's own scope rather than as a global hotkey, so
+		 * it only answers while a List Vibes view has focus and the editor keeps
+		 * the shortcut everywhere else. The two undo stacks never compete: in a
+		 * Markdown tab you get CodeMirror's, here you get the plugin's.
+		 */
+		this.scope.register(["Mod"], "z", (e) => {
+			e.preventDefault();
+			void this.plugin.undo();
+			return false;
+		});
+
+		/*
 		 * Measure the keyboard, and do exactly one thing with the answer:
 		 * reserve room at the end of the scroller, as Obsidian does for its own.
 		 *

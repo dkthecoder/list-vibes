@@ -26,6 +26,23 @@ import { Dialect, MetaField, Task, TaskMeta, TaskStatus, blockRange } from "./ty
  * And one rule of our own: never rebuild a whole file from parsed tasks. Every
  * operation replaces or inserts specific lines and leaves the rest byte-identical.
  */
+/** How many steps back the plugin remembers. */
+const UNDO_LIMIT = 50;
+
+/**
+ * One write, as the contents either side of it.
+ *
+ * `null` on either side is the file not existing — which is how creating and
+ * deleting a list fit the same shape as editing one.
+ */
+interface UndoEntry {
+	path: string;
+	before: string | null;
+	after: string | null;
+	/** Still being extended by the action that started it. */
+	open: boolean;
+}
+
 export class Mutator {
 	private app: App;
 	private dialect: () => Dialect;
@@ -33,6 +50,26 @@ export class Mutator {
 	private addCreatedDate: () => boolean;
 	private stampTime: () => boolean;
 	private autoRemoveEmptySections: () => boolean;
+
+	/*
+	 * What the last few writes replaced.
+	 *
+	 * Obsidian's undo is the editor's: CodeMirror history, attached to a
+	 * Markdown tab. This view is not one, and the ordinary case — ticking a task
+	 * while the file is open nowhere — writes to disk with nothing tracking it.
+	 *
+	 * Whole file contents rather than inverse operations. Every write already
+	 * funnels through the helpers below, so snapshotting there covers every
+	 * operation at once, including ones added later, without a single mutation
+	 * method knowing undo exists. A list is a few kilobytes; fifty of them is a
+	 * price worth paying for not having to write, and maintain, an inverse for
+	 * each of twenty operations.
+	 */
+	private undoStack: UndoEntry[] = [];
+	/** Writes made while undoing are the undo, and are not themselves undoable. */
+	private undoing = false;
+	/** Open groups, so one action that writes twice is still one step back. */
+	private groupDepth = 0;
 
 	constructor(
 		app: App,
@@ -85,34 +122,135 @@ export class Mutator {
 	 * changed underneath us the edit is abandoned rather than applied blindly,
 	 * because the parse may have been stale.
 	 */
+	/* ---------------- undo ---------------- */
+
+	/** The file as it stands, or null if it is not there. */
+	private async currentText(path: string): Promise<string | null> {
+		const editor = this.editorFor(path);
+		if (editor) return editor.getValue();
+		const file = this.fileFor(path);
+		if (!file) return null;
+		return await this.app.vault.read(file);
+	}
+
+	/**
+	 * Record one write, or extend the one this action already started.
+	 *
+	 * Extending is what keeps a single action a single step back. Completing a
+	 * repeating task writes twice — the line is ticked, then the next occurrence
+	 * is inserted above it — and two presses of undo to reverse one tick is not
+	 * undo, it is arithmetic.
+	 */
+	private note(path: string, before: string | null, after: string | null): void {
+		if (this.undoing) return;
+		if (before === after) return;
+
+		const top = this.undoStack[this.undoStack.length - 1];
+		if (this.groupDepth > 0 && top?.open && top.path === path) {
+			top.after = after;
+			return;
+		}
+
+		this.undoStack.push({ path, before, after, open: this.groupDepth > 0 });
+		if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
+	}
+
+	/** Run several writes as one step back. */
+	private async group<T>(fn: () => Promise<T>): Promise<T> {
+		this.groupDepth++;
+		try {
+			return await fn();
+		} finally {
+			this.groupDepth--;
+			if (this.groupDepth === 0) {
+				const top = this.undoStack[this.undoStack.length - 1];
+				if (top) top.open = false;
+			}
+		}
+	}
+
+	/** Snapshot around a write, so the undo stack learns about it. */
+	private async recorded(path: string, write: () => Promise<boolean>): Promise<boolean> {
+		if (this.undoing) return await write();
+		const before = await this.currentText(path);
+		const ok = await write();
+		if (ok) this.note(path, before, await this.currentText(path));
+		return ok;
+	}
+
+	canUndo(): boolean {
+		return this.undoStack.length > 0;
+	}
+
+	/**
+	 * Put the last write back.
+	 *
+	 * Only if the file still says what that write left behind. It may have been
+	 * edited by hand, by a sync, or by another plugin since — and restoring what
+	 * was there *before* would throw away whatever arrived after. The entry is
+	 * dropped either way: an undo that cannot be applied is not one to keep
+	 * offering.
+	 */
+	async undo(): Promise<{ ok: boolean; reason?: string }> {
+		const entry = this.undoStack.pop();
+		if (!entry) return { ok: false, reason: "nothing to undo" };
+
+		const now = await this.currentText(entry.path);
+		if (now !== entry.after) {
+			return { ok: false, reason: "the file changed since that edit" };
+		}
+
+		this.undoing = true;
+		try {
+			if (entry.before === null) {
+				const file = this.fileFor(entry.path);
+				if (file) await this.app.fileManager.trashFile(file);
+				return { ok: true };
+			}
+			if (now === null) {
+				// Put a deleted file back. The trashed copy stays where the vault
+				// sent it; this is a new file with the old contents, which is the
+				// most an API without an un-delete can honestly offer.
+				await this.app.vault.create(entry.path, entry.before);
+				return { ok: true };
+			}
+			await this.applyLines(entry.path, () => (entry.before as string).split("\n"));
+			return { ok: true };
+		} finally {
+			this.undoing = false;
+		}
+	}
+
 	private async replaceLine(
 		path: string,
 		line: number,
 		expect: string,
 		next: string
 	): Promise<boolean> {
-		if (expect === next) return true;
+		return this.recorded(path, async () => {
+			if (expect === next) return true;
 
-		const editor = this.editorFor(path);
-		if (editor) {
-			if (line >= editor.lineCount()) return false;
-			if (editor.getLine(line) !== expect) return false;
-			editor.setLine(line, next);
-			return true;
-		}
+			const editor = this.editorFor(path);
+			if (editor) {
+				if (line >= editor.lineCount()) return false;
+				if (editor.getLine(line) !== expect) return false;
+				editor.setLine(line, next);
+				return true;
+			}
 
-		const file = this.fileFor(path);
-		if (!file) return false;
+			const file = this.fileFor(path);
+			if (!file) return false;
 
-		let ok = false;
-		await this.app.vault.process(file, (data) => {
-			const lines = data.split("\n");
-			if (line >= lines.length || lines[line] !== expect) return data;
-			lines[line] = next;
-			ok = true;
-			return lines.join("\n");
+			let ok = false;
+			await this.app.vault.process(file, (data) => {
+				const lines = data.split("\n");
+				if (line >= lines.length || lines[line] !== expect) return data;
+				lines[line] = next;
+				ok = true;
+				return lines.join("\n");
+			});
+			return ok;
 		});
-		return ok;
 	}
 
 	/** Insert lines at a position, pushing the rest down. */
@@ -121,50 +259,54 @@ export class Mutator {
 		at: number,
 		text: string[]
 	): Promise<boolean> {
-		const editor = this.editorFor(path);
-		if (editor) {
-			const clamped = Math.min(at, editor.lineCount());
-			const prefix = clamped >= editor.lineCount() ? "\n" : "";
-			editor.replaceRange(
-				prefix + text.join("\n") + (prefix ? "" : "\n"),
-				{ line: clamped, ch: 0 }
-			);
-			return true;
-		}
+		return this.recorded(path, async () => {
+			const editor = this.editorFor(path);
+			if (editor) {
+				const clamped = Math.min(at, editor.lineCount());
+				const prefix = clamped >= editor.lineCount() ? "\n" : "";
+				editor.replaceRange(
+					prefix + text.join("\n") + (prefix ? "" : "\n"),
+					{ line: clamped, ch: 0 }
+				);
+				return true;
+			}
 
-		const file = this.fileFor(path);
-		if (!file) return false;
-		await this.app.vault.process(file, (data) => {
-			const lines = data.split("\n");
-			const clamped = Math.min(at, lines.length);
-			lines.splice(clamped, 0, ...text);
-			return lines.join("\n");
+			const file = this.fileFor(path);
+			if (!file) return false;
+			await this.app.vault.process(file, (data) => {
+				const lines = data.split("\n");
+				const clamped = Math.min(at, lines.length);
+				lines.splice(clamped, 0, ...text);
+				return lines.join("\n");
+			});
+			return true;
 		});
-		return true;
 	}
 
 	/** Remove a range of lines. */
 	private async removeLines(path: string, from: number, count: number): Promise<boolean> {
-		const editor = this.editorFor(path);
-		if (editor) {
-			const to = Math.min(from + count, editor.lineCount());
-			editor.replaceRange(
-				"",
-				{ line: from, ch: 0 },
-				to >= editor.lineCount()
-					? { line: editor.lastLine(), ch: editor.getLine(editor.lastLine()).length }
-					: { line: to, ch: 0 }
-			);
+		return this.recorded(path, async () => {
+			const editor = this.editorFor(path);
+			if (editor) {
+				const to = Math.min(from + count, editor.lineCount());
+				editor.replaceRange(
+					"",
+					{ line: from, ch: 0 },
+					to >= editor.lineCount()
+						? { line: editor.lastLine(), ch: editor.getLine(editor.lastLine()).length }
+						: { line: to, ch: 0 }
+				);
+				return true;
+			}
+			const file = this.fileFor(path);
+			if (!file) return false;
+			await this.app.vault.process(file, (data) => {
+				const lines = data.split("\n");
+				lines.splice(from, count);
+				return lines.join("\n");
+			});
 			return true;
-		}
-		const file = this.fileFor(path);
-		if (!file) return false;
-		await this.app.vault.process(file, (data) => {
-			const lines = data.split("\n");
-			lines.splice(from, count);
-			return lines.join("\n");
 		});
-		return true;
 	}
 
 
@@ -181,37 +323,39 @@ export class Mutator {
 		path: string,
 		fn: (lines: string[]) => string[] | null
 	): Promise<boolean> {
-		const editor = this.editorFor(path);
-		if (editor) {
-			const lines: string[] = [];
-			for (let i = 0; i < editor.lineCount(); i++) lines.push(editor.getLine(i));
-			const next = fn(lines);
-			if (!next) return false;
-			editor.transaction({
-				changes: [
-					{
-						from: { line: 0, ch: 0 },
-						to: {
-							line: editor.lastLine(),
-							ch: editor.getLine(editor.lastLine()).length,
+		return this.recorded(path, async () => {
+			const editor = this.editorFor(path);
+			if (editor) {
+				const lines: string[] = [];
+				for (let i = 0; i < editor.lineCount(); i++) lines.push(editor.getLine(i));
+				const next = fn(lines);
+				if (!next) return false;
+				editor.transaction({
+					changes: [
+						{
+							from: { line: 0, ch: 0 },
+							to: {
+								line: editor.lastLine(),
+								ch: editor.getLine(editor.lastLine()).length,
+							},
+							text: next.join("\n"),
 						},
-						text: next.join("\n"),
-					},
-				],
-			});
-			return true;
-		}
+					],
+				});
+				return true;
+			}
 
-		const file = this.fileFor(path);
-		if (!file) return false;
-		let wrote = false;
-		await this.app.vault.process(file, (data) => {
-			const next = fn(data.split("\n"));
-			if (!next) return data;
-			wrote = true;
-			return next.join("\n");
+			const file = this.fileFor(path);
+			if (!file) return false;
+			let wrote = false;
+			await this.app.vault.process(file, (data) => {
+				const next = fn(data.split("\n"));
+				if (!next) return data;
+				wrote = true;
+				return next.join("\n");
+			});
+			return wrote;
 		});
-		return wrote;
 	}
 
 	/**
@@ -227,41 +371,43 @@ export class Mutator {
 		count: number,
 		insert: string[]
 	): Promise<boolean> {
-		const apply = (lines: string[]): string[] | null => {
-			if (anchor >= lines.length || lines[anchor] !== expect) return null;
-			const next = [...lines];
-			next.splice(from, count, ...insert);
-			return next;
-		};
+		return this.recorded(path, async () => {
+			const apply = (lines: string[]): string[] | null => {
+				if (anchor >= lines.length || lines[anchor] !== expect) return null;
+				const next = [...lines];
+				next.splice(from, count, ...insert);
+				return next;
+			};
 
-		const editor = this.editorFor(path);
-		if (editor) {
-			const lines: string[] = [];
-			for (let i = 0; i < editor.lineCount(); i++) lines.push(editor.getLine(i));
-			const next = apply(lines);
-			if (!next) return false;
-			editor.transaction({
-				changes: [
-					{
-						from: { line: 0, ch: 0 },
-						to: { line: editor.lastLine(), ch: editor.getLine(editor.lastLine()).length },
-						text: next.join("\n"),
-					},
-				],
+			const editor = this.editorFor(path);
+			if (editor) {
+				const lines: string[] = [];
+				for (let i = 0; i < editor.lineCount(); i++) lines.push(editor.getLine(i));
+				const next = apply(lines);
+				if (!next) return false;
+				editor.transaction({
+					changes: [
+						{
+							from: { line: 0, ch: 0 },
+							to: { line: editor.lastLine(), ch: editor.getLine(editor.lastLine()).length },
+							text: next.join("\n"),
+						},
+					],
+				});
+				return true;
+			}
+
+			const file = this.fileFor(path);
+			if (!file) return false;
+			let ok = false;
+			await this.app.vault.process(file, (data) => {
+				const next = apply(data.split("\n"));
+				if (!next) return data;
+				ok = true;
+				return next.join("\n");
 			});
-			return true;
-		}
-
-		const file = this.fileFor(path);
-		if (!file) return false;
-		let ok = false;
-		await this.app.vault.process(file, (data) => {
-			const next = apply(data.split("\n"));
-			if (!next) return data;
-			ok = true;
-			return next.join("\n");
+			return ok;
 		});
-		return ok;
 	}
 
 	/**
@@ -631,7 +777,12 @@ export class Mutator {
 	async deleteList(listPath: string): Promise<void> {
 		const file = this.fileFor(listPath);
 		if (!file) return;
+		// Read before it goes, so undo has something to put back. The trashed
+		// copy stays wherever the vault sent it; undo writes a new file with the
+		// old contents, which is the most an API without an un-delete can offer.
+		const before = await this.currentText(listPath);
 		await this.app.fileManager.trashFile(file);
+		this.note(listPath, before, null);
 	}
 
 	async renameList(listPath: string, name: string): Promise<string | null> {
@@ -670,6 +821,7 @@ export class Mutator {
 
 	/** Toggle between todo and done, stamping or clearing the ✅ date. */
 	async toggle(task: Task): Promise<void> {
+		return this.group(async () => {
 		const becomingDone = task.status !== "done";
 		let next = setStatus(task, becomingDone ? "done" : "todo");
 
@@ -695,10 +847,11 @@ export class Mutator {
 		 */
 		const repeated = becomingDone ? this.repeatLine(task) : null;
 
-		await this.replaceLine(task.filePath, task.line, task.raw, next);
-		if (repeated) {
-			await this.insertLines(task.filePath, task.line, [repeated]);
-		}
+			await this.replaceLine(task.filePath, task.line, task.raw, next);
+			if (repeated) {
+				await this.insertLines(task.filePath, task.line, [repeated]);
+			}
+		});
 	}
 
 	/** Set an explicit status, e.g. from a context menu. */
