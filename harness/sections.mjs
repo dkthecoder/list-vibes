@@ -223,6 +223,72 @@ check(
 	moved.join(", ") || "nothing"
 );
 
+/* ---------------- a drag can reach what is off screen ---------------- */
+
+/* Without this the drop target has to already be visible when the drag starts,
+   which on a phone it nearly never is: the wall collapses to one column below
+   560px, so the sections become tall bands and the one being aimed at is past
+   the bottom of the screen.
+
+   The scroller is given a phone's height rather than a phone's viewport, which
+   is the part that matters: what decides whether a target is reachable is
+   whether the list overflows the box it is in. */
+const edge = await page.evaluate(
+	async (sel) => {
+		const sc = document.querySelector(`${sel} .lv-scroll`);
+		if (!sc) return { why: "no scroller" };
+		sc.style.maxHeight = "420px";
+		sc.style.overflowY = "auto";
+		sc.scrollTop = 0;
+		if (sc.scrollHeight <= sc.clientHeight) return { why: "nothing to scroll" };
+
+		const row = sc.querySelector(".lv-task, .lv-card-task");
+		// Synthetic pointer events have no pointer the browser will capture, and
+		// capture is not what is under test here.
+		row.setPointerCapture = () => {};
+		row.releasePointerCapture = () => {};
+		row.hasPointerCapture = () => false;
+
+		const r = row.getBoundingClientRect();
+		const box = sc.getBoundingClientRect();
+		const send = (type, y) =>
+			row.dispatchEvent(
+				new PointerEvent(type, {
+					pointerId: 9,
+					pointerType: "touch",
+					button: 0,
+					clientX: r.left + r.width / 2,
+					clientY: y,
+					bubbles: true,
+					cancelable: true,
+				})
+			);
+
+		send("pointerdown", r.top + r.height / 2);
+		await new Promise((res) => setTimeout(res, 600)); // outlast the long press
+		const armed = !!sc.querySelector(".lv-dragging");
+
+		// Held just inside the bottom edge and then kept still: the finger stops
+		// moving and the list must keep coming, which is the whole point.
+		send("pointermove", box.bottom - 10);
+		const before = sc.scrollTop;
+		await new Promise((res) => setTimeout(res, 400));
+		const after = sc.scrollTop;
+
+		send("pointerup", box.bottom - 10);
+		return { armed, before, after };
+	},
+	PANE
+);
+
+check("the phone-height list has somewhere to scroll", !edge.why, edge.why ?? "");
+check("a long press arms the drag on touch", edge.armed === true);
+check(
+	"holding at the edge keeps pulling the list after the finger stops",
+	edge.after > edge.before,
+	`scrollTop ${edge.before} → ${edge.after}`
+);
+
 check("no page errors", errors.length === 0, errors[0] ?? "");
 
 await browser.close();

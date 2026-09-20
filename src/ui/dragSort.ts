@@ -24,6 +24,18 @@ const MOUSE_THRESHOLD = 5;
 /** How long to hold on touch before the row becomes draggable. */
 const LONG_PRESS_MS = 450;
 
+/**
+ * How near the edge of the scroller a live drag starts pulling the list along.
+ *
+ * Without this a drop target has to already be on screen when the drag starts,
+ * which on a phone means it nearly never is: the wall collapses to one column
+ * below 560px, so the sections become tall bands and the one being aimed at is
+ * usually past the bottom of the screen.
+ */
+const EDGE = 56;
+/** Fastest the list is pulled, in pixels per frame, right at the edge. */
+const EDGE_SPEED = 14;
+
 export interface DragSortOptions {
 	/** The row's position among its siblings, before any drag. */
 	index: number;
@@ -210,6 +222,11 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	let boxes: DropBox[] = [];
 	let home = 0;
 	let over = 0;
+	let lastX = 0;
+	let scroller: HTMLElement | null = null;
+	let startScroll = 0;
+	let edgeFrame = 0;
+	let lastY = 0;
 
 	const cancelLongPress = () => {
 		if (longPress !== null) {
@@ -226,6 +243,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 	const begin = () => {
 		live = true;
+
+		// The list the row sits in, if it is in one that scrolls.
+		scroller = row.closest<HTMLElement>(".lv-scroll");
+		startScroll = scroller?.scrollTop ?? 0;
 
 		/*
 		 * The pointer is claimed here rather than on pointerdown.
@@ -269,7 +290,47 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		}
 	};
 
+	/**
+	 * How far the list has scrolled since the drag began.
+	 *
+	 * Every measurement taken at `begin` is in viewport coordinates, and the
+	 * list moving underneath the finger invalidates all of them by exactly this
+	 * much. Correcting the pointer once is the same as re-measuring everything,
+	 * and re-measuring is not available: the preview shifts rows with transforms
+	 * and measuring mid-shift feeds the shift back into its own input.
+	 */
+	const scrolled = (): number => (scroller ? scroller.scrollTop - startScroll : 0);
+
+	/** Pull the list along while the finger is held near its edge. */
+	const edgeScroll = () => {
+		edgeFrame = 0;
+		if (!live || !scroller) return;
+
+		const r = scroller.getBoundingClientRect();
+		let step = 0;
+		if (lastY < r.top + EDGE) step = -EDGE_SPEED * Math.min(1, (r.top + EDGE - lastY) / EDGE);
+		else if (lastY > r.bottom - EDGE)
+			step = EDGE_SPEED * Math.min(1, (lastY - (r.bottom - EDGE)) / EDGE);
+
+		if (step) {
+			const before = scroller.scrollTop;
+			scroller.scrollTop += step;
+			// Keep the preview honest as the list moves under a finger that is
+			// not itself moving, which is the whole point of holding at the edge.
+			if (scroller.scrollTop !== before) preview(lastX, lastY);
+		}
+		edgeFrame = requestAnimationFrame(edgeScroll);
+	};
+
 	const preview = (x: number, y: number) => {
+		lastX = x;
+		lastY = y;
+		if (scroller && !edgeFrame) edgeFrame = requestAnimationFrame(edgeScroll);
+
+		// Everything below compares against measurements taken before any
+		// scrolling, so the pointer is moved into that frame rather than the
+		// measurements into this one.
+		y += scrolled();
 		if (groups.length) {
 			const next = dropContainer(boxes, x, y, over);
 			if (next !== over) {
@@ -318,6 +379,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 		if (!live) return;
 		live = false;
+
+		if (edgeFrame) cancelAnimationFrame(edgeFrame);
+		edgeFrame = 0;
+		scroller = null;
 
 		/*
 		 * Whether or not the order changed, and whether or not it was committed.
