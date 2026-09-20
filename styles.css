@@ -357,6 +357,25 @@ body.is-phone .lv-header {
 	cursor: pointer;
 }
 
+/* The starred band's label.
+
+   Deliberately not a control. Every other heading on screen folds, renames,
+   moves and deletes, because every other heading is a line in the file. This
+   one is not there — it is a view of whatever happens to be starred — so it is
+   given the heading's typography and none of its affordances, and the star says
+   why it exists without a sentence explaining it. */
+.lv-section-starred {
+	cursor: default;
+	color: var(--lv-accent-ink, var(--text-faint));
+	gap: var(--size-2-1);
+}
+
+.lv-section-starred::before {
+	content: "★";
+	font-size: var(--font-ui-smaller);
+	line-height: 1;
+}
+
 .lv-section-chevron {
 	display: flex;
 	align-items: center;

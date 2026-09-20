@@ -457,3 +457,46 @@ describe("deleteList", () => {
 		assert.equal(s.app.__store.has(s.path), true);
 	});
 });
+
+/* ------------------------------------------------------------------ *
+ * Adding a task to a sectioned list.
+ *
+ * With no anchor the line went to the end of the file, which in a list with
+ * headings means the last section — whichever that happens to be, and never
+ * the one being looked at.
+ * ------------------------------------------------------------------ */
+
+describe("addTask into a section", () => {
+	test("lands at the end of the section it names", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.addTask(s.path, "Fourth", {}, { section: sectionAt(s, "Work") });
+		assert.deepEqual(titlesIn(s, "Work"), ["First", "Second", "Fourth"]);
+		assert.deepEqual(titlesIn(s, "Home"), ["Third"]);
+	});
+
+	test("lands in an empty section too", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.addTask(s.path, "Alone", {}, { section: sectionAt(s, "Empty") });
+		assert.deepEqual(titlesIn(s, "Empty"), ["Alone"]);
+	});
+
+	test("a null section means above the first heading", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.addTask(s.path, "Loose", {}, { section: null });
+		const added = s.parse().all.find((t) => t.title === "Loose");
+		assert.equal(added.section, undefined);
+	});
+
+	test("with no section given it still goes to the end, as it always did", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.addTask(s.path, "Last", {});
+		assert.deepEqual(titlesIn(s, "Empty"), ["Last"]);
+	});
+
+	test("the section's own tasks keep their order", async () => {
+		const s = setup(BLOCKS);
+		await s.mutator.addTask(s.path, "Fourth", {}, { section: sectionAt(s, "Work") });
+		const work = titlesIn(s, "Work");
+		assert.equal(work[work.length - 1], "Fourth");
+	});
+});

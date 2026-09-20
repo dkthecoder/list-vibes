@@ -19,6 +19,7 @@ import {
 	SORT_OPTIONS,
 	STARS_BY_PRIORITY,
 	partitionCompleted,
+	partitionStarred,
 	sortTasks,
 } from "../../model/sort";
 
@@ -311,6 +312,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		sortable,
 		sections: list?.sections ?? [],
 		path: list?.path ?? "",
+		starredFirst: ctx.settings.starredSection,
 	});
 
 	// A list decides for itself; absent, the setting decides. Post-it view is
@@ -406,6 +408,8 @@ function renderTasks(
 		sections: ListSection[];
 		/** The list file, for the section edits the headings offer. */
 		path: string;
+		/** Lift starred tasks into a band above everything else. */
+		starredFirst: boolean;
 	}
 ): void {
 	const postit = opts.mode === "postit";
@@ -505,8 +509,41 @@ function renderTasks(
 		runs.push({ el, tasks: run, rows: run.map((t) => draw(el, t)) });
 	};
 
+	/*
+	 * Starred first, in a band of its own.
+	 *
+	 * Lifted out before anything else is grouped, so a starred task appears once
+	 * — at the top — rather than twice. Where it came from is not lost: it is
+	 * shown away from its heading, so it carries the heading's name as a badge,
+	 * which is the same rule Completed already follows.
+	 *
+	 * Nothing is drawn when nothing is starred. A band that is always there but
+	 * usually empty is a row of furniture, and the setting exists for people who
+	 * would rather their own order were the only order.
+	 */
+	let remaining = tasks;
+	if (opts.starredFirst) {
+		const { starred, rest } = partitionStarred(tasks);
+		if (starred.length) {
+			scroll.createDiv({ cls: "lv-section lv-section-starred", text: "Starred" });
+			// Named, so the band can be told from a section's own run — by a
+			// stylesheet, and by a test that means to drive one and not the other.
+			const el = scroll.createDiv({ cls: `${cls} lv-starred-run` });
+			runs.push({
+				el,
+				tasks: starred,
+				rows: starred.map((t) =>
+					postit
+						? renderTaskCard(el, t, ctx, { showList: opts.showList, showSection: true })
+						: renderTaskRow(el, t, ctx, { showList: opts.showList, showSection: true })
+				),
+			});
+			remaining = rest;
+		}
+	}
+
 	const firstHeading = bounds[0]?.line ?? Infinity;
-	const loose = tasks.filter((t) => t.line < firstHeading);
+	const loose = remaining.filter((t) => t.line < firstHeading);
 	// The space above the first heading is a run whether or not anything is in
 	// it, so a task can always be dragged back out of every section.
 	if (loose.length || bounds.length) addRun(loose);
@@ -514,7 +551,7 @@ function renderTasks(
 	const heads: HTMLElement[] = [];
 	for (const sec of bounds) {
 		const folded = ctx.sectionCollapsed(path, sec.name);
-		const mine = tasks.filter((t) => t.line > sec.line && t.line < sec.end);
+		const mine = remaining.filter((t) => t.line > sec.line && t.line < sec.end);
 		heads.push(renderSectionHead(scroll, ctx, path, sec, mine.length, folded));
 		if (folded) continue;
 		addRun(mine);

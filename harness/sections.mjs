@@ -27,11 +27,12 @@ await page.waitForTimeout(250);
 
 /* ---------------- the heading is a control ---------------- */
 
-const heads = await page.$$(`${PANE} .lv-section`);
+const HEAD = ".lv-section:not(.lv-section-starred)";
+const heads = await page.$$(`${PANE} ${HEAD}`);
 check("every heading is drawn", heads.length >= 4, `${heads.length} sections`);
 
 const parts = await page.evaluate((sel) => {
-	const h = document.querySelector(`${sel} .lv-section`);
+	const h = document.querySelector(`${sel} .lv-section:not(.lv-section-starred)`);
 	return {
 		chevron: !!h?.querySelector(".lv-section-chevron svg"),
 		name: h?.querySelector(".lv-section-name")?.textContent ?? "",
@@ -65,6 +66,45 @@ check(
 	repeats === 0,
 	`${repeats} rows restate their section`
 );
+
+/* ---------------- starred rises to the top ---------------- */
+
+const starred = await page.evaluate((sel) => {
+	const pane = document.querySelector(sel);
+	const band = pane?.querySelector(".lv-section-starred");
+	if (!band) return { band: false };
+
+	// The band's own run is the one drawn straight after its label.
+	const run = band.nextElementSibling;
+	const rows = [...(run?.querySelectorAll(".lv-task, .lv-card-task") ?? [])];
+
+	// Nothing starred should appear twice: once lifted and once left behind.
+	const everywhere = [...pane.querySelectorAll(".lv-group .lv-task, .lv-group .lv-card-task")];
+	const stars = everywhere.filter((r) => r.querySelector(".is-starred, .lv-star.is-on"));
+
+	return {
+		band: true,
+		first: pane.querySelector(".lv-section")?.classList.contains("lv-section-starred"),
+		count: rows.length,
+		badged: rows.filter((r) => r.querySelector(".lv-section-badge")).length,
+		foldable: !!band.querySelector(".lv-section-chevron"),
+		deletable: !!band.querySelector(".lv-section-bin"),
+		total: stars.length,
+	};
+}, PANE);
+
+if (starred.band) {
+	check("the starred band is the first heading on screen", starred.first === true);
+	check("it holds the starred tasks", starred.count > 0, `${starred.count}`);
+	check(
+		"each of them still says which section it came from",
+		starred.badged === starred.count,
+		`${starred.badged}/${starred.count}`
+	);
+	check("it does not pretend to be an editable heading", !starred.foldable && !starred.deletable);
+} else {
+	check("no band is drawn when nothing is starred", true, "nothing starred in this fixture");
+}
 
 /* ---------------- completed carries the section it left ---------------- */
 
@@ -103,7 +143,11 @@ for (const [what, sel] of [
 /* An open task sits under its heading, so the badge would be the same word
    twice — once in the heading and once on every item beneath it. */
 const openTagged = await page.evaluate((sel) => {
-	const groups = [...document.querySelectorAll(`${sel} .lv-group`)];
+	// Everything but the starred run, which exists precisely to show tasks away
+	// from their heading and so is meant to carry badges.
+	const groups = [...document.querySelectorAll(`${sel} .lv-group`)].filter(
+		(g) => !g.previousElementSibling?.classList.contains("lv-section-starred")
+	);
 	return groups.flatMap((g) => [...g.querySelectorAll(".lv-section-badge")]).length;
 }, PANE);
 
@@ -181,11 +225,22 @@ check("the highlight is cleared on drop", left === 0, `${left} left lit`);
 /* ---------------- folding ---------------- */
 
 await page.evaluate(() => (window.lvCalls.length = 0));
-await page.click(`${PANE} .lv-section .lv-section-name`, { force: true }).catch(() => {});
+/* Dispatched on the element rather than clicked at its coordinates: a forced
+   click goes to a point, and the point moves whenever the layout above it does
+   — which is how this started landing on a task instead of a heading. */
+await page.evaluate(
+	({ sel, head }) => {
+		const name = document.querySelector(`${sel} ${head} .lv-section-name`);
+		name?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+	},
+	{ sel: PANE, head: HEAD }
+);
 await page.waitForTimeout(80);
+const foldCalls = await page.evaluate(() => window.lvCalls);
 check(
 	"clicking a heading folds without writing to the file",
-	(await page.evaluate(() => window.lvCalls)).length === 0
+	foldCalls.length === 0,
+	JSON.stringify(foldCalls.map((c) => c[0]))
 );
 
 /* ---------------- a heading is dragged to reorder ---------------- */
@@ -198,7 +253,7 @@ await page.evaluate((sel) => {
 await page.waitForTimeout(120);
 
 const hs = await page.evaluate((sel) => {
-	const list = [...document.querySelectorAll(`${sel} .lv-section`)];
+	const list = [...document.querySelectorAll(`${sel} .lv-section:not(.lv-section-starred)`)];
 	if (list.length < 2) return null;
 	const a = list[0].getBoundingClientRect();
 	const b = list[1].getBoundingClientRect();

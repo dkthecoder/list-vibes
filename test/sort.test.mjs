@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseFile, sortTasks, starsOf, isStarred, PRIORITY_BY_STARS, STARS_BY_PRIORITY, partitionCompleted, orderLists } from "./model.mjs";
+import { parseFile, sortTasks, starsOf, isStarred, PRIORITY_BY_STARS, STARS_BY_PRIORITY, partitionCompleted, orderLists, partitionStarred } from "./model.mjs";
 
 const MD = [
 	"- [ ] Banana 📅 2026-09-05 ➕ 2026-01-03 🔼",
@@ -191,4 +191,46 @@ test("an empty order leaves the lists as they came", () => {
 test("a duplicated entry is used once", () => {
 	const paths = ["a.md", "b.md"];
 	assert.deepEqual(orderLists(paths, ["b.md", "b.md", "a.md"]), ["b.md", "a.md"]);
+});
+
+/**
+ * Starred tasks, lifted to the top.
+ *
+ * A band in the view rather than a `## Starred` heading in the file. Writing
+ * one would mean moving a task's block out of its own section every time it is
+ * starred, and putting it back somewhere on every unstar — which has no honest
+ * answer. The band is a grouping, and groupings here are view-only.
+ */
+test("starred tasks are separated from the rest, in file order", () => {
+	const list = parseFile(
+		[
+			"- [ ] plain",
+			"- [ ] starred one ⏫",
+			"- [ ] also plain",
+			"- [ ] starred two 🔺",
+		].join("\n"),
+		"lists/T.md"
+	);
+	const { starred, rest } = partitionStarred(list.tasks);
+	assert.deepEqual(starred.map((t) => t.title), ["starred one", "starred two"]);
+	assert.deepEqual(rest.map((t) => t.title), ["plain", "also plain"]);
+});
+
+test("a list with nothing starred yields an empty band", () => {
+	const list = parseFile("- [ ] a\n- [ ] b\n", "lists/T.md");
+	const { starred, rest } = partitionStarred(list.tasks);
+	assert.deepEqual(starred, []);
+	assert.equal(rest.length, 2);
+});
+
+test("a completed starred task is not lifted", () => {
+	const list = parseFile("- [x] done one ⏫\n- [ ] open one ⏫\n", "lists/T.md");
+	const { starred } = partitionStarred(list.tasks);
+	assert.deepEqual(starred.map((t) => t.title), ["open one"]);
+});
+
+test("low priorities are not stars", () => {
+	const list = parseFile("- [ ] low ⏬\n- [ ] mid 🔼\n- [ ] high ⏫\n", "lists/T.md");
+	const { starred } = partitionStarred(list.tasks);
+	assert.deepEqual(starred.map((t) => t.title), ["high"]);
 });

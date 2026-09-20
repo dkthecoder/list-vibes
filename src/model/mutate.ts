@@ -1012,7 +1012,17 @@ export class Mutator {
 		listPath: string,
 		title: string,
 		meta: Partial<TaskMeta> = {},
-		opts: { after?: Task; indent?: string; note?: string } = {}
+		opts: {
+			after?: Task;
+			indent?: string;
+			note?: string;
+			/**
+			 * The heading to add under, or null for the space above the first one.
+			 * Absent means the end of the file, which is what this always did and
+			 * what a list with no headings wants.
+			 */
+			section?: number | null;
+		} = {}
 	): Promise<void> {
 		const clean = title.replace(/[\r\n]+/g, " ").trim();
 		if (!clean) return;
@@ -1029,6 +1039,23 @@ export class Mutator {
 		let at: number;
 		if (opts.after) {
 			at = blockRange(opts.after).end;
+		} else if (opts.section !== undefined) {
+			/*
+			 * The end of the named section, not the end of the file.
+			 *
+			 * Appending blindly put every new task into whichever section happened
+			 * to be last, however far that was from the one being looked at. The
+			 * end of a section is the line before the next heading, backed up past
+			 * the blank lines that separate them — a task added below those reads
+			 * as belonging to the gap rather than to the section.
+			 */
+			const lines = await this.currentLines(listPath);
+			if (!lines) return;
+			const heads = this.headingLines(lines);
+			const start = opts.section === null ? this.bodyStart(lines) : opts.section + 1;
+			let end = heads.find((h) => h >= start) ?? lines.length;
+			while (end > start && lines[end - 1].trim() === "") end--;
+			at = end;
 		} else {
 			const file = this.fileFor(listPath);
 			if (!file) return;

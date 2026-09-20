@@ -158,3 +158,25 @@ export function orderLists(paths: string[], order: string[]): string[] {
 	for (const path of paths) if (!placed.has(path)) out.push(path);
 	return out;
 }
+
+/**
+ * Split the starred tasks out, so they can be shown above the rest.
+ *
+ * A band in the view rather than a `## Starred` heading in the file. Writing
+ * one would mean moving a task's block out of its own section every time it was
+ * starred, and putting it back somewhere on every unstar — a question with no
+ * honest answer. Groupings here are view-only, and this is a grouping.
+ *
+ * Completed tasks are left out: they have their own place at the bottom, and a
+ * star on something already done is a record of what mattered rather than a
+ * claim on the top of the list.
+ */
+export function partitionStarred(tasks: Task[]): { starred: Task[]; rest: Task[] } {
+	const starred: Task[] = [];
+	const rest: Task[] = [];
+	for (const t of tasks) {
+		if (isStarred(t) && !isComplete(t)) starred.push(t);
+		else rest.push(t);
+	}
+	return { starred, rest };
+}

@@ -69,6 +69,15 @@ export interface ListsSettings {
 	 * worse than a heading left behind for you to delete yourself.
 	 */
 	autoRemoveEmptySections: boolean;
+	/**
+	 * Lift starred tasks into a band of their own at the top of a list.
+	 *
+	 * A band in the view, never a `## Starred` heading in the file: starring
+	 * would otherwise move a task out of its own section and unstarring would
+	 * have to guess where to put it back. On by default, because a star that
+	 * does not move anything is a star that does very little.
+	 */
+	starredSection: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/**
@@ -110,6 +119,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	defaultView: "list",
 	viewByList: {},
 	autoRemoveEmptySections: false,
+	starredSection: true,
 	collapsedSections: {},
 	listOrder: [],
 	openOnStartup: true,
@@ -208,6 +218,19 @@ export class ListsSettingTab extends PluginSettingTab {
 					this.plugin.settings.enableSubtasks = v;
 					await this.plugin.saveSettings();
 					this.plugin.refresh();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Starred at the top")
+			.setDesc(
+				"Lift starred tasks into a band of their own above the list. Nothing is written to your file, and the band is only there while something is starred."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.starredSection).onChange(async (v) => {
+					this.plugin.settings.starredSection = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
 				})
 			);
 
