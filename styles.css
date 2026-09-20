@@ -1342,33 +1342,88 @@ body.is-mobile .lv-section-bin {
 .lv-color-pink   { --lv-accent: var(--color-pink, #d53984); }
 .lv-color-grey   { --lv-accent: var(--text-muted, #888); }
 
-/* A bar, not a wash — a tinted row would fight the selected state and every
-   theme's own background. */
-.lv-nav-row.is-coloured {
-	position: relative;
+/*
+ * The pastel the items actually wear.
+ *
+ * `--lv-accent` is the theme's own saturated colour, which is right for a line
+ * and far too loud for a surface: a row painted in it is a red row, not a row
+ * on a red list. Mixing a little of it into the surface the pane already uses
+ * gives a tint instead — and because the *surface* is what it is mixed into,
+ * the same rule lands pale on a light theme and deep on a dark one without
+ * either being written down. There is still no colour here that the theme did
+ * not supply.
+ *
+ * The plain value is declared first and the mix second, so a renderer without
+ * `color-mix` keeps the untinted surface rather than an invalid custom property
+ * — which is not "no colour" but a broken one, and would take the whole item's
+ * background with it.
+ */
+.lv-color-red,
+.lv-color-orange,
+.lv-color-yellow,
+.lv-color-green,
+.lv-color-teal,
+.lv-color-blue,
+.lv-color-purple,
+.lv-color-pink,
+.lv-color-grey {
+	--lv-accent-soft: var(--lv-surface-alt);
+	--lv-accent-soft: color-mix(in srgb, var(--lv-accent) 10%, var(--lv-surface-alt));
+
+	--lv-accent-edge: var(--divider-color);
+	--lv-accent-edge: color-mix(in srgb, var(--lv-accent) 28%, var(--lv-surface-alt));
+
+	/* Enough of the colour to read as itself against the tint, without becoming
+	   the saturated original again. */
+	--lv-accent-ink: var(--lv-accent);
+	--lv-accent-ink: color-mix(in srgb, var(--lv-accent) 72%, var(--text-normal));
 }
 
-.lv-nav-row.is-coloured::before {
-	content: "";
-	position: absolute;
-	left: 2px;
-	top: var(--size-4-2);
-	bottom: var(--size-4-2);
-	width: 3px;
-	border-radius: 2px;
-	background: var(--lv-accent);
+/* The picker: a tinted row rather than a bar beside one.
+
+   It was a bar on the argument that a tinted row would fight the selected
+   state. A tint this quiet does not — selection is a different token and sits
+   on top of it — and the bar only ever coloured three pixels of a row that was
+   otherwise identical to every other. */
+.lv-nav-row.is-coloured {
+	background: var(--lv-accent-soft);
 }
 
 .lv-nav-row.is-coloured .lv-nav-icon {
-	color: var(--lv-accent);
+	color: var(--lv-accent-ink);
 }
 
 .lv-tasks.is-accented .lv-header {
-	box-shadow: inset 0 -2px 0 var(--lv-accent);
+	box-shadow: inset 0 -2px 0 var(--lv-accent-edge);
+}
+
+/*
+ * Items on a coloured list wear the tint, so the list reads as coloured rather
+ * than as a list with a coloured stripe on it. The edge keeps the item's shape
+ * legible where the tint alone is too close to the pane behind it.
+ */
+.lv-tasks.is-accented .lv-card-task,
+.lv-tasks.is-accented .lv-task {
+	background: var(--lv-accent-soft);
+	box-shadow: inset 0 0 0 var(--border-width) var(--lv-accent-edge);
 }
 
 .lv-tasks.is-accented .lv-card-task {
-	border-left: 3px solid var(--lv-accent);
+	border-left: none;
+}
+
+/*
+ * Hover, restated for a coloured list.
+ *
+ * `.lv-tasks.is-accented .lv-task` outranks `.lv-task:hover`, so the tint won
+ * and the row stopped answering the pointer entirely — which the rows harness
+ * caught. More of the same colour rather than the grey hover token: the row is
+ * already wearing the tint, and deepening it reads as the same row lit up
+ * instead of a different row appearing under the cursor.
+ */
+.lv-tasks.is-accented .lv-task:hover {
+	background: var(--background-modifier-hover);
+	background: color-mix(in srgb, var(--lv-accent) 22%, var(--lv-surface-alt));
 }
 
 /* ------------------------------------------------------------------
