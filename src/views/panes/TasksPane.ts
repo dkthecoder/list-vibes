@@ -518,8 +518,11 @@ function renderTasks(
 		end: opts.sections[i + 1]?.line ?? Infinity,
 	}));
 
-	const addRun = (run: Task[]) => {
+	const addRun = (run: Task[], inGroup = false) => {
 		const el = scroll.createDiv({ cls });
+		// Which depth the rows in it are painted at: a run under a heading is a
+		// level below the heading's own band, a loose one is not.
+		if (inGroup) el.addClass("lv-in-group");
 		runs.push({ el, tasks: run, rows: run.map((t) => draw(el, t)) });
 	};
 
@@ -585,7 +588,7 @@ function renderTasks(
 		const mine = remaining.filter((t) => t.line > sec.line && t.line < sec.end);
 		heads.push(renderSectionHead(scroll, ctx, path, sec, mine.length, folded));
 		if (folded) continue;
-		addRun(mine);
+		addRun(mine, true);
 	}
 
 	if (!opts.ungroupedFirst) drawLoose();

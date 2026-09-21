@@ -106,6 +106,7 @@
 	--lv-surface: var(--background-secondary);
 	--lv-surface-alt: var(--background-primary);
 
+
 	/* How much room the mobile navbar needs. Self-declared with a safe default
 	   so every calc() below stays valid on desktop and tablet, where Obsidian
 	   never defines the variable it is built from. */
@@ -137,6 +138,7 @@
 	--lv-surface: var(--background-primary);
 	--lv-surface-alt: var(--background-secondary);
 }
+
 
 /* Touch needs a bigger floor than a pointer does. */
 .is-mobile .lv-root {
@@ -410,11 +412,14 @@ body.is-phone .lv-header {
 	display: flex;
 	align-items: center;
 	gap: var(--lv-lead-gap);
+	/* Painted now, so it takes the runs' edges rather than the scroller's. */
+	margin: 0 var(--lv-row-inset);
+	border-radius: var(--lv-radius);
+	background: var(--lv-accent-soft);
 	/* The same rail as `.lv-add`, and the leading column every row keys off, so
 	   the fold control sits in the checkbox slot and the name starts where the
 	   titles beneath it start. */
-	padding: var(--size-4-3) calc(var(--lv-row-inset) + var(--size-4-2))
-		var(--size-4-1);
+	padding: var(--size-4-3) var(--size-4-2) var(--size-4-1);
 	font-size: var(--lv-heading-size);
 	font-weight: var(--lv-heading-weight);
 	text-transform: var(--lv-heading-case);
@@ -1579,6 +1584,23 @@ body.is-mobile .lv-section-more {
 
 .lv-tasks.is-accented .lv-card-task {
 	border-left: none;
+}
+
+/*
+ * An item inside a group is one level below the group's own band.
+ *
+ * Derived from the tint rather than declared beside it, so colour and depth
+ * compose instead of one overriding the other — and the step is toward the
+ * text, which is the contrast pole in either theme. A light theme reads it as
+ * darker, a dark theme as lighter, and the nesting reads the same way round in
+ * both. Without `color-mix` there is simply no step, which is better than one
+ * in the wrong direction.
+ */
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+	.lv-tasks .lv-in-group .lv-task,
+	.lv-tasks .lv-in-group .lv-card-task {
+		background: color-mix(in srgb, var(--lv-accent-soft) 94%, var(--text-normal) 6%);
+	}
 }
 
 /*
