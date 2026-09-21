@@ -78,6 +78,14 @@ export interface ListsSettings {
 	 * does not move anything is a star that does very little.
 	 */
 	starredSection: boolean;
+	/**
+	 * Where tasks that are in no group sit: above the groups or below them.
+	 *
+	 * Above by default, because that is where they are in the file — anything
+	 * before the first heading — and a view that disagrees with the file about
+	 * order is a view you cannot drag in confidently.
+	 */
+	ungroupedFirst: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/**
@@ -120,6 +128,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	viewByList: {},
 	autoRemoveEmptySections: false,
 	starredSection: true,
+	ungroupedFirst: true,
 	collapsedSections: {},
 	listOrder: [],
 	openOnStartup: true,
@@ -229,6 +238,19 @@ export class ListsSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.starredSection).onChange(async (v) => {
 					this.plugin.settings.starredSection = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Ungrouped tasks first")
+			.setDesc(
+				"Show tasks that are in no group above the groups rather than below them. On by default, because that is where they are in the file."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.ungroupedFirst).onChange(async (v) => {
+					this.plugin.settings.ungroupedFirst = v;
 					await this.plugin.saveSettings();
 					this.plugin.refreshViews();
 				})

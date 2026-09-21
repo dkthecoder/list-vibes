@@ -325,6 +325,22 @@ export class ListsView extends ItemView {
 				if (leaf.tabHeaderInnerTitleEl?.isConnected) {
 					leaf.tabHeaderInnerTitleEl.setText(text);
 				}
+
+				/*
+				 * And the header on a phone, which is a different element.
+				 *
+				 * There are no tabs on mobile, so there is no tab header to write
+				 * to — the name at the top of the screen comes from the view's own
+				 * header instead. Writing only the tab one left the phone showing
+				 * whichever list the view had when it was built.
+				 */
+				for (const el of Array.from(
+					this.containerEl.parentElement?.querySelectorAll<HTMLElement>(
+						".view-header-title"
+					) ?? []
+				)) {
+					el.setText(text);
+				}
 			} catch {
 				/* ignored, per above */
 			}

@@ -313,6 +313,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		sections: list?.sections ?? [],
 		path: list?.path ?? "",
 		starredFirst: ctx.settings.starredSection,
+		ungroupedFirst: ctx.settings.ungroupedFirst,
 	});
 
 	// A list decides for itself; absent, the setting decides. Post-it view is
@@ -410,6 +411,8 @@ function renderTasks(
 		path: string;
 		/** Lift starred tasks into a band above everything else. */
 		starredFirst: boolean;
+		/** Tasks in no group go above the groups rather than below them. */
+		ungroupedFirst: boolean;
 	}
 ): void {
 	const postit = opts.mode === "postit";
@@ -544,9 +547,26 @@ function renderTasks(
 
 	const firstHeading = bounds[0]?.line ?? Infinity;
 	const loose = remaining.filter((t) => t.line < firstHeading);
-	// The space above the first heading is a run whether or not anything is in
-	// it, so a task can always be dragged back out of every section.
-	if (loose.length || bounds.length) addRun(loose);
+
+	/*
+	 * Tasks in no group, and a line saying so.
+	 *
+	 * The run is drawn whether or not anything is in it, so a task can always be
+	 * dragged back out of every group. The rule is drawn only when both sides
+	 * exist: a divider between a thing and nothing is a line with one job and no
+	 * reason to be there.
+	 */
+	const drawLoose = () => {
+		if (!opts.ungroupedFirst && (loose.length || bounds.length)) {
+			scroll.createDiv({ cls: "lv-ungrouped-rule" });
+		}
+		if (loose.length || bounds.length) addRun(loose);
+		if (opts.ungroupedFirst && loose.length && bounds.length) {
+			scroll.createDiv({ cls: "lv-ungrouped-rule" });
+		}
+	};
+
+	if (opts.ungroupedFirst) drawLoose();
 
 	const heads: HTMLElement[] = [];
 	for (const sec of bounds) {
@@ -556,6 +576,8 @@ function renderTasks(
 		if (folded) continue;
 		addRun(mine);
 	}
+
+	if (!opts.ungroupedFirst) drawLoose();
 
 	/*
 	 * Headings are their own drag group, and a one-dimensional one.

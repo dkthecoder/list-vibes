@@ -397,6 +397,17 @@ body.is-phone .lv-header {
 	color: var(--text-normal);
 }
 
+/* Between what is grouped and what is not.
+
+   A rule rather than a heading: the ungrouped tasks are not a group, and giving
+   them a label would make them look like one you could rename or delete. Drawn
+   only where there is something on both sides of it. */
+.lv-ungrouped-rule {
+	height: var(--border-width);
+	margin: var(--size-4-3) var(--lv-gutter);
+	background: var(--divider-color);
+}
+
 /* The starred band's label.
 
    Deliberately not a control. Every other heading on screen folds, renames,

@@ -1,6 +1,8 @@
 import { setIcon } from "obsidian";
 import { DetailContext } from "../context";
-import { Task, isComplete } from "../../model/types";
+import { Task, isComplete,
+	TaskList,
+} from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
 import { makeDragSortable } from "../../ui/dragSort";
@@ -199,6 +201,52 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 
 	const actions = scroll.createDiv({ cls: "lv-card lv-actions" });
 
+	/*
+	 * Which group the task is in.
+	 *
+	 * Dragging could already move a task between groups, and dragging is the
+	 * only thing that could — so a task sitting above the first heading had no
+	 * way into a group that did not involve aiming. This is the same move, named
+	 * rather than performed, and it is the only route on a list long enough that
+	 * the group you want is off the screen.
+	 *
+	 * Only where there is a choice: a list with no headings has no groups to
+	 * offer, and a row saying so would be a row saying nothing.
+	 */
+	const list = ctx.store.getList(task.filePath);
+	if (list?.sections.length) {
+		const here = task.section;
+		action(actions, ctx, {
+			id: "group",
+			icon: "heading",
+			label: here ?? "No group",
+			sub: here ? "Group" : "Not in a group",
+			active: !!here,
+			expands: true,
+			options: [
+				{
+					label: "No group",
+					selected: !here,
+					onPick: () => void ctx.mutator.moveToSection(task, [], 0, null),
+				},
+				...list.sections.map((sec) => ({
+					label: sec.name,
+					selected: sec.line === lineOfSection(list, here),
+					onPick: () => {
+						// Appended rather than dropped at the top: a task moved by
+						// name has not been aimed anywhere in particular, and the
+						// end is where adding one would have put it.
+						const next = list.sections.find((x) => x.line > sec.line);
+						const mine = list.tasks.filter(
+							(t) => t.line > sec.line && (!next || t.line < next.line)
+						);
+						void ctx.mutator.moveToSection(task, mine, mine.length, sec.line);
+					},
+				})),
+			],
+		});
+	}
+
 	action(actions, ctx, {
 		id: "myday",
 		icon: "sun",
@@ -340,6 +388,16 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 /* ------------------------------------------------------------------ *
  * An action row, optionally expanding into a row of choices.
  * ------------------------------------------------------------------ */
+
+/**
+ * The line of the heading a task is under, found by name among the headings
+ * before it. Two groups may share a name, so the task's own position decides
+ * which of them it means.
+ */
+function lineOfSection(list: TaskList, name: string | undefined): number | undefined {
+	if (!name) return undefined;
+	return list.sections.find((s) => s.name === name)?.line;
+}
 
 interface PickOption {
 	label: string;

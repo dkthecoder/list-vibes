@@ -305,6 +305,9 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	const edgeScroll = () => {
 		edgeFrame = 0;
 		if (!live || !scroller) return;
+		// The row's own window, not this one: a drag inside a popout would
+		// otherwise schedule against a window it is not being drawn in.
+		const win = row.ownerDocument.defaultView ?? window;
 
 		const r = scroller.getBoundingClientRect();
 		let step = 0;
@@ -319,13 +322,16 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 			// not itself moving, which is the whole point of holding at the edge.
 			if (scroller.scrollTop !== before) preview(lastX, lastY);
 		}
-		edgeFrame = requestAnimationFrame(edgeScroll);
+		edgeFrame = win.requestAnimationFrame(edgeScroll);
 	};
 
 	const preview = (x: number, y: number) => {
 		lastX = x;
 		lastY = y;
-		if (scroller && !edgeFrame) edgeFrame = requestAnimationFrame(edgeScroll);
+		if (scroller && !edgeFrame) {
+			const win = row.ownerDocument.defaultView ?? window;
+			edgeFrame = win.requestAnimationFrame(edgeScroll);
+		}
 
 		// Everything below compares against measurements taken before any
 		// scrolling, so the pointer is moved into that frame rather than the
@@ -380,7 +386,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		if (!live) return;
 		live = false;
 
-		if (edgeFrame) cancelAnimationFrame(edgeFrame);
+		if (edgeFrame) (row.ownerDocument.defaultView ?? window).cancelAnimationFrame(edgeFrame);
 		edgeFrame = 0;
 		scroller = null;
 
