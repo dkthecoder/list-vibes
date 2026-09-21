@@ -459,6 +459,44 @@ check(
 	order.join(" > ")
 );
 
+/* ---------------- the sort menu offers both orders ---------------- */
+
+/*
+ * The menu was the one part of the view nothing could see: the harness's Menu
+ * returned itself and drew nothing, so a section that failed to appear looked
+ * exactly like one that did. It records what it was given now, which is what a
+ * suite needs to know — what was offered, not what it looked like.
+ */
+const menu = await page.evaluate(() => {
+	const pane = document.getElementById("sections");
+	pane
+		.querySelector(".lv-header-action")
+		.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+	return window.__lvMenu ?? null;
+});
+
+check("the sort button opens a menu", Array.isArray(menu), menu ? `${menu.length} items` : "none");
+
+if (Array.isArray(menu)) {
+	const titles = menu.map((i) => i.title);
+	check("it offers an order for the tasks", titles.includes("Sort tasks"));
+	check(
+		"and a separate one for the groups",
+		titles.includes("Sort groups"),
+		titles.join(", ")
+	);
+	check(
+		"with the headings' own orders under it",
+		["File order", "A–Z", "Z–A"].every((t) => titles.includes(t)),
+		titles.join(", ")
+	);
+	check(
+		"and exactly one option ticked in each",
+		menu.filter((i) => i.checked).length === 2,
+		`${menu.filter((i) => i.checked).map((i) => i.title).join(", ")}`
+	);
+}
+
 /* ---------------- groups can be turned off ---------------- */
 
 /*
