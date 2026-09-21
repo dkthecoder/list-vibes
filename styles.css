@@ -2163,14 +2163,32 @@ body.is-mobile .lv-root {
  */
 body.is-mobile .lv-scroll,
 body.is-mobile .lv-nav-scroll {
-	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
 	/* Keep a swipe or a flick inside the list instead of handing it to the
 	   drawer behind once the ends are reached. */
 	overscroll-behavior: contain;
 }
 
+/*
+ * Only the bottom-most thing clears the navbar.
+ *
+ * The task list ends in its own scroller — the add box is inside it and nothing
+ * follows — so the scroller is what has to stop short of the bar.
+ */
+body.is-mobile .lv-scroll {
+	padding-bottom: calc(var(--size-4-2) + var(--lv-navbar-clearance));
+}
+
+/*
+ * The picker does not: `.lv-nav-foot` sits below its scroller and already
+ * reserves the same distance. Both reserving it put the bar's height twice
+ * under "New list" — a phone's worth of empty pane between the last control and
+ * the edge of the screen.
+ */
+
 body.is-mobile .lv-root.is-keyboard-open .lv-scroll,
 body.is-mobile .lv-root.is-keyboard-open .lv-nav-scroll {
+	/* With the keyboard up the footer is off-screen anyway, so the scroller is
+	   the bottom-most thing in both panes and clears it in both. */
 	padding-bottom: calc(
 		var(--size-4-2) + var(--lv-navbar-clearance) + var(--lv-keyboard-height)
 	);
