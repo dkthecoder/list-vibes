@@ -35,11 +35,12 @@
 	 * band. One set of tokens for all three, so sizing a heading is one edit
 	 * rather than three, and a snippet can resize every one of them at once.
 	 */
-	--lv-heading-size: var(--font-ui-smaller);
+	--lv-heading-size: var(--font-ui-medium);
 	--lv-heading-weight: var(--font-semibold);
-	--lv-heading-case: uppercase;
-	--lv-heading-track: 0.04em;
-	--lv-heading-color: var(--text-faint);
+	/* As typed, so a group reads the way the `##` line in the file reads. */
+	--lv-heading-case: none;
+	--lv-heading-track: normal;
+	--lv-heading-color: var(--text-normal);
 	/*
 	 * Rounded corners, capped.
 	 *
