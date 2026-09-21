@@ -24,6 +24,18 @@ const MOUSE_THRESHOLD = 5;
 /** How long to hold on touch before the row becomes draggable. */
 const LONG_PRESS_MS = 450;
 
+/**
+ * How near the edge of the scroller a live drag starts pulling the list along.
+ *
+ * Without this a drop target has to already be on screen when the drag starts,
+ * which on a phone means it nearly never is: the wall collapses to one column
+ * below 560px, so the sections become tall bands and the one being aimed at is
+ * usually past the bottom of the screen.
+ */
+const EDGE = 56;
+/** Fastest the list is pulled, in pixels per frame, right at the edge. */
+const EDGE_SPEED = 14;
+
 export interface DragSortOptions {
 	/** The row's position among its siblings, before any drag. */
 	index: number;
@@ -33,6 +45,20 @@ export interface DragSortOptions {
 	onDrop: (from: number, to: number) => void;
 	/** Optional grab area. Without one the whole row starts the drag. */
 	handle?: HTMLElement;
+	/**
+	 * Every run the row may be dropped into, this row's own among them, in the
+	 * order the view lays them out. Omit it and the drag stays one-dimensional,
+	 * which is exactly what a list of steps wants.
+	 */
+	containers?: () => DragContainer[];
+	/** Called instead of `onDrop` when the row lands in a different run. */
+	onDropAcross?: (toContainer: number, toIndex: number) => void;
+}
+
+/** One run a drag may land in: the element that bounds it, and its rows. */
+export interface DragContainer {
+	el: HTMLElement;
+	rows: HTMLElement[];
 }
 
 /**
@@ -57,6 +83,57 @@ export function dropIndex(centres: number[], from: number, y: number): number {
 	// already the answer. This is the whole off-by-one, in one line.
 	const to = passed > from ? passed - 1 : passed;
 	return Math.max(0, Math.min(centres.length - 1, to));
+}
+
+/** A container's bounds, in the same coordinate space as the pointer. */
+export interface DropBox {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
+/** How far a point sits outside a box. Zero on both axes means inside it. */
+function gap(box: DropBox, x: number, y: number): number {
+	const dx = Math.max(box.left - x, 0, x - box.right);
+	const dy = Math.max(box.top - y, 0, y - box.bottom);
+	return dx * dx + dy * dy;
+}
+
+/**
+ * Which container the pointer is aiming at.
+ *
+ * `dropIndex` answers where a row lands within one run; this answers which run,
+ * and the two compose into a move in two dimensions without either of them
+ * having to think in two dimensions.
+ *
+ * A pointer outside every container falls to the nearest rather than to nothing.
+ * Containers do not tile the pane — there are gutters between them, and a band
+ * with one card in it is mostly empty space — so "over no container" is a normal
+ * position during a drag, not a mistake, and refusing to answer there would make
+ * the drop indicator flicker out in the gaps.
+ *
+ * Kept pure and exported so the arithmetic can be tested without a browser.
+ */
+export function dropContainer(
+	boxes: DropBox[],
+	x: number,
+	y: number,
+	current: number
+): number {
+	if (!boxes.length) return current;
+
+	let best = 0;
+	let bestGap = Infinity;
+	for (let i = 0; i < boxes.length; i++) {
+		const d = gap(boxes[i], x, y);
+		if (d === 0) return i;
+		if (d < bestGap) {
+			bestGap = d;
+			best = i;
+		}
+	}
+	return best;
 }
 
 /**
@@ -132,6 +209,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	// only applied once a long press has actually armed the drag.
 	if (opts.handle) grab.addClass("lv-grip");
 
+	let startX = 0;
 	let startY = 0;
 	let pointerId: number | null = null;
 	let longPress: number | null = null;
@@ -140,6 +218,15 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	let centres: number[] = [];
 	let shiftPx = 0;
 	let target = opts.index;
+	let groups: DragContainer[] = [];
+	let boxes: DropBox[] = [];
+	let home = 0;
+	let over = 0;
+	let lastX = 0;
+	let scroller: HTMLElement | null = null;
+	let startScroll = 0;
+	let edgeFrame = 0;
+	let lastY = 0;
 
 	const cancelLongPress = () => {
 		if (longPress !== null) {
@@ -148,13 +235,40 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		}
 	};
 
-	const begin = () => {
-		live = true;
-		siblings = opts.siblings();
-		centres = siblings.map((el) => {
+	const measure = (els: HTMLElement[]): number[] =>
+		els.map((el) => {
 			const r = el.getBoundingClientRect();
 			return r.top + r.height / 2;
 		});
+
+	const begin = () => {
+		live = true;
+
+		// The list the row sits in, if it is in one that scrolls.
+		scroller = row.closest<HTMLElement>(".lv-scroll");
+		startScroll = scroller?.scrollTop ?? 0;
+
+		/*
+		 * The pointer is claimed here rather than on pointerdown.
+		 *
+		 * Capturing it early retargets every later pointer event to this row,
+		 * which is exactly what a live drag wants and exactly what a row that is
+		 * not being dragged must not do: a name that is renamed by double-click
+		 * never sees the second press, because the row swallowed it. Capture is
+		 * for a gesture we have decided to take.
+		 */
+		if (pointerId !== null && !grab.hasPointerCapture(pointerId)) {
+			grab.setPointerCapture(pointerId);
+		}
+
+		siblings = opts.siblings();
+
+		groups = opts.containers?.() ?? [];
+		boxes = groups.map((g) => g.el.getBoundingClientRect());
+		home = Math.max(0, groups.findIndex((g) => g.rows === siblings));
+		over = home;
+
+		centres = measure(siblings);
 		// Rows are not all the same height — a task with steps is taller than a
 		// bare one — so the gap opens by the height of the row being moved, in
 		// pixels. A percentage would resolve against each row's own height and
@@ -168,7 +282,84 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		document.body.addClass("lv-is-dragging");
 	};
 
-	const preview = (y: number) => {
+	/** Clear every row offset in the home run, for when the pointer leaves it. */
+	const settle = () => {
+		for (const el of siblings) {
+			setOffset(el, 0);
+			el.removeClass("lv-shifted");
+		}
+	};
+
+	/**
+	 * How far the list has scrolled since the drag began.
+	 *
+	 * Every measurement taken at `begin` is in viewport coordinates, and the
+	 * list moving underneath the finger invalidates all of them by exactly this
+	 * much. Correcting the pointer once is the same as re-measuring everything,
+	 * and re-measuring is not available: the preview shifts rows with transforms
+	 * and measuring mid-shift feeds the shift back into its own input.
+	 */
+	const scrolled = (): number => (scroller ? scroller.scrollTop - startScroll : 0);
+
+	/** Pull the list along while the finger is held near its edge. */
+	const edgeScroll = () => {
+		edgeFrame = 0;
+		if (!live || !scroller) return;
+		// The row's own window, not this one: a drag inside a popout would
+		// otherwise schedule against a window it is not being drawn in.
+		const win = row.ownerDocument.defaultView ?? window;
+
+		const r = scroller.getBoundingClientRect();
+		let step = 0;
+		if (lastY < r.top + EDGE) step = -EDGE_SPEED * Math.min(1, (r.top + EDGE - lastY) / EDGE);
+		else if (lastY > r.bottom - EDGE)
+			step = EDGE_SPEED * Math.min(1, (lastY - (r.bottom - EDGE)) / EDGE);
+
+		if (step) {
+			const before = scroller.scrollTop;
+			scroller.scrollTop += step;
+			// Keep the preview honest as the list moves under a finger that is
+			// not itself moving, which is the whole point of holding at the edge.
+			if (scroller.scrollTop !== before) preview(lastX, lastY);
+		}
+		edgeFrame = win.requestAnimationFrame(edgeScroll);
+	};
+
+	const preview = (x: number, y: number) => {
+		lastX = x;
+		lastY = y;
+		if (scroller && !edgeFrame) {
+			const win = row.ownerDocument.defaultView ?? window;
+			edgeFrame = win.requestAnimationFrame(edgeScroll);
+		}
+
+		// Everything below compares against measurements taken before any
+		// scrolling, so the pointer is moved into that frame rather than the
+		// measurements into this one.
+		y += scrolled();
+		if (groups.length) {
+			const next = dropContainer(boxes, x, y, over);
+			if (next !== over) {
+				groups[over]?.el.removeClass("lv-drop-target");
+				over = next;
+				if (over !== home) {
+					// Nothing in a foreign run gets shifted: the gap would have to
+					// open for a row that is not one of its own, and the run is
+					// highlighted instead so the destination is still obvious.
+					settle();
+					groups[over]?.el.addClass("lv-drop-target");
+				}
+				target = -1;
+			}
+			if (over !== home) {
+				const rows = groups[over]?.rows ?? [];
+				// No index of our own in a foreign run, so nothing is excluded
+				// from the count and every row counts as passed or not.
+				target = dropIndex(measure(rows), -1, y);
+				return;
+			}
+		}
+
 		const next = dropIndex(centres, opts.index, y);
 		if (next === target) return;
 		target = next;
@@ -195,6 +386,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		if (!live) return;
 		live = false;
 
+		if (edgeFrame) (row.ownerDocument.defaultView ?? window).cancelAnimationFrame(edgeFrame);
+		edgeFrame = 0;
+		scroller = null;
+
 		/*
 		 * Whether or not the order changed, and whether or not it was committed.
 		 * A gesture that dragged a row is not a tap on it — an abandoned drag
@@ -206,12 +401,16 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		row.removeClass("lv-dragging");
 		setOffset(row, 0);
 		document.body.removeClass("lv-is-dragging");
-		for (const el of siblings) {
-			setOffset(el, 0);
-			el.removeClass("lv-shifted");
-		}
+		settle();
+		for (const g of groups) g.el.removeClass("lv-drop-target");
 
-		if (commit && target !== opts.index) opts.onDrop(opts.index, target);
+		const across = groups.length > 0 && over !== home;
+		groups = [];
+		boxes = [];
+
+		if (!commit) return;
+		if (across) opts.onDropAcross?.(over, Math.max(0, target));
+		else if (target !== opts.index) opts.onDrop(opts.index, target);
 	};
 
 	grab.addEventListener("pointerdown", (e: PointerEvent) => {
@@ -219,9 +418,9 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		if (e.button !== 0) return;
 		if (!opts.handle && (e.target as HTMLElement).closest(".lv-no-drag")) return;
 
+		startX = e.clientX;
 		startY = e.clientY;
 		pointerId = e.pointerId;
-		grab.setPointerCapture(e.pointerId);
 
 		if (e.pointerType === "touch" && !opts.handle) {
 			longPress = window.setTimeout(() => {
@@ -235,7 +434,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		if (pointerId !== e.pointerId) return;
 
 		if (!live) {
-			const moved = Math.abs(e.clientY - startY);
+			// Distance in both axes. A board is dragged sideways as well as up
+			// and down, and a horizontal wander during the long press is the
+			// mobile drawer being swiped — which must stay the drawer's gesture.
+			const moved = Math.hypot(e.clientX - startX, e.clientY - startY);
 			if (longPress !== null) {
 				// Still waiting out the long press: any real movement means the
 				// user is scrolling, so give the gesture back to the browser.
@@ -249,7 +451,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 		e.preventDefault();
 		setOffset(row, e.clientY - startY);
-		preview(e.clientY);
+		preview(e.clientX, e.clientY);
 	});
 
 	grab.addEventListener("pointerup", () => finish(true));

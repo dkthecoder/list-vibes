@@ -57,14 +57,66 @@ export interface ListsSettings {
 	prettyTitles: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
-	/** Shade alternate rows, for lists that have not chosen for themselves. */
-	stripeRows: boolean;
 	/** Throw confetti when a task is completed. Ignored under reduced motion. */
 	confetti: boolean;
 	/** Glint when a task is starred. Ignored under reduced motion. */
 	starBurst: boolean;
+	/**
+	 * Remove a `##` heading once the last task leaves it.
+	 *
+	 * Off by default: an empty section you are about to fill is a normal thing
+	 * to want, and one that vanishes under you as you drag the last task out is
+	 * worse than a heading left behind for you to delete yourself.
+	 */
+	autoRemoveEmptySections: boolean;
+	/**
+	 * Lift starred tasks into a band of their own at the top of a list.
+	 *
+	 * A band in the view, never a `## Starred` heading in the file: starring
+	 * would otherwise move a task out of its own section and unstarring would
+	 * have to guess where to put it back. On by default, because a star that
+	 * does not move anything is a star that does very little.
+	 */
+	starredSection: boolean;
+	/**
+	 * Where tasks that are in no group sit: above the groups or below them.
+	 *
+	 * Above by default, because that is where they are in the file — anything
+	 * before the first heading — and a view that disagrees with the file about
+	 * order is a view you cannot drag in confidently.
+	 */
+	ungroupedFirst: boolean;
+	/**
+	 * Give every list its own tab rather than reusing one.
+	 *
+	 * On by default. A tab is then only ever created or focused, never handed a
+	 * different list — which is the only reliable way to keep its title honest,
+	 * because Obsidian rereads a custom view's name on its own schedule and no
+	 * public API asks it to.
+	 *
+	 * Turning it off brings back one shared tab, and with it a title that can
+	 * name the list the tab used to hold.
+	 */
+	listOwnTab: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
+	/**
+	 * Folded sections, keyed by file path, holding section names.
+	 *
+	 * By name rather than by line, because a line moves the moment anything above
+	 * it is edited and a fold that jumps to a different section is worse than one
+	 * that is occasionally shared by two headings of the same name. View-only,
+	 * like sort: never written to the file.
+	 */
+	collapsedSections: Record<string, string[]>;
+	/**
+	 * The order the lists were dragged into, by path.
+	 *
+	 * Empty means alphabetical, because an order nobody has set orders nothing —
+	 * so there is no mode to choose and no setting to explain. View-only, like
+	 * every other ordering the plugin keeps.
+	 */
+	listOrder: string[];
 	/** Last opened list, restored on reopen. */
 	lastList?: string;
 }
@@ -75,7 +127,6 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	enableSubtasks: true,
 	side: "left",
 	showCompleted: "collapsed",
-	stripeRows: true,
 	confetti: true,
 	starBurst: true,
 	addDoneDate: true,
@@ -87,6 +138,12 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	prettyTitles: true,
 	defaultView: "list",
 	viewByList: {},
+	autoRemoveEmptySections: false,
+	starredSection: true,
+	ungroupedFirst: true,
+	listOwnTab: true,
+	collapsedSections: {},
+	listOrder: [],
 	openOnStartup: true,
 	sidebarFirst: false,
 	notesFolder: "tasks",
@@ -187,7 +244,57 @@ export class ListsSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Completed section")
+			.setName("Starred at the top")
+			.setDesc(
+				"Lift starred tasks into a band of their own above the list. Nothing is written to your file, and the band is only there while something is starred."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.starredSection).onChange(async (v) => {
+					this.plugin.settings.starredSection = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("A tab per list")
+			.setDesc(
+				"Open each list in its own tab instead of reusing one. Turn it off for a single shared tab, at the cost of a tab title that can name the list it used to hold."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.listOwnTab).onChange(async (v) => {
+					this.plugin.settings.listOwnTab = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Ungrouped tasks first")
+			.setDesc(
+				"Show tasks that are in no group above the groups rather than below them. On by default, because that is where they are in the file."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.ungroupedFirst).onChange(async (v) => {
+					this.plugin.settings.ungroupedFirst = v;
+					await this.plugin.saveSettings();
+					this.plugin.refreshViews();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Tidy away empty groups")
+			.setDesc(
+				"Remove a heading once the last task leaves it. Off by default, so a group you are about to fill does not vanish as you drag."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.autoRemoveEmptySections).onChange(async (v) => {
+					this.plugin.settings.autoRemoveEmptySections = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Completed tasks")
 			.setDesc("Default state for the completed group at the bottom of a list.")
 			.addDropdown((d) =>
 				d
@@ -268,18 +375,6 @@ export class ListsSettingTab extends PluginSettingTab {
 				})
 			);
 
-		new Setting(containerEl)
-			.setName("Shade alternate rows")
-			.setDesc(
-				"Give every other row a slightly different background, so a long row is easier to follow across. A list can turn this on or off for itself from its own menu; this decides what the rest do."
-			)
-			.addToggle((t) =>
-				t.setValue(this.plugin.settings.stripeRows).onChange(async (v) => {
-					this.plugin.settings.stripeRows = v;
-					await this.plugin.saveSettings();
-					this.plugin.refreshViews();
-				})
-			);
 
 		new Setting(containerEl)
 			.setName("New lists start as")

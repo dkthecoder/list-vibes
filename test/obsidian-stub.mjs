@@ -45,6 +45,17 @@ export const Platform = { isMobile: false };
 export function makeApp(files, openEditors = []) {
 	const store = new Map(Object.entries(files));
 
+	/*
+	 * Which write path each edit took.
+	 *
+	 * Both paths land in the same store, so the result cannot tell them apart —
+	 * and the rule the Mutator states is about the path, not the result: an open
+	 * file has to be written through the editor or the cursor, selection and
+	 * folds are lost when the file watcher reconciles.
+	 */
+	const paths = { process: 0, editor: 0 };
+	const trashed = [];
+
 	const editorFor = (path) => {
 		const lines = () => store.get(path).split("\n");
 		return {
@@ -52,6 +63,7 @@ export function makeApp(files, openEditors = []) {
 			lastLine: () => lines().length - 1,
 			getLine: (n) => lines()[n],
 			setLine: (n, text) => {
+				paths.editor++;
 				const l = lines();
 				l[n] = text;
 				store.set(path, l.join("\n"));
@@ -59,6 +71,7 @@ export function makeApp(files, openEditors = []) {
 			getValue: () => store.get(path),
 			setValue: (v) => store.set(path, v),
 			transaction: (tx) => {
+				paths.editor++;
 				// Only the whole-document replacement shape the Mutator uses.
 				for (const c of tx.changes ?? []) {
 					const l = lines();
@@ -93,6 +106,8 @@ export function makeApp(files, openEditors = []) {
 
 	return {
 		__store: store,
+		__paths: paths,
+		__trashed: trashed,
 		vault: {
 			/*
 			 * Folders exist here only as a set of names. The real vault has
@@ -113,12 +128,23 @@ export function makeApp(files, openEditors = []) {
 			cachedRead: async (f) => store.get(f.path),
 			read: async (f) => store.get(f.path),
 			process: async (f, fn) => {
+				paths.process++;
 				const next = fn(store.get(f.path));
 				store.set(f.path, next);
 				return next;
 			},
 		},
 		fileManager: {
+			/*
+			 * Obsidian's own delete, which honours the vault's "Deleted files"
+			 * setting — system trash, the vault's .trash, or permanent. Recorded
+			 * rather than just performed, so a test can tell a trashed file from
+			 * one removed some other way.
+			 */
+			trashFile: async (file) => {
+				trashed.push(file.path);
+				store.delete(file.path);
+			},
 			renameFile: async (file, target) => {
 				const content = store.get(file.path);
 				store.delete(file.path);

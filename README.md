@@ -34,6 +34,10 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
   file's frontmatter.
 - **Rename in place** — double-click a list's name. It renames the file, and
   every open tab follows.
+- **Delete a list**, through the vault's own "Deleted files" setting rather than
+  a choice of ours.
+- **Drag to reorder the lists themselves.** The order lives in settings, never
+  in your markdown.
 - **Tidy titles** turn `my-work-list.md` into "My work list" for display, without
   touching the filename. Toggleable if you want the true name.
 - Open a list **in the sidebar** or **as a tab**. In tab mode the sidebar stays a
@@ -41,16 +45,37 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
 
 ### Tasks
 
-- Tick, add, rename, delete, and **drag to reorder**.
+- Tick, add, rename, delete, and **drag to reorder** — between groups too, and
+  on the post-it wall as well as in rows.
 - **Steps** — nested subtasks with an "n of m" counter. Can be switched off.
 - **Notes** — a description under any task, with the first line shown faintly
   beneath the title in the list.
 - **Importance** — a single star, or a 1–5 star rating if you prefer more room.
 - **Due dates**, **scheduled dates**, **reminders**, and **My Day**.
 - **Repeating tasks** — `🔁 every week`. Ticking one writes the next occurrence.
+- **Starred at the top** — starring lifts a task into a band above the rest. A
+  band in the view, never a heading in your file.
 - **Completed section** — collapsed, expanded, or hidden, per your setting.
 - Completion and creation stamps, optionally **with the time**:
   `✅ 2026-08-26T14:32`.
+
+### Groups
+
+A `##` heading is a group, and groups are a real part of the file rather than a
+view over it.
+
+- **Fold**, **rename in place**, **move up and down**, or **drag the heading**
+  to reorder — the tasks travel with it.
+- **Drag a task between groups**, in rows or on the wall. Hold near the edge and
+  the list scrolls to meet you.
+- **Delete a group** and its tasks join the group above. Taking them with it is
+  a separate, confirmed choice.
+- **Add where you are looking** — the add row names the group a new task joins,
+  and lets you change it.
+- Tasks in **no group** keep their own run above the groups, separated by a
+  rule, so nothing has to be in one.
+- An **empty group** is drawn so it can be dropped into, and can be tidied away
+  by itself if you switch that on.
 
 ### Views
 
@@ -96,7 +121,7 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
 ### Commands
 
 `Open List Vibes` · `Open My Day` · `Open a list in a new tab` · `Add a task` ·
-`Add a task to My Day`
+`Add a task to My Day` · `Undo last change`
 
 ## Storage format
 
@@ -140,11 +165,61 @@ anything already on disk.
 An emoji at the start of a filename (`📺Movies & TV.md`) is used as the list icon
 and removed from the display name.
 
+`##` headings are groups. Nothing else is written for them — a group *is* the
+heading, so renaming one rewrites that line and moving one moves the block
+beneath it. Which group a task is in is decided by where its line sits, not by
+anything recorded on the task.
+
+Two things that look like groups are not, and are never written to the file: the
+**Starred** band and **Completed**. Both are views over whatever happens to be
+starred or done, which is why a task shown in either carries the name of the
+group it came from.
+
 Colour and layout are written to the list's frontmatter. That write goes through
 our own single-key editor rather than Obsidian's `processFrontMatter`, which
 round-trips the whole block through a YAML parser and can reorder keys — these
 files are yours, and one of them is a Kanban board whose plugin reads its own
 frontmatter back. Only the line being set is ever touched.
+
+## Undo
+
+Obsidian's undo belongs to the editor — it is CodeMirror's history, attached to
+a Markdown tab. This view is not one. When the file happens to be open the
+plugin writes through the Editor API and those changes do land in that tab's
+history, but the ordinary case is ticking a task in the sidebar while the file
+is open nowhere, and that write goes to disk with nothing tracking it.
+
+So `Cmd/Ctrl+Z` inside a List Vibes view walks back the last fifty changes it
+made. It is bound on the view's own scope rather than as a global hotkey, so
+the editor keeps the shortcut everywhere else and the two histories never
+compete.
+
+Whole file contents are remembered rather than an inverse per operation. Every
+write already funnels through a handful of helpers, so snapshotting there covers
+every operation at once — including ones added later — without a single
+mutation knowing undo exists.
+
+An undo applies **only if the file still says what that write left behind**. It
+may have been edited by hand, by a sync, or by another plugin since, and putting
+back what was there before would throw away whatever arrived after.
+
+Deleting a list is undoable too, with one caveat: Obsidian has no un-delete, so
+undo writes a new file with the old contents. The trashed copy stays wherever
+your vault sent it.
+
+## A tab per list
+
+Each list opens in its own tab, and picking one already open focuses that tab
+rather than replacing something.
+
+That is a correctness decision as much as a preference. Obsidian rereads a
+custom view's name when it decides to rather than when its state changes, and no
+public API asks it to — so a tab handed a *different* list goes on wearing the
+old one's name. A tab that is only ever created or focused never holds a list it
+was not built for, so the question never arises.
+
+Turn **A tab per list** off for a single shared tab, at the cost of a tab title
+that can name the list it used to hold.
 
 ## Importance and sorting
 
@@ -213,6 +288,20 @@ an input hook for themes, and Obsidian defaults it to a font registered over
 back to the browser's default serif, worst of all when a theme is well behaved
 and sets no font of its own.
 
+## Colour
+
+A list's colour is a pastel mixed from the theme's own colour and the surface
+the pane already uses, and the items wear it rather than a stripe beside them.
+
+Mixing into the *surface* is what makes one rule work in both themes: the same
+declaration lands pale on a light theme and deep on a dark one, because it is
+the theme's background being tinted. There is still no colour here that the
+theme did not supply, which the palette suite checks by repainting every token
+and failing if a single value fails to move.
+
+A list that has chosen no colour still has one — the theme's accent — so the
+default list is tinted too.
+
 ## Folder
 
 Default `lists/`, configurable.
@@ -225,8 +314,8 @@ Do **not** use a dot-prefixed folder like `.lists/`.
 npm install
 npm run dev      # watch build
 npm run build    # typecheck + production build
-npm test         # 294 tests: parsing, sorting, frontmatter, view state, writes
-npm run test:ui  # drives drags, renames, titles and mobile typing in a browser
+npm test         # 484 tests: parsing, groups, sorting, merges, undo, writes
+npm run test:ui  # drives drags, groups, renames, titles and mobile typing
 npm run shot     # renders every pane to harness/shot-{light,dark}.png
 ```
 

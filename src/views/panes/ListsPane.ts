@@ -2,6 +2,7 @@ import { Menu, Notice, normalizePath, setIcon } from "obsidian";
 import { SMART_VIEWS, Selection, ViewContext, sameSelection } from "../context";
 import { ListColor, TaskList, isComplete } from "../../model/types";
 import { makeEditableName } from "../../ui/editableName";
+import { makeDragSortable } from "../../ui/dragSort";
 import { selectionKey } from "../viewState";
 
 /** Left pane: smart views, then one row per list file in the folder. */
@@ -30,7 +31,7 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	/* --- lists --- */
 	renamers.clear();
-	const lists = ctx.store.getLists();
+	const lists = ctx.orderedLists();
 	const group = scroll.createDiv({ cls: "lv-nav-group" });
 
 	if (!lists.length) {
@@ -45,9 +46,20 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 		});
 	}
 
+	/*
+	 * Dragging a list is a preference, not an edit.
+	 *
+	 * Every other drag in the plugin rewrites a file, and is offered only under
+	 * the file's own order for that reason. A list has no file order at all, so
+	 * there is nothing a drag here could contradict — it is always available,
+	 * and what it writes is settings.
+	 */
+	const rows: HTMLElement[] = [];
+	const paths = lists.map((l) => l.path);
+
 	for (const list of lists) {
 		const open = list.tasks.filter((t) => !isComplete(t)).length;
-		row(group, {
+		rows.push(row(group, {
 			icon: list.config.icon ? undefined : "list",
 			emoji: list.config.icon ?? undefined,
 			label: list.name,
@@ -62,6 +74,21 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 			onRename: (next) => ctx.renameList(list.path, next),
 			renameKey: list.path,
 			selKey: selectionKey({ kind: "list", path: list.path }),
+		}));
+	}
+
+	if (rows.length > 1) {
+		rows.forEach((el, index) => {
+			el.addClass("lv-sortable");
+			makeDragSortable(el, {
+				index,
+				siblings: () => rows,
+				onDrop: (from, to) => {
+					const next = [...paths];
+					next.splice(to, 0, ...next.splice(from, 1));
+					ctx.reorderLists(next);
+				},
+			});
 		});
 	}
 
@@ -131,7 +158,7 @@ const renamers = new Map<string, () => void>();
  * than `is-selected`: it is the older, more conservative treatment, and there
  * is only ever one open list to highlight.
  */
-function row(parent: HTMLElement, o: RowOpts): void {
+function row(parent: HTMLElement, o: RowOpts): HTMLElement {
 	const item = parent.createDiv({ cls: "tree-item lv-nav-item" });
 	const el = item.createDiv({
 		cls: "tree-item-self is-clickable tappable lv-nav-row",
@@ -224,6 +251,8 @@ function row(parent: HTMLElement, o: RowOpts): void {
 		}
 	});
 	if (o.onContext) el.addEventListener("contextmenu", o.onContext);
+
+	return item;
 }
 
 function showListMenu(
@@ -240,6 +269,17 @@ function showListMenu(
 			.setIcon("list-todo")
 			.onClick(() => ctx.openInNewTab({ kind: "list", path: list.path }))
 	);
+
+	// Only worth offering once there is something to undo: an empty order is
+	// alphabetical already, so the item would do nothing and say nothing.
+	if (ctx.settings.listOrder.length) {
+		menu.addItem((i) =>
+			i
+				.setTitle("Sort lists alphabetically")
+				.setIcon("arrow-down-a-z")
+				.onClick(() => ctx.reorderLists([]))
+		);
+	}
 
 	menu.addSeparator();
 
@@ -270,19 +310,6 @@ function showListMenu(
 			.onClick(() => void pickColor(ctx, list))
 	);
 
-	// Three states, not two: on, off, and "whatever the setting says". Checking
-	// the item off returns the list to the default rather than pinning it.
-	const striped = list.config.stripes ?? ctx.settings.stripeRows;
-	menu.addItem((i) =>
-		i
-			.setTitle("Shade alternate rows")
-			.setIcon("rows-3")
-			.setChecked(striped)
-			.onClick(() =>
-				ctx.setStripes(list.path, striped === ctx.settings.stripeRows ? !striped : null)
-			)
-	);
-
 	menu.addSeparator();
 
 	menu.addItem((i) =>
@@ -291,6 +318,37 @@ function showListMenu(
 			.setIcon("file-text")
 			.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
 	);
+
+	/*
+	 * Last, behind its own separator, and marked.
+	 *
+	 * It sat between "Change colour" and "Open as note", which is where an
+	 * accident happens: the one item that throws a file away, shelved among the
+	 * ones that change how it looks. Bottom of the menu is where a destructive
+	 * action is looked for and, more usefully, where it is not found by mistake.
+	 */
+	menu.addSeparator();
+
+	menu.addItem((i) => {
+		i.setTitle("Delete list")
+			.setIcon("trash-2")
+			.onClick(() => {
+				const open = list.all.filter((t) => !isComplete(t)).length;
+				void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
+					new ConfirmModal(ctx.app, {
+						title: `Delete "${list.name}"?`,
+						// Named rather than counted away: the file is the list, and
+						// where it goes is the vault's setting, not ours.
+						body: open
+							? `${list.name}.md holds ${open} unfinished task${open === 1 ? "" : "s"}. It goes wherever your vault sends deleted files.`
+							: `${list.name}.md goes wherever your vault sends deleted files.`,
+						cta: "Delete list",
+						onConfirm: () => ctx.deleteList(list.path),
+					}).open();
+				});
+			});
+		i.setWarning(true);
+	});
 
 	menu.showAtMouseEvent(e);
 }

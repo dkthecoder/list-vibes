@@ -36,6 +36,7 @@ export default class ListsPlugin extends Plugin {
 			addDoneDate: () => this.settings.addDoneDate,
 			addCreatedDate: () => this.settings.addCreatedDate,
 			stampTime: () => this.settings.stampTime,
+			autoRemoveEmptySections: () => this.settings.autoRemoveEmptySections,
 		});
 
 		this.registerView(VIEW_TYPE_LISTS, (leaf) => new ListsView(leaf, this));
@@ -140,6 +141,23 @@ export default class ListsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Step back one change, and say so.
+	 *
+	 * The notice is the whole feedback: a list that quietly changes shape under
+	 * you is indistinguishable from one that ignored the keystroke, and the
+	 * refusal case — the file moved on since that edit — has to be said out loud
+	 * or it looks like nothing happened at all.
+	 */
+	async undo(): Promise<void> {
+		if (!this.mutator.canUndo()) {
+			new Notice("Nothing to undo");
+			return;
+		}
+		const result = await this.mutator.undo();
+		if (!result.ok) new Notice(`Cannot undo — ${result.reason ?? "it did not apply"}`);
+	}
+
 	/** Reparse everything and repaint, e.g. after a folder change. */
 	refresh(): void {
 		this.store.setFolder(this.settings.folder);
@@ -204,6 +222,12 @@ export default class ListsPlugin extends Plugin {
 	}
 
 	private registerCommands(): void {
+		this.addCommand({
+			id: "undo",
+			name: "Undo last change",
+			callback: () => void this.undo(),
+		});
+
 		this.addCommand({
 			id: "open",
 			name: "Open lists",
@@ -368,7 +392,8 @@ export default class ListsPlugin extends Plugin {
 				};
 			}),
 			sel,
-			newTab
+			newTab,
+			this.settings.listOwnTab
 		);
 
 		if (choice.action === "focus") {

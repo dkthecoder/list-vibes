@@ -2,7 +2,9 @@ import { App } from "obsidian";
 import { ListStore, SmartView } from "../model/store";
 import { Mutator } from "../model/mutate";
 import { ListsSettings } from "../settings";
-import { ListColor, Task, TaskMeta, ViewMode } from "../model/types";
+import { ListColor, Task, TaskMeta, ViewMode,
+	TaskList,
+} from "../model/types";
 import type { RenderScope } from "./ListsView";
 import { SortKey } from "../model/sort";
 
@@ -23,6 +25,15 @@ export interface ViewState {
 	composing: boolean;
 	/** Which detail action row is expanded, so only one opens at a time. */
 	openAction: string | null;
+	/**
+	 * The section a new task goes into, as its heading's line.
+	 *
+	 * `null` is the space above the first heading, `undefined` the end of the
+	 * file — which is what adding always did and what a list with no headings
+	 * wants. Held per view rather than written down: it is a thing you set while
+	 * filling one section and stop caring about the moment you leave.
+	 */
+	addSection?: number | null;
 	/**
 	 * Metadata staged on the add box before the task exists.
 	 *
@@ -91,13 +102,21 @@ export interface ViewContext extends DetailContext {
 	defaultViewMode: () => ViewMode;
 	setDefaultViewMode: (mode: ViewMode) => void;
 
+	/** Lists in the order they were dragged into, and a way to set it. */
+	orderedLists: () => TaskList[];
+	reorderLists: (paths: string[]) => void;
+
+	/** Is this section folded, and fold or unfold it. View-only. */
+	sectionCollapsed: (path: string, name: string) => boolean;
+	toggleSection: (path: string, name: string) => void;
+
 	/** Colour is a property of the list, so it lives in its frontmatter. */
 	setColor: (path: string, color: ListColor | null) => void;
 	setIcon: (path: string, icon: string | null) => void;
-	/** `null` hands the list back to the setting. */
-	setStripes: (path: string, stripes: boolean | null) => void;
 	/** The list's name is its filename, so this renames the file. */
 	renameList: (path: string, name: string) => void;
+	/** Throws the file away, through the vault's own deleted-files setting. */
+	deleteList: (path: string) => void;
 }
 
 export function sameSelection(a: Selection, b: Selection): boolean {

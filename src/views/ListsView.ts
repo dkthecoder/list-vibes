@@ -13,7 +13,7 @@ import { keyboardOverlap } from "./keyboard";
 import { isTextEntry } from "./focus";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
-import { SortKey } from "../model/sort";
+import { SortKey, orderLists } from "../model/sort";
 import {
 	RenderScope,
 	decodeSelection,
@@ -180,6 +180,20 @@ export class ListsView extends ItemView {
 		});
 
 		/*
+		 * Undo, scoped to this view.
+		 *
+		 * Registered on the view's own scope rather than as a global hotkey, so
+		 * it only answers while a List Vibes view has focus and the editor keeps
+		 * the shortcut everywhere else. The two undo stacks never compete: in a
+		 * Markdown tab you get CodeMirror's, here you get the plugin's.
+		 */
+		this.scope.register(["Mod"], "z", (e) => {
+			e.preventDefault();
+			void this.plugin.undo();
+			return false;
+		});
+
+		/*
 		 * Measure the keyboard, and do exactly one thing with the answer:
 		 * reserve room at the end of the scroller, as Obsidian does for its own.
 		 *
@@ -266,6 +280,7 @@ export class ListsView extends ItemView {
 		 */
 		result.history = movedList || opening;
 		this.render();
+
 	}
 
 	onResize(): void {
@@ -342,9 +357,9 @@ export class ListsView extends ItemView {
 
 				this.state.pane = "tasks";
 				this.render();
-				// In a workspace tab the header shows the list name, so the tab has
-				// to be told the state changed. setViewState is the public way to do
-				// that; it re-enters setState harmlessly.
+				// Persisted so the tab remembers which list it had. Naming it is
+				// not done here: a tab is created holding its list and never given
+				// another, so the name Obsidian read at construction stays true.
 				if (this.inMainWorkspace()) void this.persistState();
 			},
 
@@ -414,6 +429,37 @@ export class ListsView extends ItemView {
 				this.render("tasks");
 			},
 
+			orderedLists: () => {
+				const lists = this.plugin.store.getLists();
+				const order = orderLists(
+					lists.map((l) => l.path),
+					this.plugin.settings.listOrder
+				);
+				const byPath = new Map(lists.map((l) => [l.path, l]));
+				return order.flatMap((p) => byPath.get(p) ?? []);
+			},
+
+			reorderLists: (paths: string[]) => {
+				this.plugin.settings.listOrder = paths;
+				void this.plugin.saveSettings();
+				// The picker lives outside the task pane, so this is the whole tree.
+				this.render("all");
+			},
+
+			sectionCollapsed: (path: string, name: string) =>
+				(this.plugin.settings.collapsedSections[path] ?? []).includes(name),
+
+			toggleSection: (path: string, name: string) => {
+				const folded = this.plugin.settings.collapsedSections[path] ?? [];
+				const next = folded.includes(name)
+					? folded.filter((n) => n !== name)
+					: [...folded, name];
+				if (next.length) this.plugin.settings.collapsedSections[path] = next;
+				else delete this.plugin.settings.collapsedSections[path];
+				void this.plugin.saveSettings();
+				this.render("tasks");
+			},
+
 			setViewMode: (mode: ViewMode) => {
 				const sel = this.state.selection;
 				if (sel.kind !== "list") return;
@@ -432,18 +478,24 @@ export class ListsView extends ItemView {
 				void this.plugin.promote(task);
 			},
 
-			setStripes: (path: string, stripes: boolean | null) => {
-				void this.plugin.mutator.setListConfig(
-					path,
-					"stripes",
-					stripes === null ? null : String(stripes)
-				);
-			},
 
 			setIcon: (path: string, icon: string | null) => {
 				// Frontmatter, not the filename: renaming a file to change its icon
 				// would rewrite every link pointing at it.
 				void this.plugin.mutator.setListConfig(path, "icon", icon);
+			},
+
+			deleteList: (path: string) => {
+				// Whatever it was showing is gone, so the view falls back to the
+				// picker rather than to a list that is not there any more.
+				if (
+					this.state.selection.kind === "list" &&
+					this.state.selection.path === path
+				) {
+					this.state.selection = { kind: "smart", view: "all" };
+					this.state.selectedTask = null;
+				}
+				void this.plugin.mutator.deleteList(path);
 			},
 
 			renameList: (path: string, name: string) => {

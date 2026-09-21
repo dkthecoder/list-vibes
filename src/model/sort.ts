@@ -130,3 +130,53 @@ export function partitionCompleted(tasks: Task[]): {
 	for (const t of tasks) (isComplete(t) ? done : open).push(t);
 	return { open, done };
 }
+
+/**
+ * Put the lists in the order the user dragged them into.
+ *
+ * Task order is file order, so moving a task is a real edit to a real file. A
+ * list has no file order — the picker reads the folder — so a custom one is
+ * stored in settings, and settings drift: files are created, renamed and
+ * deleted while the plugin is not looking.
+ *
+ * So the stored order is treated as a preference rather than a truth. Anything
+ * it names that has gone is skipped, and anything it has never heard of keeps
+ * the order it arrived in, at the end — a list that appears in the folder
+ * should turn up somewhere predictable rather than wherever a sort happens to
+ * put it.
+ */
+export function orderLists(paths: string[], order: string[]): string[] {
+	const available = new Set(paths);
+	const placed = new Set<string>();
+	const out: string[] = [];
+
+	for (const path of order) {
+		if (!available.has(path) || placed.has(path)) continue;
+		placed.add(path);
+		out.push(path);
+	}
+	for (const path of paths) if (!placed.has(path)) out.push(path);
+	return out;
+}
+
+/**
+ * Split the starred tasks out, so they can be shown above the rest.
+ *
+ * A band in the view rather than a `## Starred` heading in the file. Writing
+ * one would mean moving a task's block out of its own section every time it was
+ * starred, and putting it back somewhere on every unstar — a question with no
+ * honest answer. Groupings here are view-only, and this is a grouping.
+ *
+ * Completed tasks are left out: they have their own place at the bottom, and a
+ * star on something already done is a record of what mattered rather than a
+ * claim on the top of the list.
+ */
+export function partitionStarred(tasks: Task[]): { starred: Task[]; rest: Task[] } {
+	const starred: Task[] = [];
+	const rest: Task[] = [];
+	for (const t of tasks) {
+		if (isStarred(t) && !isComplete(t)) starred.push(t);
+		else rest.push(t);
+	}
+	return { starred, rest };
+}

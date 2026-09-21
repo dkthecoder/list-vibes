@@ -6,6 +6,7 @@ import { ViewContext } from "../views/context";
 import { renderInline } from "./inline";
 import { renderImportance } from "./Importance";
 import { notePreview } from "./notePreview";
+import { renderSectionBadge } from "./sectionBadge";
 
 /**
  * One task row: checkbox, title, a metadata subtitle, and the importance star.
@@ -15,7 +16,7 @@ export function renderTaskRow(
 	parent: HTMLElement,
 	task: Task,
 	ctx: ViewContext,
-	opts: { showList?: boolean } = {}
+	opts: { showList?: boolean; showSection?: boolean } = {}
 ): HTMLElement {
 	const row = parent.createDiv({ cls: "lv-task" });
 	row.toggleClass("is-complete", isComplete(task));
@@ -57,7 +58,6 @@ export function renderTaskRow(
 		const name = task.filePath.split("/").pop()?.replace(/\.md$/, "");
 		if (name) bits.push({ text: name });
 	}
-	if (task.section) bits.push({ text: task.section });
 	if (task.meta.myDay) bits.push({ text: "My Day" });
 
 	if (ctx.settings.enableSubtasks && task.children.length) {
@@ -85,6 +85,17 @@ export function renderTaskRow(
 			if (b.cls) span.addClass(b.cls);
 		});
 	}
+
+	/*
+	 * The section sits at the far right, not among the metadata.
+	 *
+	 * A grouped list names the section once in its heading, so repeating it on
+	 * every row is noise. Where the row is shown away from that heading —
+	 * Completed, a smart view, a computed sort — it is the only thing saying
+	 * where the task belongs, and it is about grouping rather than about the
+	 * task, so it sits apart from the chips that describe the task itself.
+	 */
+	if (opts.showSection) renderSectionBadge(row, task);
 
 	/* --- importance --- */
 	renderImportance(row, task, ctx);

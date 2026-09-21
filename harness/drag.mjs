@@ -29,8 +29,16 @@ await page.waitForTimeout(200);
    pointer reaches a row there at all. */
 const PANE = "#drag";
 
+/* The run this suite drives.
+ *
+ * Not simply the first `.lv-group`: a starred task is lifted into a band of its
+ * own above everything else, so the first run can be that band — and dragging
+ * inside it is a cross-run move, which is the sections suite's business rather
+ * than this one's. This is the ordinary run of ordinary rows. */
+const GROUP = ".lv-group:not(.lv-starred-run)";
+
 const rows = async () =>
-	page.$$eval(`${PANE} .lv-group > .lv-task`, (els) =>
+	page.$$eval(`${PANE} ${GROUP} > .lv-task`, (els) =>
 		els.map((e) => e.querySelector(".lv-task-title")?.textContent?.trim())
 	);
 
@@ -53,7 +61,7 @@ check("rows render and are sortable", before.length >= 3, `${before.length} rows
 const addPlacement = await page.$eval(PANE, (pane) => {
 	const add = pane.querySelector(".lv-add");
 	if (!add) return null;
-	const group = pane.querySelector(".lv-group");
+	const group = pane.querySelector(".lv-group:not(.lv-starred-run)");
 	const completed = pane.querySelector(".lv-completed");
 	const follows = (a, b) =>
 		!!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -71,7 +79,12 @@ check(
 	JSON.stringify(addPlacement)
 );
 
-const sortableCount = await page.$$eval(`${PANE} .lv-task.lv-sortable`, (e) => e.length);
+// Scoped to the run being driven: rows in the starred band are sortable too,
+// and counting them against this run's length compares two different things.
+const sortableCount = await page.$$eval(
+	`${PANE} ${GROUP} > .lv-task.lv-sortable`,
+	(e) => e.length
+);
 check("every row is marked sortable", sortableCount === before.length,
 	`${sortableCount}/${before.length}`);
 
@@ -86,7 +99,7 @@ check("the post-it wall offers no drag either", postitPane === 0, `${postitPane}
 
 /* ---- a mouse drag from the first row down past the second ---- */
 const box = async (i) =>
-	page.$eval(`${PANE} .lv-group > .lv-task:nth-child(${i + 1})`, (el) => {
+	page.$eval(`${PANE} ${GROUP} > .lv-task:nth-child(${i + 1})`, (el) => {
 		const r = el.getBoundingClientRect();
 		return { x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height };
 	});
@@ -182,7 +195,7 @@ check(
 await page.evaluate(() => (window.lvCalls.length = 0));
 const swipe = await page.evaluate(
 	({ pane, x, y }) => {
-		const row = document.querySelector(`${pane} .lv-group > .lv-task`);
+		const row = document.querySelector(`${pane} .lv-group:not(.lv-starred-run) > .lv-task`);
 		const ev = (type, cy) =>
 			row.dispatchEvent(
 				new PointerEvent(type, {
@@ -218,7 +231,7 @@ check(
 await page.evaluate(() => (window.lvCalls.length = 0));
 await page.evaluate(
 	({ pane, x, y }) => {
-		const row = document.querySelector(`${pane} .lv-group > .lv-task`);
+		const row = document.querySelector(`${pane} .lv-group:not(.lv-starred-run) > .lv-task`);
 		row.setPointerCapture = () => {};
 		row.releasePointerCapture = () => {};
 		row.hasPointerCapture = () => false;

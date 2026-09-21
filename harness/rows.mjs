@@ -393,41 +393,62 @@ check(
    hovered, and hovering it does nothing.
    ------------------------------------------------------------------ */
 
-const stripes = await page.evaluate((pane) => {
+/* ---------------- a row is a box ---------------- */
+
+/* Stripes are gone. They separated one row from the next by tinting every other
+   one, which needed a rule about odd and even that broke the moment a section
+   split the list, and gave the rows nothing in common with the wall. A row now
+   carries the card's own surface instead. */
+const boxes = await page.evaluate((pane) => {
 	const rows = Array.from(document.querySelectorAll(`${pane} .lv-group .lv-task`));
+	const pane_ = document.querySelector(`${pane} .lv-scroll`) ?? document.querySelector(pane);
+	const s = (el) => getComputedStyle(el);
 	return {
 		count: rows.length,
-		striped: rows.map((r) => r.classList.contains("lv-stripe")),
-		colours: rows.map((r) => getComputedStyle(r).backgroundColor),
+		stripedAny: rows.some((r) => r.classList.contains("lv-stripe")),
+		colours: [...new Set(rows.map((r) => s(r).backgroundColor))],
+		pane: s(pane_).backgroundColor,
+		radius: rows[0] ? s(rows[0]).borderTopLeftRadius : "0px",
+		gap: rows[0] ? s(rows[0]).marginBottom : "0px",
 	};
 }, PANE);
 
+check("no row is striped any more", !boxes.stripedAny);
+
 check(
-	"every other row carries the stripe",
-	stripes.count > 2 && stripes.striped.every((on, i) => on === (i % 2 === 1)),
-	JSON.stringify(stripes.striped)
+	"every row has the same resting surface",
+	boxes.count > 2 && boxes.colours.length === 1,
+	JSON.stringify(boxes.colours)
 );
 
 check(
-	"and a striped row is a different colour from the one above it",
-	new Set(stripes.colours).size === 2,
-	JSON.stringify([...new Set(stripes.colours)])
+	"which is distinguishable from the pane behind it",
+	boxes.colours[0] !== boxes.pane,
+	`row=${boxes.colours[0]} pane=${boxes.pane}`
 );
 
-// `:hover` needs a real pointer, so this is Playwright moving one rather than
-// a dispatched event, which would not match the selector.
-const stripeSel = `${PANE} .lv-group .lv-task.lv-stripe`;
+check("a row is rounded", parseFloat(boxes.radius) > 0, boxes.radius);
+check("and separated from the next", parseFloat(boxes.gap) > 0, boxes.gap);
+
+// `:hover` needs a real pointer, so this is Playwright moving one rather than a
+// dispatched event, which would not match the selector.
+const rowSel = `${PANE} .lv-group .lv-task`;
 const colourOf = (sel) =>
-	page.evaluate((s) => getComputedStyle(document.querySelector(s)).backgroundColor, sel);
+	page.evaluate((x) => getComputedStyle(document.querySelector(x)).backgroundColor, sel);
 
-const stripeResting = await colourOf(stripeSel);
-await page.hover(stripeSel);
-const stripeHovered = await colourOf(stripeSel);
+const resting = await colourOf(rowSel);
+await page.hover(rowSel);
+const hovered = await colourOf(rowSel);
 
-// A subtask shares its parent's stripe by not being a row at all: the pane
-// iterates root tasks and a child shows as a "1 of 3" count inside the parent.
-// Were a child ever rendered as its own row, it would take the next stripe and
-// alternate against the task it belongs to.
+check(
+	"and still answers the pointer",
+	resting !== hovered,
+	`resting=${resting} hovered=${hovered}`
+);
+
+/* A subtask is not a row of its own: the pane iterates root tasks and a child
+   shows as a "1 of 3" count inside the parent. Were a child ever rendered as
+   its own row it would draw its own box inside its parent's. */
 const nesting = await page.evaluate((pane) => {
 	const rows = Array.from(document.querySelectorAll(`${pane} .lv-group .lv-task`));
 	return {
@@ -437,15 +458,9 @@ const nesting = await page.evaluate((pane) => {
 }, PANE);
 
 check(
-	"a task with subtasks is still one row, so they share its stripe",
+	"a task with subtasks is still one box, not a box inside a box",
 	nesting.withChildren > 0 && nesting.nested === 0,
 	`${nesting.withChildren} row(s) with subtasks, ${nesting.nested} nested`
-);
-
-check(
-	"and hovering a striped row still changes it",
-	stripeResting !== stripeHovered,
-	`resting=${stripeResting} hovered=${stripeHovered}`
 );
 
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));

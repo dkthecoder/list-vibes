@@ -1,6 +1,7 @@
 import { Menu, setIcon } from "obsidian";
 import { SMART_VIEWS, ViewContext } from "../context";
 import {
+	ListSection,
 	Priority,
 	Task,
 	TaskList,
@@ -18,6 +19,7 @@ import {
 	SORT_OPTIONS,
 	STARS_BY_PRIORITY,
 	partitionCompleted,
+	partitionStarred,
 	sortTasks,
 } from "../../model/sort";
 
@@ -25,20 +27,6 @@ import {
  * The task list for the current selection, with completed tasks grouped into a
  * collapsible section beneath and an add box at the bottom that expands upward.
  */
-/**
- * Shade every other row, after the rows exist.
- *
- * Not `:nth-child`, because a `##` heading is a sibling of the rows it splits,
- * so the selector would count it and put two stripes together. Each container
- * is striped on its own, so expanding Completed cannot reshuffle the rows above
- * it.
- */
-function stripe(container: HTMLElement): void {
-	container.querySelectorAll<HTMLElement>(".lv-task").forEach((row, i) => {
-		if (i % 2 === 1) row.addClass("lv-stripe");
-	});
-}
-
 export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	const pane = parent.createDiv({ cls: "lv-pane lv-tasks" });
 	const sel = ctx.state.selection;
@@ -239,6 +227,21 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			menu.addSeparator();
 			menu.addItem((i) =>
 				i
+					.setTitle("New group")
+					.setIcon("heading")
+					.onClick(() => {
+						void import("../../ui/PromptModal").then(({ PromptModal }) => {
+							new PromptModal(ctx.app, {
+								title: "New group",
+								placeholder: "Group name",
+								cta: "Add",
+								onSubmit: (name) => void ctx.mutator.createSection(list.path, name),
+							}).open();
+						});
+					})
+			);
+			menu.addItem((i) =>
+				i
 					.setTitle("Open as note")
 					.setIcon("file-text")
 					.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
@@ -296,16 +299,25 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	 * having failed. Smart views are excluded for a stronger reason: their rows
 	 * come from several files at once, so there is no single order to rewrite.
 	 *
-	 * Post-it mode is excluded for now because the wall wraps into a grid, and a
-	 * vertical drag preview cannot describe a move in two dimensions.
+	 * Post-it mode used to be excluded because the wall wraps into a grid and a
+	 * vertical drag preview cannot describe a move in two dimensions. It no
+	 * longer has to: a drop is now a run picked by hit-test plus an index within
+	 * it, so neither half of the arithmetic thinks in two dimensions.
 	 */
-	const sortable = sortKey === "custom" && !isSmart && mode === "list";
-	renderTasks(scroll, open, ctx, { grouped, showList: isSmart, mode, sortable });
+	const sortable = sortKey === "custom" && !isSmart;
+	renderTasks(scroll, open, ctx, {
+		grouped,
+		showList: isSmart,
+		mode,
+		sortable,
+		sections: list?.sections ?? [],
+		path: list?.path ?? "",
+		starredFirst: ctx.settings.starredSection,
+		ungroupedFirst: ctx.settings.ungroupedFirst,
+	});
 
 	// A list decides for itself; absent, the setting decides. Post-it view is
 	// cards rather than rows, so there is nothing to alternate.
-	const striped = mode === "list" && (list?.config.stripes ?? ctx.settings.stripeRows);
-	if (striped) stripe(scroll);
 
 	/* ---------------- add box ---------------- */
 	if (!isSmart || sel.view === "myday") {
@@ -332,7 +344,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		 * which makes this testable without a phone.
 		 */
 		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
-		renderAddBox(scroll, ctx, touch);
+		renderAddBox(scroll, ctx, touch, list?.sections ?? []);
 	}
 
 	/* ---------------- completed ---------------- */
@@ -370,10 +382,13 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			// file, so its rows are not adjacent lines and a splice between two of
 			// them would land in the middle of the open tasks above.
 			for (const t of done) {
-				if (mode === "postit") renderTaskCard(body, t, ctx, { showList: isSmart });
-				else renderTaskRow(body, t, ctx, { showList: isSmart });
+				// Completed is never grouped — it is a filtered subset of the
+				// file — so a task here has left its heading behind and has to
+				// carry it.
+				const o = { showList: isSmart, showSection: true };
+				if (mode === "postit") renderTaskCard(body, t, ctx, o);
+				else renderTaskRow(body, t, ctx, o);
 			}
-			if (striped) stripe(body);
 		}
 	}
 
@@ -390,67 +405,352 @@ function renderTasks(
 		mode: ViewMode;
 		/** Whether rows may be dragged into a new order. */
 		sortable: boolean;
+		/** The list's headings, for naming the section a drop lands in. */
+		sections: ListSection[];
+		/** The list file, for the section edits the headings offer. */
+		path: string;
+		/** Lift starred tasks into a band above everything else. */
+		starredFirst: boolean;
+		/** Tasks in no group go above the groups rather than below them. */
+		ungroupedFirst: boolean;
 	}
 ): void {
 	const postit = opts.mode === "postit";
+	const path = opts.path;
 	const cls = postit ? "lv-group lv-postit" : "lv-group";
 	const draw = (parent: HTMLElement, t: Task) =>
 		postit
-			? renderTaskCard(parent, t, ctx, { showList: opts.showList })
-			: renderTaskRow(parent, t, ctx, { showList: opts.showList });
+			? renderTaskCard(parent, t, ctx, {
+					showList: opts.showList,
+					showSection: !opts.grouped,
+				})
+			: renderTaskRow(parent, t, ctx, {
+					showList: opts.showList,
+					showSection: !opts.grouped,
+				});
 
 	/**
-	 * Wire up dragging for one contiguous run of rows.
+	 * Every run on screen, built first and wired afterwards.
 	 *
-	 * A run is passed rather than the whole list because `##` headings split a
-	 * list into groups, and a drag has to stay inside the group it started in —
-	 * the file order within a group is contiguous, so a splice inside one is a
-	 * plain reorder, whereas dragging across a heading would silently move a task
-	 * to another section.
+	 * A run used to be wired the moment it was finished, because a drag stayed
+	 * inside the group it started in. Crossing a heading is now deliberate
+	 * rather than an accident to be prevented, and a row cannot be told about
+	 * runs that have not been drawn yet — so the drawing and the wiring are two
+	 * passes.
 	 */
-	const makeSortable = (rows: HTMLElement[], run: Task[]) => {
-		if (!opts.sortable || run.length < 2) return;
-		rows.forEach((row, index) => {
-			row.addClass("lv-sortable");
-			makeDragSortable(row, {
-				index,
-				siblings: () => rows,
-				onDrop: (from, to) => void ctx.mutator.reorder(run[from], run, to),
+	const runs: { el: HTMLElement; tasks: Task[]; rows: HTMLElement[] }[] = [];
+
+	/**
+	 * The heading a run sits under, found by line rather than by name.
+	 *
+	 * Two sections may be called the same thing, so the last heading above the
+	 * run's first task is the only honest answer.
+	 */
+	const sectionLineFor = (run: Task[]): number | null => {
+		const first = run[0];
+		if (!first) return null;
+		let found: number | null = null;
+		for (const sec of opts.sections) {
+			if (sec.line > first.line) break;
+			found = sec.line;
+		}
+		return found;
+	};
+
+	const wire = () => {
+		if (!opts.sortable) return;
+		const containers = () => runs.map((r) => ({ el: r.el, rows: r.rows }));
+
+		for (const run of runs) {
+			// A lone row in a lone run has nowhere to go.
+			if (run.tasks.length < 2 && runs.length < 2) continue;
+
+			run.rows.forEach((row, index) => {
+				row.addClass("lv-sortable");
+				makeDragSortable(row, {
+					index,
+					siblings: () => run.rows,
+					containers,
+					onDrop: (from, to) => void ctx.mutator.reorder(run.tasks[from], run.tasks, to),
+					onDropAcross: (toContainer, toIndex) => {
+						const dest = runs[toContainer];
+						if (!dest) return;
+						void ctx.mutator.moveToSection(
+							run.tasks[index],
+							dest.tasks,
+							toIndex,
+							sectionLineFor(dest.tasks)
+						);
+					},
+				});
 			});
-		});
+		}
 	};
 
 	if (!opts.grouped) {
-		const group = scroll.createDiv({ cls });
-		makeSortable(
-			tasks.map((t) => draw(group, t)),
-			tasks
-		);
+		const el = scroll.createDiv({ cls });
+		runs.push({ el, tasks, rows: tasks.map((t) => draw(el, t)) });
+		wire();
 		return;
 	}
 
-	let current: string | undefined | null = null;
-	let container: HTMLElement | null = null;
-	let run: Task[] = [];
-	let rows: HTMLElement[] = [];
+	/*
+	 * Walked by heading rather than by run of tasks.
+	 *
+	 * Grouping the tasks would skip a section that has none, and an empty
+	 * section has to be on screen or it can never be dropped into — which would
+	 * make creating one a dead end. Bounds come from the headings' own lines, so
+	 * two sections sharing a name stay separate.
+	 */
+	const bounds = opts.sections.map((sec, i) => ({
+		...sec,
+		end: opts.sections[i + 1]?.line ?? Infinity,
+	}));
 
-	const flush = () => {
-		makeSortable(rows, run);
-		run = [];
-		rows = [];
+	const addRun = (run: Task[]) => {
+		const el = scroll.createDiv({ cls });
+		runs.push({ el, tasks: run, rows: run.map((t) => draw(el, t)) });
 	};
 
-	for (const t of tasks) {
-		if (t.section !== current || !container) {
-			flush();
-			current = t.section;
-			if (t.section) scroll.createDiv({ cls: "lv-section", text: t.section });
-			container = scroll.createDiv({ cls });
+	/*
+	 * Starred first, in a band of its own.
+	 *
+	 * Lifted out before anything else is grouped, so a starred task appears once
+	 * — at the top — rather than twice. Where it came from is not lost: it is
+	 * shown away from its heading, so it carries the heading's name as a badge,
+	 * which is the same rule Completed already follows.
+	 *
+	 * Nothing is drawn when nothing is starred. A band that is always there but
+	 * usually empty is a row of furniture, and the setting exists for people who
+	 * would rather their own order were the only order.
+	 */
+	let remaining = tasks;
+	if (opts.starredFirst) {
+		const { starred, rest } = partitionStarred(tasks);
+		if (starred.length) {
+			scroll.createDiv({ cls: "lv-section lv-section-starred", text: "Starred" });
+			// Named, so the band can be told from a section's own run — by a
+			// stylesheet, and by a test that means to drive one and not the other.
+			const el = scroll.createDiv({ cls: `${cls} lv-starred-run` });
+			runs.push({
+				el,
+				tasks: starred,
+				rows: starred.map((t) =>
+					postit
+						? renderTaskCard(el, t, ctx, { showList: opts.showList, showSection: true })
+						: renderTaskRow(el, t, ctx, { showList: opts.showList, showSection: true })
+				),
+			});
+			remaining = rest;
 		}
-		rows.push(draw(container, t));
-		run.push(t);
 	}
-	flush();
+
+	const firstHeading = bounds[0]?.line ?? Infinity;
+	const loose = remaining.filter((t) => t.line < firstHeading);
+
+	/*
+	 * Tasks in no group, and a line saying so.
+	 *
+	 * The run is drawn whether or not anything is in it, so a task can always be
+	 * dragged back out of every group. The rule is drawn only when both sides
+	 * exist: a divider between a thing and nothing is a line with one job and no
+	 * reason to be there.
+	 */
+	const drawLoose = () => {
+		if (!opts.ungroupedFirst && (loose.length || bounds.length)) {
+			scroll.createDiv({ cls: "lv-ungrouped-rule" });
+		}
+		if (loose.length || bounds.length) addRun(loose);
+		if (opts.ungroupedFirst && loose.length && bounds.length) {
+			scroll.createDiv({ cls: "lv-ungrouped-rule" });
+		}
+	};
+
+	if (opts.ungroupedFirst) drawLoose();
+
+	const heads: HTMLElement[] = [];
+	for (const sec of bounds) {
+		const folded = ctx.sectionCollapsed(path, sec.name);
+		const mine = remaining.filter((t) => t.line > sec.line && t.line < sec.end);
+		heads.push(renderSectionHead(scroll, ctx, path, sec, mine.length, folded));
+		if (folded) continue;
+		addRun(mine);
+	}
+
+	if (!opts.ungroupedFirst) drawLoose();
+
+	/*
+	 * Headings are their own drag group, and a one-dimensional one.
+	 *
+	 * A section moves among sections; there is nowhere else for it to go, so the
+	 * container hit-test the rows need would only ever return the one answer.
+	 * Only the heading moves under the pointer — its tasks travel with it in the
+	 * file, not on screen — because shifting a whole band would mean animating
+	 * every row in it to describe a move that is really about order alone.
+	 */
+	if (opts.sortable && heads.length > 1) {
+		heads.forEach((head, index) => {
+			head.addClass("lv-sortable");
+			makeDragSortable(head, {
+				index,
+				siblings: () => heads,
+				onDrop: (from, to) => void ctx.mutator.moveSection(path, bounds[from].line, to),
+			});
+		});
+	}
+
+	wire();
+}
+
+/**
+ * A section's heading: fold control, name, count, and its menu.
+ *
+ * The name is editable in place for the same reason a list's is — the heading
+ * *is* the section, so renaming it here is the honest edit rather than a dialog
+ * that writes somewhere you cannot see.
+ */
+function renderSectionHead(
+	scroll: HTMLElement,
+	ctx: ViewContext,
+	path: string,
+	sec: ListSection,
+	count: number,
+	folded: boolean
+): HTMLElement {
+	const head = scroll.createDiv({ cls: "lv-section" });
+	head.toggleClass("is-collapsed", folded);
+	head.setAttribute("aria-expanded", String(!folded));
+
+	const chev = head.createDiv({ cls: "lv-section-chevron" });
+	setIcon(chev, folded ? "chevron-right" : "chevron-down");
+
+	const name = head.createDiv({ cls: "lv-section-name", text: sec.name });
+	makeEditableName(name, {
+		value: sec.name,
+		onCommit: (next) => void ctx.mutator.renameSection(path, sec.line, next),
+	});
+
+	if (count) head.createDiv({ cls: "lv-section-count", text: String(count) });
+
+	/*
+	 * Delete, one click away rather than inside the menu.
+	 *
+	 * Emptying a board of the columns you no longer want is a normal tidying
+	 * pass, and going through a menu for each one is three clicks where it
+	 * should be one. An empty section goes without asking — there is nothing to
+	 * lose — and one with tasks says where they will end up first.
+	 *
+	 * It never takes the tasks with it. That is still in the menu, behind its
+	 * own confirm, because it is the one version that destroys something.
+	 */
+	const bin = head.createDiv({ cls: "clickable-icon lv-section-bin" });
+	setIcon(bin, "trash-2");
+	bin.setAttribute("aria-label", count ? "Delete group, keep its tasks" : "Delete group");
+	bin.addEventListener("click", (e) => {
+		e.stopPropagation();
+		if (!count) {
+			void ctx.mutator.removeSection(path, sec.line);
+			return;
+		}
+		void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
+			new ConfirmModal(ctx.app, {
+				title: `Delete "${sec.name}"?`,
+				body: `Its ${count} task${count === 1 ? "" : "s"} will move into the group above. Nothing is deleted.`,
+				cta: "Delete group",
+				destructive: false,
+				onConfirm: () => void ctx.mutator.removeSection(path, sec.line),
+			}).open();
+		});
+	});
+
+	const more = head.createDiv({ cls: "clickable-icon lv-section-more" });
+	setIcon(more, "more-horizontal");
+	more.setAttribute("aria-label", "Group options");
+	more.addEventListener("click", (e) => {
+		e.stopPropagation();
+		showSectionMenu(e, ctx, path, sec, count);
+	});
+
+	head.addEventListener("click", () => ctx.toggleSection(path, sec.name));
+	return head;
+}
+
+/**
+ * What a section can have done to it.
+ *
+ * Deleting keeps the tasks by default and moves them into the section above:
+ * removing a grouping should not be a way to lose the things grouped. Taking
+ * the tasks too is a separate, confirmed choice.
+ */
+function showSectionMenu(
+	e: MouseEvent,
+	ctx: ViewContext,
+	path: string,
+	sec: ListSection,
+	count: number
+): void {
+	const menu = new Menu();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Rename group")
+			.setIcon("pencil")
+			.onClick(() => {
+				void import("../../ui/PromptModal").then(({ PromptModal }) => {
+					new PromptModal(ctx.app, {
+						title: "Rename group",
+						value: sec.name,
+						onSubmit: (next) =>
+							void ctx.mutator.renameSection(path, sec.line, next),
+					}).open();
+				});
+			})
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
+			.setTitle("Move up")
+			.setIcon("arrow-up")
+			.onClick(() => void ctx.mutator.moveSectionBy(path, sec.line, -1))
+	);
+	menu.addItem((i) =>
+		i
+			.setTitle("Move down")
+			.setIcon("arrow-down")
+			.onClick(() => void ctx.mutator.moveSectionBy(path, sec.line, 1))
+	);
+
+	menu.addSeparator();
+
+	menu.addItem((i) =>
+		i
+			.setTitle(count ? "Delete group, keep tasks" : "Delete group")
+			.setIcon("trash-2")
+			.onClick(() => void ctx.mutator.removeSection(path, sec.line))
+	);
+
+	if (count) {
+		menu.addItem((i) =>
+			i
+				.setTitle("Delete group and its tasks")
+				.setIcon("trash-2")
+				.onClick(() => {
+					void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
+						new ConfirmModal(ctx.app, {
+							title: `Delete "${sec.name}"?`,
+							body: `${count} task${count === 1 ? "" : "s"} will be deleted with it. This cannot be undone from inside the plugin.`,
+							cta: "Delete",
+							onConfirm: () =>
+								void ctx.mutator.removeSection(path, sec.line, { withTasks: true }),
+						}).open();
+					});
+				})
+		);
+	}
+
+	menu.showAtMouseEvent(e);
 }
 
 async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
@@ -470,7 +770,12 @@ async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
  * task; the expanded one just writes a note line beneath it.
  * ------------------------------------------------------------------ */
 
-function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void {
+function renderAddBox(
+	pane: HTMLElement,
+	ctx: ViewContext,
+	simple = false,
+	sections: ListSection[] = []
+): void {
 	const sel = ctx.state.selection;
 	// A simple box never expands, so it is never in the expanded state either —
 	// including on the paint right after a desktop layout became a touch one.
@@ -489,6 +794,53 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void
 		cls: "lv-add-input",
 		attr: { placeholder: "Add a task", "aria-label": "Task name" },
 	});
+
+	/*
+	 * Which section the task lands in.
+	 *
+	 * Only where there is a choice to make. Adding used to append to the end of
+	 * the file, which in a list with headings means whichever section happens to
+	 * be last — however far that is from the one being looked at. Shown on the
+	 * box rather than inferred from what was last touched: a destination you
+	 * cannot see is one you cannot correct before typing.
+	 */
+	if (sections.length) {
+		const chosen = ctx.state.addSection;
+		const named =
+			chosen === null
+				? "No group"
+				: (sections.find((x) => x.line === chosen) ?? sections[sections.length - 1]).name;
+
+		const pick = top.createDiv({ cls: "lv-add-section" });
+		pick.setText(named);
+		pick.setAttribute("aria-label", `Add to ${named}`);
+		pick.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			const menu = new Menu();
+			menu.addItem((i) =>
+				i
+					.setTitle("No group")
+					.setChecked(chosen === null)
+					.onClick(() => {
+						ctx.state.addSection = null;
+						ctx.render("tasks");
+					})
+			);
+			for (const sec of sections) {
+				menu.addItem((i) =>
+					i
+						.setTitle(sec.name)
+						.setChecked(sec.line === chosen)
+						.onClick(() => {
+							ctx.state.addSection = sec.line;
+							ctx.render("tasks");
+						})
+				);
+			}
+			menu.showAtMouseEvent(e);
+		});
+	}
 	submitOnEnter(title);
 
 	let description: HTMLTextAreaElement | null = null;
@@ -511,7 +863,12 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void
 		ctx.state.draft = {};
 
 		if (sel.kind === "list") {
-			await ctx.mutator.addTask(sel.path, value, draft, { note });
+			// Absent when the list has no headings, which keeps the old behaviour
+			// exactly: the end of the file.
+			const section = sections.length
+				? (ctx.state.addSection ?? sections[sections.length - 1].line)
+				: undefined;
+			await ctx.mutator.addTask(sel.path, value, draft, { note, section });
 		} else {
 			// From My Day a task still needs a home list. Use the first one and flag it.
 			const first = ctx.store.getLists()[0];

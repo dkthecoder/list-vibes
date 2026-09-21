@@ -117,6 +117,11 @@ await apply({
 	"--size-4-1": "9px",
 	"--size-4-2": "18px",
 	"--radius-s": "9px",
+	// A row takes the medium radius, the same one a card takes: they are one
+	// object in two layouts and a corner is the most visible place for them to
+	// disagree. Setting only the small scale stopped reaching the thing being
+	// measured, which reads as a broken linkage rather than a moved one.
+	"--radius-m": "9px",
 });
 after = await sample();
 check("padding follows the spacing scale", after.taskPadding !== before.taskPadding,
@@ -264,8 +269,22 @@ const strays = await page.evaluate(
 				if (!val) continue;
 				// Fully transparent means nothing was painted.
 				if (/rgba\([^)]*,\s*0\)$/.test(val) || val === "transparent") continue;
-				const m = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(val);
-				if (m && Number(m[2]) === 111) continue;
+				/*
+				 * Two notations, one rule.
+				 *
+				 * `color-mix()` computes to `color(srgb r g b)` with channels
+				 * 0-1, not to `rgb()`. Reading only the second reports a colour
+				 * the theme fully controls as hardcoded — the sweep's own green
+				 * channel is right there in it, just written differently.
+				 *
+				 * The test is not loosened by this: the channel must still be
+				 * 111, within the rounding a float round-trip costs.
+				 */
+				const rgb = /^rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(val);
+				if (rgb && Number(rgb[2]) === 111) continue;
+
+				const srgb = /^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(val);
+				if (srgb && Math.abs(Number(srgb[2]) * 255 - 111) < 0.5) continue;
 				out.push(`${(el.className || el.tagName).toString().slice(0, 40)} ${prop}=${val}`);
 			}
 		}

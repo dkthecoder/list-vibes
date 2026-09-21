@@ -176,9 +176,14 @@ export interface ListConfig {
 	view?: ViewMode;
 	sort?: "manual" | "due" | "priority" | "alpha" | "created";
 	showCompleted?: "collapsed" | "expanded" | "hidden";
-	/** Absent means "whatever the setting says"; see `stripeRows`. */
-	stripes?: boolean;
 	defaultDue?: string;
+}
+
+/** A `##` heading, and the line it is written on. */
+export interface ListSection {
+	name: string;
+	/** 0-based line number of the heading itself. */
+	line: number;
 }
 
 export interface TaskList {
@@ -187,6 +192,8 @@ export interface TaskList {
 	/** Filename without extension, used as the display name. */
 	name: string;
 	config: ListConfig;
+	/** Headings in file order, each with the line it is written on. */
+	sections: ListSection[];
 	/** Root-level tasks, in file order. Children hang off `Task.children`. */
 	tasks: Task[];
 	/** Every task, flattened, in file order. */
