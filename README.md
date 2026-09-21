@@ -58,6 +58,9 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
 - **Completed section** — collapsed, expanded, or hidden, per your setting.
 - Completion and creation stamps, optionally **with the time**:
   `✅ 2026-08-26T14:32`.
+- **Undo** — `Cmd/Ctrl+Z` inside a List Vibes view walks back the last fifty
+  changes it made, because a view is not an editor and Obsidian's own undo
+  cannot reach a file that is open nowhere.
 
 ### Groups
 
@@ -68,14 +71,19 @@ view over it.
   to reorder — the tasks travel with it.
 - **Drag a task between groups**, in rows or on the wall. Hold near the edge and
   the list scrolls to meet you.
-- **Delete a group** and its tasks join the group above. Taking them with it is
-  a separate, confirmed choice.
+- **Delete a group** from the heading's menu and its tasks join the group above.
+  Taking them with it is a separate, confirmed choice.
 - **Add where you are looking** — the add row names the group a new task joins,
-  and lets you change it.
+  and lets you change it, *No group* included.
+- **Sorting keeps them.** Groups are a view of the file, so any sort reorders
+  the rows inside each heading rather than dissolving the headings.
 - Tasks in **no group** keep their own run above the groups, separated by a
   rule, so nothing has to be in one.
 - An **empty group** is drawn so it can be dropped into, and can be tidied away
   by itself if you switch that on.
+- **Turn groups off** — `groups: hidden` on a list, or the setting for all of
+  them. The list goes flat and each row carries its heading as a badge, so
+  where a task lives is shown rather than lost.
 
 ### Views
 
@@ -85,8 +93,6 @@ view over it.
   default.
 - **Sorting** — custom order, importance, due date, date created (newest or
   oldest), or alphabetical. Remembered per list.
-- **Striped rows** — shade every other row so a long one is easier to follow
-  across. On by default; a list can opt out from its own menu.
 - **Confetti and glints** — a short burst in the list's own colour when a task
   is completed, and a sparkle from the star when you mark one important. Each
   has its own switch, and both are off automatically if your system asks for
@@ -133,6 +139,7 @@ has to fit on one line.
 icon: 💼
 sort: manual
 showCompleted: collapsed
+groups: shown
 ---
 
 - [ ] Take screenshots for review
@@ -238,9 +245,9 @@ in star mode.
 Each list can be sorted independently: custom (the file's own order), importance,
 due date, date created newest or oldest, and alphabetical either way. **Sorting is
 view-only** — it is stored in plugin settings, never written to your markdown, so
-changing it cannot touch a byte of the file. Custom order is the only mode that
-shows the file's `##` headings as section dividers, since the others break that
-grouping by definition.
+changing it cannot touch a byte of the file. Every sort keeps the file's `##`
+headings: a group is a view of the file rather than a consequence of its order,
+so the headings stay and the rows reorder inside them.
 
 Dragging is only offered under **custom** sort, and never in a smart view.
 Custom sort *is* the file's order, so moving a row is a real edit and the new
