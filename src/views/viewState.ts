@@ -180,7 +180,19 @@ export type TabChoice =
 export function chooseTab(
 	tabs: OpenTab[],
 	sel: Selection,
-	forceNew = false
+	forceNew = false,
+	/**
+	 * Never hand an open tab a different list.
+	 *
+	 * Reuse is what makes a custom view's tab title go stale: the tab is given
+	 * another list through `setViewState`, and Obsidian rereads a view's name
+	 * when it decides to rather than when its state changes. A tab that is only
+	 * ever created or focused is never holding a list it was not built for.
+	 *
+	 * The cost is a tab per list you visit, which is why it is a choice and not
+	 * the default.
+	 */
+	ownTab = false
 ): TabChoice {
 	if (forceNew) return { action: "new" };
 
@@ -188,6 +200,8 @@ export function chooseTab(
 		(t) => t.selection && sameSelection(t.selection, sel)
 	);
 	if (showing >= 0) return { action: "focus", index: showing };
+
+	if (ownTab) return { action: "new" };
 
 	const free = tabs.findIndex((t) => !t.pinned);
 	if (free >= 0) return { action: "retarget", index: free };

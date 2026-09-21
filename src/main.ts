@@ -392,7 +392,8 @@ export default class ListsPlugin extends Plugin {
 				};
 			}),
 			sel,
-			newTab
+			newTab,
+			this.settings.listOwnTab
 		);
 
 		if (choice.action === "focus") {

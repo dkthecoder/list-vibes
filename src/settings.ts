@@ -86,6 +86,18 @@ export interface ListsSettings {
 	 * order is a view you cannot drag in confidently.
 	 */
 	ungroupedFirst: boolean;
+	/**
+	 * Give every list its own tab rather than reusing one.
+	 *
+	 * On by default. A tab is then only ever created or focused, never handed a
+	 * different list — which is the only reliable way to keep its title honest,
+	 * because Obsidian rereads a custom view's name on its own schedule and no
+	 * public API asks it to.
+	 *
+	 * Turning it off brings back one shared tab, and with it a title that can
+	 * name the list the tab used to hold.
+	 */
+	listOwnTab: boolean;
 	/** Per-list layout override, keyed by file path. */
 	viewByList: Record<string, ViewMode>;
 	/**
@@ -129,6 +141,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	autoRemoveEmptySections: false,
 	starredSection: true,
 	ungroupedFirst: true,
+	listOwnTab: true,
 	collapsedSections: {},
 	listOrder: [],
 	openOnStartup: true,
@@ -240,6 +253,18 @@ export class ListsSettingTab extends PluginSettingTab {
 					this.plugin.settings.starredSection = v;
 					await this.plugin.saveSettings();
 					this.plugin.refreshViews();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("A tab per list")
+			.setDesc(
+				"Open each list in its own tab instead of reusing one. Turn it off for a single shared tab, at the cost of a tab title that can name the list it used to hold."
+			)
+			.addToggle((t) =>
+				t.setValue(this.plugin.settings.listOwnTab).onChange(async (v) => {
+					this.plugin.settings.listOwnTab = v;
+					await this.plugin.saveSettings();
 				})
 			);
 

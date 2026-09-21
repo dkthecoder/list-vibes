@@ -281,70 +281,6 @@ export class ListsView extends ItemView {
 		result.history = movedList || opening;
 		this.render();
 
-		if (movedList) this.refreshTabTitle();
-	}
-
-	/**
-	 * Make the tab say what this view is showing.
-	 *
-	 * There is no public API for it. `getDisplayText` is read when Obsidian
-	 * decides to read it, and a tab retargeted from the sidebar is not one of
-	 * those moments: `setViewState` has just set the state the leaf already has,
-	 * so persisting it again diffs to nothing and the header is never reread.
-	 *
-	 * `updateHeader` asks for the reread, and on its own is not enough — which is
-	 * what two shipping plugins do about it. Outliner.MD calls it and then writes
-	 * the tab's text itself a turn later; obsidian-vertical-tabs patches it and
-	 * writes the text after the original returns. The delay is the point:
-	 * `updateHeader` rewrites that element synchronously, so a write before it
-	 * loses and a write after it wins.
-	 *
-	 * Both halves are undocumented, so both are optional and neither is allowed
-	 * to throw. A tab with the wrong name on it is worth this; it is not worth
-	 * taking the view down with it.
-	 */
-	private refreshTabTitle(): void {
-		if (!this.inMainWorkspace()) return;
-
-		const leaf = this.leaf as WorkspaceLeaf & {
-			updateHeader?: () => void;
-			tabHeaderInnerTitleEl?: HTMLElement;
-		};
-
-		try {
-			leaf.updateHeader?.();
-		} catch {
-			/* An API that may not be there cannot be relied on to fail quietly. */
-		}
-
-		const text = this.getDisplayText();
-		window.setTimeout(() => {
-			try {
-				// The view may have been closed in the meantime, which is the
-				// ordinary end of a tab rather than a fault.
-				if (leaf.tabHeaderInnerTitleEl?.isConnected) {
-					leaf.tabHeaderInnerTitleEl.setText(text);
-				}
-
-				/*
-				 * And the header on a phone, which is a different element.
-				 *
-				 * There are no tabs on mobile, so there is no tab header to write
-				 * to — the name at the top of the screen comes from the view's own
-				 * header instead. Writing only the tab one left the phone showing
-				 * whichever list the view had when it was built.
-				 */
-				for (const el of Array.from(
-					this.containerEl.parentElement?.querySelectorAll<HTMLElement>(
-						".view-header-title"
-					) ?? []
-				)) {
-					el.setText(text);
-				}
-			} catch {
-				/* ignored, per above */
-			}
-		}, 0);
 	}
 
 	onResize(): void {
@@ -421,11 +357,10 @@ export class ListsView extends ItemView {
 
 				this.state.pane = "tasks";
 				this.render();
-				// The state is persisted so the tab remembers which list it had;
-				// naming the tab is a separate job, because Obsidian rereads the
-				// name when it feels like it and not when the state changes.
+				// Persisted so the tab remembers which list it had. Naming it is
+				// not done here: a tab is created holding its list and never given
+				// another, so the name Obsidian read at construction stays true.
 				if (this.inMainWorkspace()) void this.persistState();
-				this.refreshTabTitle();
 			},
 
 			/*

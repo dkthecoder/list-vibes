@@ -384,3 +384,36 @@ describe("selectionTitle falls back to the path", () => {
 		assert.equal(selectionTitle({ kind: "smart", view: "myday" }), "My Day");
 	});
 });
+
+/**
+ * Keeping a tab per list.
+ *
+ * Reuse is what makes a custom view's tab title go stale: the tab is handed a
+ * different list through `setViewState`, and Obsidian rereads a view's name
+ * when it decides to rather than when its state changes. A tab that is only
+ * ever created or focused is never holding a list it was not built for.
+ */
+test("chooseTab, one tab per list", async (t) => {
+	await t.test("a list already open is focused, reuse or not", () => {
+		const tabs = [{ selection: { kind: "list", path: "lists/A.md" }, pinned: false }];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/A.md"), false, true), {
+			action: "focus",
+			index: 0,
+		});
+	});
+
+	await t.test("an unpinned tab is not reused for a different list", () => {
+		const tabs = [{ selection: { kind: "list", path: "lists/A.md" }, pinned: false }];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/B.md"), false, true), { action: "new" });
+	});
+
+	await t.test("reuse is still the default, so nothing changes unasked", () => {
+		const tabs = [{ selection: { kind: "list", path: "lists/A.md" }, pinned: false }];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/B.md")), { action: "retarget", index: 0 });
+	});
+
+	await t.test("a new tab is still forced when asked for one", () => {
+		const tabs = [{ selection: { kind: "list", path: "lists/A.md" }, pinned: false }];
+		assert.deepEqual(chooseTab(tabs, LIST("lists/A.md"), true, true), { action: "new" });
+	});
+});
