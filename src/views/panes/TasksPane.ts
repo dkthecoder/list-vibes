@@ -652,36 +652,12 @@ function renderSectionHead(
 	if (count) head.createDiv({ cls: "lv-section-count", text: String(count) });
 
 	/*
-	 * Delete, one click away rather than inside the menu.
+	 * Deleting is in the menu, not on the heading.
 	 *
-	 * Emptying a board of the columns you no longer want is a normal tidying
-	 * pass, and going through a menu for each one is three clicks where it
-	 * should be one. An empty section goes without asking — there is nothing to
-	 * lose — and one with tasks says where they will end up first.
-	 *
-	 * It never takes the tasks with it. That is still in the menu, behind its
-	 * own confirm, because it is the one version that destroys something.
+	 * A bin sitting beside every group put its most destructive action in the
+	 * same sweep as folding one, and gave the heading two trailing controls
+	 * where the rows beside it have one.
 	 */
-	const bin = head.createDiv({ cls: "clickable-icon lv-section-bin" });
-	setIcon(bin, "trash-2");
-	bin.setAttribute("aria-label", count ? "Delete group, keep its tasks" : "Delete group");
-	bin.addEventListener("click", (e) => {
-		e.stopPropagation();
-		if (!count) {
-			void ctx.mutator.removeSection(path, sec.line);
-			return;
-		}
-		void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
-			new ConfirmModal(ctx.app, {
-				title: `Delete "${sec.name}"?`,
-				body: `Its ${count} task${count === 1 ? "" : "s"} will move into the group above. Nothing is deleted.`,
-				cta: "Delete group",
-				destructive: false,
-				onConfirm: () => void ctx.mutator.removeSection(path, sec.line),
-			}).open();
-		});
-	});
-
 	const more = head.createDiv({ cls: "clickable-icon lv-section-more" });
 	setIcon(more, "more-horizontal");
 	more.setAttribute("aria-label", "Group options");

@@ -205,9 +205,10 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 	// The browser must not claim the gesture for scrolling before we decide
 	// whether it is a drag. On the handle we can say so up front; on a whole row
-	// we cannot, or the list would stop scrolling entirely, so `touch-action` is
-	// only applied once a long press has actually armed the drag.
+	// we cannot, or the list would stop scrolling entirely.
 	if (opts.handle) grab.addClass("lv-grip");
+
+
 
 	let startX = 0;
 	let startY = 0;
@@ -453,6 +454,34 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		setOffset(row, e.clientY - startY);
 		preview(e.clientX, e.clientY);
 	});
+
+	/*
+	 * Take the gesture back once the drag is live.
+	 *
+	 * `touch-action` cannot do this. It is read when the touch sequence starts,
+	 * so a row that says `auto` at the moment a finger lands has already given
+	 * the gesture to the browser — and adding `touch-action: none` 450ms later,
+	 * when the long press arms, changes nothing about a gesture already under
+	 * way. That is why dragging worked on a mouse and never on a phone: the drag
+	 * armed, the first move scrolled the list instead, and the pointer was
+	 * cancelled out from under it.
+	 *
+	 * `preventDefault` on a non-passive `touchmove` does work mid-gesture, and
+	 * the long press has already ruled out a scroll by cancelling on any wander
+	 * over `TOUCH_SLOP` — so by the time this fires, the finger has stayed put
+	 * and the browser has not started scrolling anything.
+	 *
+	 * Nothing here can be seen by the unit tests or the harness: a synthesised
+	 * pointer event never engages real scrolling, which is precisely why this
+	 * looked fine in every suite for as long as it was broken.
+	 */
+	grab.addEventListener(
+		"touchmove",
+		(e: TouchEvent) => {
+			if (live) e.preventDefault();
+		},
+		{ passive: false }
+	);
 
 	grab.addEventListener("pointerup", () => finish(true));
 	grab.addEventListener("pointercancel", () => finish(false));
