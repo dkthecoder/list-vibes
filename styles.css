@@ -2089,6 +2089,22 @@ body .lv-root.is-keyboard-open {
 }
 
 /*
+ * In a drawer, reserve nothing either.
+ *
+ * `--navbar-height` is the *main workspace's* bottom bar. A sidebar on a phone
+ * is not in the main workspace — it is in a drawer, which carries its own
+ * chrome at the foot: the view switcher. Reserving the navbar's height there
+ * clears a bar that is not present, and the switcher then sits below the space
+ * kept for it. That doubling is the gap under "New list".
+ *
+ * Scoped through `body` for the same cascade reason as the rule above: written
+ * without it, `body.is-phone .lv-root` wins and the reserve never comes off.
+ */
+body .workspace-drawer .lv-root {
+	--lv-navbar-clearance: 0px;
+}
+
+/*
  * Core pads `.view-content` by the keyboard's height. We must not take it.
  *
  * This is the fault. Not the app container, which was correct all along.
