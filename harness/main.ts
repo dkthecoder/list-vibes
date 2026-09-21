@@ -13,7 +13,7 @@ import { renderListsPane } from "../src/views/panes/ListsPane";
 import { renderTasksPane } from "../src/views/panes/TasksPane";
 import { renderDetailPane } from "../src/views/panes/DetailPane";
 import { todayISO } from "../src/model/store";
-import { SortKey } from "../src/model/sort";
+import { GroupSortKey, SortKey } from "../src/model/sort";
 import { ListColor, ViewMode } from "../src/model/types";
 import { keyboardOverlap } from "../src/views/keyboard";
 import { resetIfScrolled, unscrollableAncestors } from "../src/views/pinScroll";
@@ -81,6 +81,7 @@ const state: ViewState = {
 };
 
 let sortKey: SortKey = "custom";
+let groupSortKey: GroupSortKey = "custom";
 const folded = new Set<string>();
 let viewMode: ViewMode = "list";
 let pinned = false;
@@ -149,6 +150,10 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			paint();
 		},
 		sortKey: () => sortKey,
+		groupSortKey: () => groupSortKey,
+		setGroupSortKey: (k: GroupSortKey) => {
+			groupSortKey = k;
+		},
 
 		orderedLists: () => store.getLists(),
 		deleteList: () => paint(),
@@ -292,6 +297,7 @@ function paint(): void {
 	// The same list under a sort that is not the file's order. Headings are a
 	// view, so they stay; the rows reorder inside them.
 	sortKey = "alpha-asc";
+	groupSortKey = "alpha-asc";
 	renderInto(
 		document.getElementById("sections-sorted") as HTMLElement,
 		true,
@@ -299,6 +305,7 @@ function paint(): void {
 		false
 	);
 	sortKey = "custom";
+	groupSortKey = "custom";
 
 	// The same list with the setting off: no headings, and every row carrying
 	// the one it came from instead.

@@ -13,7 +13,7 @@ import { keyboardOverlap } from "./keyboard";
 import { isTextEntry } from "./focus";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
-import { SortKey, orderLists } from "../model/sort";
+import { GroupSortKey, SortKey, orderLists } from "../model/sort";
 import {
 	RenderScope,
 	decodeSelection,
@@ -395,6 +395,25 @@ export class ListsView extends ItemView {
 					this.plugin.store.getList(sel.path)?.config.sort ??
 					this.plugin.settings.defaultSort
 				);
+			},
+
+			groupSortKey: () => {
+				const sel = this.state.selection;
+				if (sel.kind !== "list") return "custom";
+				return (
+					this.plugin.settings.groupSortByList[sel.path] ??
+					this.plugin.settings.defaultGroupSort
+				);
+			},
+
+			setGroupSortKey: (key: GroupSortKey) => {
+				const sel = this.state.selection;
+				if (sel.kind !== "list") return;
+				// View-only, like the task sort: reordering the headings on screen
+				// must not move a heading in the file.
+				this.plugin.settings.groupSortByList[sel.path] = key;
+				void this.plugin.saveSettings();
+				this.render("tasks");
 			},
 
 			setSortKey: (key: SortKey) => {

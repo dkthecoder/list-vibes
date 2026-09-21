@@ -1,6 +1,8 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseFile, sortTasks, starsOf, isStarred, PRIORITY_BY_STARS, STARS_BY_PRIORITY, partitionCompleted, orderLists, partitionStarred } from "./model.mjs";
+import {
+	parseFile,
+	sortSections, sortTasks, starsOf, isStarred, PRIORITY_BY_STARS, STARS_BY_PRIORITY, partitionCompleted, orderLists, partitionStarred } from "./model.mjs";
 
 const MD = [
 	"- [ ] Banana 📅 2026-09-05 ➕ 2026-01-03 🔼",
@@ -233,4 +235,44 @@ test("low priorities are not stars", () => {
 	const list = parseFile("- [ ] low ⏬\n- [ ] mid 🔼\n- [ ] high ⏫\n", "lists/T.md");
 	const { starred } = partitionStarred(list.tasks);
 	assert.deepEqual(starred.map((t) => t.title), ["high"]);
+});
+
+describe("sortSections", () => {
+	const SECTIONS = [
+		{ name: "Scandic", line: 4 },
+		{ name: "DACH", line: 9 },
+		{ name: "US / English", line: 14 },
+	];
+	const names = (key) => sortSections(SECTIONS, key).map((s) => s.name);
+
+	test("file order is the file's own order, untouched", () => {
+		assert.deepEqual(names("custom"), ["Scandic", "DACH", "US / English"]);
+		assert.equal(sortSections(SECTIONS, "custom"), SECTIONS, "a copy was made for nothing");
+	});
+
+	test("A–Z and Z–A order the headings by name", () => {
+		assert.deepEqual(names("alpha-asc"), ["DACH", "Scandic", "US / English"]);
+		assert.deepEqual(names("alpha-desc"), ["US / English", "Scandic", "DACH"]);
+	});
+
+	/* A line addresses a section; two can share a name, so the line has to
+	   travel with it or a rename lands on the wrong heading. */
+	test("each heading keeps the line that addresses it", () => {
+		const byLine = Object.fromEntries(
+			sortSections(SECTIONS, "alpha-asc").map((s) => [s.name, s.line])
+		);
+		assert.deepEqual(byLine, { DACH: 9, Scandic: 4, "US / English": 14 });
+	});
+
+	test("two groups of the same name keep the order the file gave them", () => {
+		const dupes = [
+			{ name: "Same", line: 2 },
+			{ name: "Other", line: 5 },
+			{ name: "Same", line: 9 },
+		];
+		assert.deepEqual(
+			sortSections(dupes, "alpha-asc").map((s) => s.line),
+			[5, 2, 9]
+		);
+	});
 });

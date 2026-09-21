@@ -17,10 +17,13 @@ import { prettifyName } from "../../ui/prettify";
 import { autoGrow } from "../../ui/autoGrow";
 import { formatDate, todayISO } from "../../model/store";
 import {
+	GROUP_SORT_OPTIONS,
+	GroupSortKey,
 	SORT_OPTIONS,
 	STARS_BY_PRIORITY,
 	partitionCompleted,
 	partitionStarred,
+	sortSections,
 	sortTasks,
 } from "../../model/sort";
 import { addDestination } from "../viewState";
@@ -152,11 +155,26 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		const sortBtn = buttons.createDiv({
 			cls: "clickable-icon nav-action-button lv-header-action",
 		});
-		sortBtn.toggleClass("is-active", sortKey !== "custom");
+		const groupSort = ctx.groupSortKey();
+		// Only where there are headings to order. A list with none would be
+		// offered a choice that changes nothing.
+		const hasGroups = (list?.sections.length ?? 0) > 0;
+
+		sortBtn.toggleClass(
+			"is-active",
+			sortKey !== "custom" || (hasGroups && groupSort !== "custom")
+		);
 		setIcon(sortBtn, "arrow-up-down");
 		sortBtn.setAttribute("aria-label", `Sort: ${current?.label ?? "Custom order"}`);
 		sortBtn.addEventListener("click", (e) => {
 			const menu = new Menu();
+			/*
+			 * Two orders in one menu, because they are one decision about how the
+			 * list reads: organise within the groups, and organise the groups.
+			 * Neither can be derived from the other — a group has no due date of
+			 * its own — so both are offered rather than one being inferred.
+			 */
+			if (hasGroups) menu.addItem((i) => i.setTitle("Sort tasks").setDisabled(true));
 			for (const o of SORT_OPTIONS) {
 				menu.addItem((i) =>
 					i
@@ -165,6 +183,20 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 						.setChecked(o.key === sortKey)
 						.onClick(() => ctx.setSortKey(o.key))
 				);
+			}
+
+			if (hasGroups) {
+				menu.addSeparator();
+				menu.addItem((i) => i.setTitle("Sort groups").setDisabled(true));
+				for (const o of GROUP_SORT_OPTIONS) {
+					menu.addItem((i) =>
+						i
+							.setTitle(o.label)
+							.setIcon(o.icon)
+							.setChecked(o.key === groupSort)
+							.onClick(() => ctx.setGroupSortKey(o.key))
+					);
+				}
 			}
 			menu.showAtMouseEvent(e);
 		});
@@ -333,7 +365,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		sections: list?.sections ?? [],
 		path: list?.path ?? "",
 		starredFirst: ctx.settings.starredSection,
-		ungroupedFirst: ctx.settings.ungroupedFirst,
+		groupSort: ctx.groupSortKey(),
 	});
 
 	// A list decides for itself; absent, the setting decides. Post-it view is
@@ -423,7 +455,8 @@ function renderTasks(
 		/** Lift starred tasks into a band above everything else. */
 		starredFirst: boolean;
 		/** Tasks in no group go above the groups rather than below them. */
-		ungroupedFirst: boolean;
+		/** How the headings themselves are ordered. */
+		groupSort: GroupSortKey;
 	}
 ): void {
 	const postit = opts.mode === "postit";
@@ -513,10 +546,15 @@ function renderTasks(
 	 * make creating one a dead end. Bounds come from the headings' own lines, so
 	 * two sections sharing a name stay separate.
 	 */
-	const bounds = opts.sections.map((sec, i) => ({
-		...sec,
-		end: opts.sections[i + 1]?.line ?? Infinity,
-	}));
+	const bounds = sortSections(
+		opts.sections.map((sec, i) => ({
+			...sec,
+			// The run a heading owns is still the one that follows it in the file,
+			// whatever order the headings are shown in.
+			end: opts.sections[i + 1]?.line ?? Infinity,
+		})),
+		opts.groupSort
+	);
 
 	const addRun = (run: Task[], inGroup = false) => {
 		const el = scroll.createDiv({ cls });
@@ -570,17 +608,24 @@ function renderTasks(
 	 * exist: a divider between a thing and nothing is a line with one job and no
 	 * reason to be there.
 	 */
+	/*
+	 * Tasks in no group, and a line saying so.
+	 *
+	 * Below the groups and above Completed, always. They were above by the
+	 * argument that it is where they sit in the file — but that only held under
+	 * the file's own order, and the groups now carry an order of their own.
+	 *
+	 * The run is drawn whether or not anything is in it, so a task can always be
+	 * dragged back out of every group. The rule is drawn only when both sides
+	 * exist: a divider between a thing and nothing is a line with one job and no
+	 * reason to be there.
+	 */
 	const drawLoose = () => {
-		if (!opts.ungroupedFirst && (loose.length || bounds.length)) {
+		if (loose.length && bounds.length) {
 			scroll.createDiv({ cls: "lv-ungrouped-rule" });
 		}
 		if (loose.length || bounds.length) addRun(loose);
-		if (opts.ungroupedFirst && loose.length && bounds.length) {
-			scroll.createDiv({ cls: "lv-ungrouped-rule" });
-		}
 	};
-
-	if (opts.ungroupedFirst) drawLoose();
 
 	const heads: HTMLElement[] = [];
 	for (const sec of bounds) {
@@ -591,7 +636,7 @@ function renderTasks(
 		addRun(mine, true);
 	}
 
-	if (!opts.ungroupedFirst) drawLoose();
+	drawLoose();
 
 	/*
 	 * Headings are their own drag group, and a one-dimensional one.
@@ -602,7 +647,14 @@ function renderTasks(
 	 * file, not on screen — because shifting a whole band would mean animating
 	 * every row in it to describe a move that is really about order alone.
 	 */
-	if (opts.sortable && heads.length > 1) {
+	/*
+	 * Dragging a heading writes to the file, so it is offered only where the
+	 * headings are shown in the file's own order. That is the group sort's
+	 * question, not the task sort's: choosing "Due date" for the tasks has
+	 * nothing to say about whether a heading may be moved. A smart view never
+	 * gets here: it is never grouped.
+	 */
+	if (opts.groupSort === "custom" && heads.length > 1) {
 		heads.forEach((head, index) => {
 			head.addClass("lv-sortable");
 			makeDragSortable(head, {

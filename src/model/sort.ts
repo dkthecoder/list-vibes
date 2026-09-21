@@ -15,6 +15,23 @@ export type SortKey =
 	| "alpha-asc"
 	| "alpha-desc";
 
+/**
+ * How the groups themselves are ordered.
+ *
+ * Separate from the task sort because they answer different questions, and one
+ * cannot stand in for the other: a group has no due date and no importance of
+ * its own, so deriving its place from the task sort would mean inventing an
+ * aggregate and calling it the group's. Two orders, chosen independently —
+ * organise within the groups, and organise the groups.
+ */
+export type GroupSortKey = "custom" | "alpha-asc" | "alpha-desc";
+
+export const GROUP_SORT_OPTIONS: { key: GroupSortKey; label: string; icon: string }[] = [
+	{ key: "custom", label: "File order", icon: "list" },
+	{ key: "alpha-asc", label: "A–Z", icon: "arrow-down-a-z" },
+	{ key: "alpha-desc", label: "Z–A", icon: "arrow-up-a-z" },
+];
+
 export const SORT_OPTIONS: { key: SortKey; label: string; icon: string }[] = [
 	{ key: "custom", label: "Custom order", icon: "list" },
 	{ key: "importance", label: "Importance", icon: "star" },
@@ -157,6 +174,28 @@ export function orderLists(paths: string[], order: string[]): string[] {
 	}
 	for (const path of paths) if (!placed.has(path)) out.push(path);
 	return out;
+}
+
+/**
+ * Put the headings in the order the group sort asks for.
+ *
+ * View-only, like every other sort here: `custom` is the file's own order, and
+ * nothing else rewrites a line. Each section keeps its `line`, which is what
+ * addresses it, so a reordered view still renames and deletes the right one.
+ *
+ * Stable, so two groups sharing a name keep the order the file gave them
+ * rather than swapping about between renders.
+ */
+export function sortSections<T extends { name: string }>(
+	sections: T[],
+	key: GroupSortKey
+): T[] {
+	if (key === "custom") return sections;
+	const dir = key === "alpha-asc" ? 1 : -1;
+	return sections
+		.map((section, index) => ({ section, index }))
+		.sort((a, b) => dir * collate(a.section.name, b.section.name) || a.index - b.index)
+		.map((d) => d.section);
 }
 
 /**
