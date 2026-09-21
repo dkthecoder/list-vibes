@@ -276,7 +276,15 @@
    list". */
 .lv-nav-foot {
 	flex: 0 0 auto;
-	padding: var(--size-2-1) var(--lv-gutter);
+	/*
+	 * The same inset the rows above it have.
+	 *
+	 * The footer is outside the scroller, so it does not inherit the padding
+	 * `.lv-nav-group` gives the list rows — it used a gutter of its own, and
+	 * "New list" sat four pixels right of every list it sits under. A control
+	 * at the foot of a column belongs in that column.
+	 */
+	padding: var(--size-2-1) var(--size-4-2);
 	padding-bottom: calc(var(--size-2-1) + var(--lv-navbar-clearance));
 }
 
