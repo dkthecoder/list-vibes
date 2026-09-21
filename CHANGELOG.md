@@ -15,6 +15,86 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.6.0
+
+**Groups stopped being a custom-sort-only feature.**
+
+- Any sort now keeps the headings — the rows reorder *inside* each group rather
+  than the groups dissolving into one flat list.
+- *No group* on the add row means no group. It said "No group" and filed the
+  task under the last heading anyway, because the code could not tell an
+  explicit "none" from "never chose".
+- Groups can be turned off — `groups: hidden` on a list, or the setting for all
+  of them. The list goes flat and every row carries its heading as a badge, so
+  where a task lives is shown rather than lost.
+
+**One heading, three bands.** A group, Completed and the starred band were three
+class trees drawn three different ways, and they had drifted.
+
+- Completed's label sat ten pixels off the rail every other line in the pane
+  starts on. It never picked up the leading column the rows and group headings
+  share; it does now.
+- A group answers a keyboard. Only Completed did before, because that was the
+  one place the handling had been written out by hand.
+- Headings size from five tokens on the root, so retuning one is a single edit
+  and a snippet can resize every band at once.
+- They default to 15px in the normal ink — they were 12px against 13px task
+  titles, so the label was smaller than the thing it labelled — and they read
+  the way the `##` line reads. "India / Hindi", not "INDIA / HINDI".
+
+**Deleting a group is in its menu.** The bin sitting beside every heading put
+the most destructive thing a heading can do in the same sweep as folding one,
+and gave the heading two trailing controls where the rows beside it have one.
+
+**The add row's group picker looks like a control.** It was a 19px label with
+nothing to say it opened a menu.
+
+**The feature list matches the code again.** Striped rows had been gone for a
+while — no setting, no frontmatter key — and the README still advertised them.
+Undo went the other way, documented everywhere except the list of features.
+
+## 0.5.0
+
+**Groups.** A `##` heading had been parsed and rendered and nothing else: no way
+to make one, rename one, move one, or move a task into one.
+
+- Create, rename in place, reorder by dragging the heading, and fold.
+- Delete one and its tasks join the group above; taking them with it is a
+  separate, confirmed choice.
+- Drag a task between groups, and an empty group is drawn so it can be dropped
+  into rather than being a dead end.
+- The add row names the group a new task joins.
+- A starred band above the list, and a badge on any task shown away from its
+  heading.
+
+**Two-dimensional drag.** A drop is a run picked by hit-test plus an index
+within it, which is what finally lets the post-it wall be sorted at all. Holding
+near an edge scrolls the list, and the hit-test is corrected for the scroll.
+
+**Undo, on `Cmd/Ctrl+Z`.** Obsidian's undo belongs to the editor, and the
+ordinary case here is ticking a task in the sidebar while the file is open
+nowhere — a write with nothing tracking it. Scoped to the view, so the editor
+keeps the shortcut everywhere else.
+
+**A tab per list**, which is also what keeps a tab's title honest: a tab handed
+a different list keeps the old one's name, and no public API changes that.
+
+**Colour that shows.** A pastel mixed into the theme's own surface, so one rule
+serves light and dark.
+
+**Fixes.**
+
+- A URL keeps its own parentheses. `/wiki/She_(TV_series)` — the everyday
+  Wikipedia disambiguator — ended at the first close paren and left the real one
+  behind as text, so a list of shows read `She⧉) 2020`.
+- A title carrying a markdown link renders in the detail panel instead of
+  showing its brackets and URL, which made the panel read as broken on exactly
+  the lists that use links most.
+- **Delete a list**, through the vault's own deleted-files setting.
+- `dev-vault` watches the stylesheet. It copied `styles.css` from esbuild's
+  rebuild hook and esbuild rebuilds on TypeScript changes, so editing only the
+  stylesheet copied nothing.
+
 ## 0.4.0
 
 **A ticked task drops into Completed straight away.** It used to sit in the open
