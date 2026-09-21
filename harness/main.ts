@@ -105,13 +105,15 @@ void noop;
 
 let importanceMode: "star" | "stars5" = "star";
 let listOnly = false;
+/** The global "Show groups" setting, so a pane can be drawn with it off. */
+let showGroups = true;
 
 function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 	return {
 		app: { workspace: { openLinkText: noop } } as unknown as ViewContext["app"],
 		store: store as unknown as ViewContext["store"],
 		mutator,
-		settings: { ...DEFAULT_SETTINGS, importanceMode },
+		settings: { ...DEFAULT_SETTINGS, importanceMode, showGroups },
 		state,
 		wide,
 		// A list opened as its own tab, with the picker left in the sidebar. It
@@ -297,6 +299,17 @@ function paint(): void {
 		false
 	);
 	sortKey = "custom";
+
+	// The same list with the setting off: no headings, and every row carrying
+	// the one it came from instead.
+	showGroups = false;
+	renderInto(
+		document.getElementById("sections-flat") as HTMLElement,
+		true,
+		"tasks",
+		false
+	);
+	showGroups = true;
 
 	state.selection = sectionSel;
 	state.selectedTask = sectionTask;

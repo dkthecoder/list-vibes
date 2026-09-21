@@ -93,9 +93,19 @@ check("every row is marked sortable", sortableCount === before.length,
 const sortedPane = await page.$$eval("#desktop2 .lv-task.lv-sortable", (e) => e.length);
 check("a non-custom sort offers no drag at all", sortedPane === 0, `${sortedPane} sortable`);
 
-// Nor does the post-it wall, which wraps into a grid.
-const postitPane = await page.$$eval("#cards .lv-task.lv-sortable", (e) => e.length);
-check("the post-it wall offers no drag either", postitPane === 0, `${postitPane} sortable`);
+/* The wall does, and used not to.
+ *
+ * This check once asserted the opposite, and counted `.lv-task` inside a pane
+ * that holds `.lv-card-task` — so it read zero whatever happened and passed
+ * forever. A check that cannot fail is a comment that runs, and this one was
+ * also asserting behaviour we had since reversed. */
+const cards = await page.$$eval("#cards .lv-card-task", (e) => e.length);
+const cardsSortable = await page.$$eval("#cards .lv-card-task.lv-sortable", (e) => e.length);
+check(
+	"the post-it wall is draggable too",
+	cards > 0 && cardsSortable === cards,
+	`${cardsSortable}/${cards} sortable`
+);
 
 /* ---- a mouse drag from the first row down past the second ---- */
 const box = async (i) =>
@@ -269,6 +279,45 @@ check(
 	calls.some((c) => c[0] === "reorder"),
 	JSON.stringify(calls.map((c) => c[0]))
 );
+
+/* ---- and a card on the wall actually moves ----
+
+   The class above says a card is wired; this says the wiring reaches a write.
+   The wall was the mode that could not be dragged at all, so it is the one
+   worth driving rather than trusting. */
+await page.evaluate(() => {
+	document.querySelector("#cards .lv-group")?.scrollIntoView({ block: "center" });
+});
+await page.waitForTimeout(150);
+await page.evaluate(() => (window.lvCalls.length = 0));
+
+const wall = await page.evaluate(() => {
+	const c = [...document.querySelectorAll("#cards .lv-card-task")];
+	if (c.length < 3) return null;
+	const r = (e) => e.getBoundingClientRect();
+	return {
+		from: { x: r(c[0]).left + 40, y: r(c[0]).top + 20 },
+		to: { x: r(c[2]).left + 40, y: r(c[2]).top + 30 },
+	};
+});
+
+if (wall) {
+	await page.mouse.move(wall.from.x, wall.from.y);
+	await page.mouse.down();
+	await page.mouse.move(wall.from.x, wall.from.y + 15);
+	await page.mouse.move(wall.to.x, wall.to.y, { steps: 8 });
+	const held = await page.$$eval("#cards .lv-card-task.lv-dragging", (e) => e.length);
+	await page.mouse.up();
+	await page.waitForTimeout(80);
+
+	const wallCalls = (await page.evaluate(() => window.lvCalls)).map((c) => c[0]);
+	check("a card on the wall lifts", held === 1, `${held} lifted`);
+	check(
+		"and dropping it writes",
+		wallCalls.some((c) => c === "reorder" || c === "moveToSection"),
+		wallCalls.join(", ") || "nothing"
+	);
+}
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 

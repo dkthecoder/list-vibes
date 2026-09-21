@@ -415,6 +415,32 @@ check(
 	unsorted ? `${unsorted.name}: ${unsorted.titles.join(" | ")}` : ""
 );
 
+/* ---------------- groups can be turned off ---------------- */
+
+/*
+ * Off is not the same as gone. The headings stop being drawn and every row
+ * carries the one it came from as a badge, which is the rule Completed and the
+ * smart views already follow.
+ */
+const flat = await page.evaluate(() => {
+	const pane = document.getElementById("sections-flat");
+	const heads = [...pane.querySelectorAll(".lv-section:not(.lv-section-starred)")].filter(
+		(e) => !e.closest(".lv-completed")
+	);
+	return {
+		heads: heads.length,
+		badges: pane.querySelectorAll(".lv-task .lv-section-badge").length,
+		rows: pane.querySelectorAll(".lv-task").length,
+	};
+});
+
+check("with groups off no heading is drawn", flat.heads === 0, `${flat.heads} headings`);
+check(
+	"and every row carries the heading it came from",
+	flat.badges > 0 && flat.badges <= flat.rows,
+	`${flat.badges} badges on ${flat.rows} rows`
+);
+
 check("no page errors", errors.length === 0, errors[0] ?? "");
 
 await browser.close();

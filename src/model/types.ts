@@ -176,6 +176,8 @@ export interface ListConfig {
 	view?: ViewMode;
 	sort?: "manual" | "due" | "priority" | "alpha" | "created";
 	showCompleted?: "collapsed" | "expanded" | "hidden";
+	/** Whether `##` headings are drawn as groups or the list is shown flat. */
+	groups?: "shown" | "hidden";
 	defaultDue?: string;
 }
 

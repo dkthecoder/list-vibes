@@ -297,8 +297,15 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 	 * Dragging is the part that needs the file's order intact, and that is
 	 * `sortable` below. Smart views stay flat for a different reason: their rows
 	 * come from several files, so one file's heading names nothing in them.
+	 *
+	 * A list decides for itself; absent, the setting decides — the same shape
+	 * `showCompleted` uses. Turned off, the rows carry their heading as a badge
+	 * instead, so the grouping is hidden rather than lost.
 	 */
-	const grouped = !isSmart;
+	const groupsShown = list?.config.groups
+		? list.config.groups === "shown"
+		: ctx.settings.showGroups;
+	const grouped = !isSmart && groupsShown;
 	const mode = isSmart ? "list" : ctx.viewMode();
 
 	/*
@@ -827,7 +834,11 @@ function renderAddBox(
 				: (sections.find((x) => x.line === dest)?.name ?? "No group");
 
 		const pick = top.createDiv({ cls: "lv-add-section" });
-		pick.setText(named);
+		pick.createSpan({ cls: "lv-add-section-name", text: named });
+		// A menu with nothing to say so was a label you had to guess was a
+		// control.
+		setIcon(pick.createDiv({ cls: "lv-add-section-chevron" }), "chevron-down");
+		pick.setAttribute("role", "button");
 		pick.setAttribute("aria-label", `Add to ${named}`);
 		pick.addEventListener("click", (e) => {
 			e.preventDefault();
