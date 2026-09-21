@@ -281,25 +281,54 @@ export class ListsView extends ItemView {
 		result.history = movedList || opening;
 		this.render();
 
-		/*
-		 * A tab retargeted from outside has to be told to reread its own name.
-		 *
-		 * There are two ways the list in a tab changes. Picking inside it goes
-		 * through `select`, which persists a state the leaf does not have yet, and
-		 * the header follows. Being retargeted — the sidebar is a picker, so
-		 * choosing a list there reuses an open tab through `setViewState` —
-		 * arrives *here*, where the leaf already holds this exact state. Persisting
-		 * it again is a no-op, which is why doing that left the new list showing
-		 * under the previous list's name.
-		 *
-		 * `updateHeader` is what asks a leaf to reread `getDisplayText`. It is real
-		 * but absent from the public typings, so it is called only if it is there
-		 * — a wrong tab title is worth fixing and not worth throwing for.
-		 */
-		if (movedList && this.inMainWorkspace()) {
-			const leaf = this.leaf as WorkspaceLeaf & { updateHeader?: () => void };
+		if (movedList) this.refreshTabTitle();
+	}
+
+	/**
+	 * Make the tab say what this view is showing.
+	 *
+	 * There is no public API for it. `getDisplayText` is read when Obsidian
+	 * decides to read it, and a tab retargeted from the sidebar is not one of
+	 * those moments: `setViewState` has just set the state the leaf already has,
+	 * so persisting it again diffs to nothing and the header is never reread.
+	 *
+	 * `updateHeader` asks for the reread, and on its own is not enough — which is
+	 * what two shipping plugins do about it. Outliner.MD calls it and then writes
+	 * the tab's text itself a turn later; obsidian-vertical-tabs patches it and
+	 * writes the text after the original returns. The delay is the point:
+	 * `updateHeader` rewrites that element synchronously, so a write before it
+	 * loses and a write after it wins.
+	 *
+	 * Both halves are undocumented, so both are optional and neither is allowed
+	 * to throw. A tab with the wrong name on it is worth this; it is not worth
+	 * taking the view down with it.
+	 */
+	private refreshTabTitle(): void {
+		if (!this.inMainWorkspace()) return;
+
+		const leaf = this.leaf as WorkspaceLeaf & {
+			updateHeader?: () => void;
+			tabHeaderInnerTitleEl?: HTMLElement;
+		};
+
+		try {
 			leaf.updateHeader?.();
+		} catch {
+			/* An API that may not be there cannot be relied on to fail quietly. */
 		}
+
+		const text = this.getDisplayText();
+		window.setTimeout(() => {
+			try {
+				// The view may have been closed in the meantime, which is the
+				// ordinary end of a tab rather than a fault.
+				if (leaf.tabHeaderInnerTitleEl?.isConnected) {
+					leaf.tabHeaderInnerTitleEl.setText(text);
+				}
+			} catch {
+				/* ignored, per above */
+			}
+		}, 0);
 	}
 
 	onResize(): void {
@@ -376,10 +405,11 @@ export class ListsView extends ItemView {
 
 				this.state.pane = "tasks";
 				this.render();
-				// In a workspace tab the header shows the list name, so the tab has
-				// to be told the state changed. setViewState is the public way to do
-				// that; it re-enters setState harmlessly.
+				// The state is persisted so the tab remembers which list it had;
+				// naming the tab is a separate job, because Obsidian rereads the
+				// name when it feels like it and not when the state changes.
 				if (this.inMainWorkspace()) void this.persistState();
+				this.refreshTabTitle();
 			},
 
 			/*
