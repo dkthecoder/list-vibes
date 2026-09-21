@@ -495,6 +495,14 @@ if (Array.isArray(menu)) {
 		menu.filter((i) => i.checked).length === 2,
 		`${menu.filter((i) => i.checked).map((i) => i.title).join(", ")}`
 	);
+	/* A heading has to be a label. Disabled renders as an option you cannot
+	   pick, which reads as something broken rather than as a title. */
+	const headings = menu.filter((i) => ["Sort tasks", "Sort groups"].includes(i.title));
+	check(
+		"the two headings are labels, not disabled options",
+		headings.length === 2 && headings.every((h) => h.label && !h.disabled),
+		headings.map((h) => `${h.title}: label=${h.label} disabled=${h.disabled}`).join(", ")
+	);
 }
 
 /* ---------------- groups can be turned off ---------------- */

@@ -163,13 +163,20 @@ interface MenuEntry {
 	title: string;
 	checked: boolean;
 	disabled: boolean;
+	/** A heading rather than something to pick. */
+	label: boolean;
 }
 
 export class Menu {
 	readonly items: MenuEntry[] = [];
 
 	addItem(cb: (item: unknown) => unknown): this {
-		const entry: MenuEntry = { title: "", checked: false, disabled: false };
+		const entry: MenuEntry = {
+			title: "",
+			checked: false,
+			disabled: false,
+			label: false,
+		};
 		const item = {
 			setTitle(t: string) {
 				entry.title = t;
@@ -186,6 +193,13 @@ export class Menu {
 				entry.disabled = !!v;
 				return item;
 			},
+			setIsLabel(v: boolean) {
+				entry.label = !!v;
+				return item;
+			},
+			setWarning() {
+				return item;
+			},
 			setSection() {
 				return item;
 			},
@@ -199,7 +213,7 @@ export class Menu {
 	}
 
 	addSeparator(): this {
-		this.items.push({ title: "---", checked: false, disabled: true });
+		this.items.push({ title: "---", checked: false, disabled: true, label: false });
 		return this;
 	}
 
