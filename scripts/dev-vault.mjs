@@ -89,6 +89,23 @@ const ctx = await esbuild.context({
 	],
 });
 
-console.log(`Watching src/ → ${dest}`);
+/*
+ * The stylesheet, watched on its own.
+ *
+ * esbuild rebuilds when TypeScript changes, and `copyStatic` rides along on
+ * that rebuild — so editing only `styles.css` copied nothing, and the vault
+ * kept whatever CSS happened to be there when a `.ts` file was last saved. Most
+ * of this plugin's look lives in that one file, so "most of my changes are not
+ * arriving" is what that feels like from the outside.
+ */
+for (const f of ["styles.css", "manifest.json"]) {
+	fs.watchFile(f, { interval: 200 }, (now, then) => {
+		if (now.mtimeMs === then.mtimeMs) return;
+		copyStatic();
+		console.log(`  → ${f}`);
+	});
+}
+
+console.log(`Watching src/ and styles.css → ${dest}`);
 console.log("Save a file to rebuild. Ctrl+C to stop.\n");
 await ctx.watch();
