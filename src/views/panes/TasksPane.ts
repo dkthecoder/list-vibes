@@ -11,6 +11,7 @@ import { renderTaskRow } from "../../ui/TaskRow";
 import { renderTaskCard } from "../../ui/TaskCard";
 import { makeDragSortable } from "../../ui/dragSort";
 import { editName, makeEditableName } from "../../ui/editableName";
+import { renderHeading } from "../../ui/listHeading";
 import { renderAddButton, submitOnEnter } from "../../ui/addButton";
 import { prettifyName } from "../../ui/prettify";
 import { autoGrow } from "../../ui/autoGrow";
@@ -372,26 +373,17 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	if (done.length && showCompleted) {
 		const section = scroll.createDiv({ cls: "lv-completed" });
-		const head = section.createDiv({ cls: "lv-completed-head" });
-		head.setAttribute("tabindex", "0");
-		head.setAttribute("role", "button");
-		head.setAttribute("aria-expanded", String(ctx.state.completedOpen));
-
-		const chev = head.createDiv({ cls: "lv-completed-chevron" });
-		setIcon(chev, ctx.state.completedOpen ? "chevron-down" : "chevron-right");
-		head.createSpan({ cls: "lv-completed-label", text: "Completed" });
-		head.createSpan({ cls: "lv-completed-count", text: String(done.length) });
-
-		const toggle = () => {
-			ctx.state.completedOpen = !ctx.state.completedOpen;
-			ctx.render("tasks");
-		};
-		head.addEventListener("click", toggle);
-		head.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" || e.key === " ") {
-				e.preventDefault();
-				toggle();
-			}
+		renderHeading(section, {
+			label: "Completed",
+			count: done.length,
+			modifier: "lv-completed-head",
+			fold: {
+				open: ctx.state.completedOpen,
+				onToggle: () => {
+					ctx.state.completedOpen = !ctx.state.completedOpen;
+					ctx.render("tasks");
+				},
+			},
 		});
 
 		if (ctx.state.completedOpen) {
@@ -547,7 +539,7 @@ function renderTasks(
 	if (opts.starredFirst) {
 		const { starred, rest } = partitionStarred(tasks);
 		if (starred.length) {
-			scroll.createDiv({ cls: "lv-section lv-section-starred", text: "Starred" });
+			renderHeading(scroll, { label: "Starred", modifier: "lv-section-starred" });
 			// Named, so the band can be told from a section's own run — by a
 			// stylesheet, and by a test that means to drive one and not the other.
 			const el = scroll.createDiv({ cls: `${cls} lv-starred-run` });
@@ -636,38 +628,15 @@ function renderSectionHead(
 	count: number,
 	folded: boolean
 ): HTMLElement {
-	const head = scroll.createDiv({ cls: "lv-section" });
-	head.toggleClass("is-collapsed", folded);
-	head.setAttribute("aria-expanded", String(!folded));
-
-	const chev = head.createDiv({ cls: "lv-section-chevron" });
-	setIcon(chev, folded ? "chevron-right" : "chevron-down");
-
-	const name = head.createDiv({ cls: "lv-section-name", text: sec.name });
-	makeEditableName(name, {
-		value: sec.name,
-		onCommit: (next) => void ctx.mutator.renameSection(path, sec.line, next),
+	return renderHeading(scroll, {
+		label: sec.name,
+		// Omitted rather than drawn as a zero: an empty group says so by being
+		// empty.
+		count: count || undefined,
+		fold: { open: !folded, onToggle: () => ctx.toggleSection(path, sec.name) },
+		onRename: (next) => void ctx.mutator.renameSection(path, sec.line, next),
+		onMenu: (e) => showSectionMenu(e, ctx, path, sec, count),
 	});
-
-	if (count) head.createDiv({ cls: "lv-section-count", text: String(count) });
-
-	/*
-	 * Deleting is in the menu, not on the heading.
-	 *
-	 * A bin sitting beside every group put its most destructive action in the
-	 * same sweep as folding one, and gave the heading two trailing controls
-	 * where the rows beside it have one.
-	 */
-	const more = head.createDiv({ cls: "clickable-icon lv-section-more" });
-	setIcon(more, "more-horizontal");
-	more.setAttribute("aria-label", "Group options");
-	more.addEventListener("click", (e) => {
-		e.stopPropagation();
-		showSectionMenu(e, ctx, path, sec, count);
-	});
-
-	head.addEventListener("click", () => ctx.toggleSection(path, sec.name));
-	return head;
 }
 
 /**
