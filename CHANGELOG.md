@@ -15,6 +15,17 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.9.1
+
+**The sort menu's two headings were drawn as dead options.** "Sort tasks" and
+"Sort groups" used `setDisabled`, which renders a greyed-out item you cannot
+pick — so the section that offers the group order read as something broken
+rather than as a title over it.
+
+They are labels now, which is the API for a heading and has been since 0.15.0.
+The harness could not have caught it: its menu returned itself and drew nothing
+until the check that now asserts this was written.
+
 ## 0.9.0
 
 **A list file opened anywhere is a list.** The view was reachable through the

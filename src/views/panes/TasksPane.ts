@@ -174,7 +174,9 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			 * Neither can be derived from the other — a group has no due date of
 			 * its own — so both are offered rather than one being inferred.
 			 */
-			if (hasGroups) menu.addItem((i) => i.setTitle("Sort tasks").setDisabled(true));
+			// `setIsLabel`, not `setDisabled`: a disabled item renders as an option
+			// you cannot pick, which reads as broken rather than as a heading.
+			if (hasGroups) menu.addItem((i) => i.setTitle("Sort tasks").setIsLabel(true));
 			for (const o of SORT_OPTIONS) {
 				menu.addItem((i) =>
 					i
@@ -187,7 +189,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 
 			if (hasGroups) {
 				menu.addSeparator();
-				menu.addItem((i) => i.setTitle("Sort groups").setDisabled(true));
+				menu.addItem((i) => i.setTitle("Sort groups").setIsLabel(true));
 				for (const o of GROUP_SORT_OPTIONS) {
 					menu.addItem((i) =>
 						i
