@@ -117,6 +117,11 @@ await apply({
 	"--size-4-1": "9px",
 	"--size-4-2": "18px",
 	"--radius-s": "9px",
+	// A row takes the medium radius, the same one a card takes: they are one
+	// object in two layouts and a corner is the most visible place for them to
+	// disagree. Setting only the small scale stopped reaching the thing being
+	// measured, which reads as a broken linkage rather than a moved one.
+	"--radius-m": "9px",
 });
 after = await sample();
 check("padding follows the spacing scale", after.taskPadding !== before.taskPadding,

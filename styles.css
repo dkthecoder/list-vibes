@@ -202,6 +202,15 @@
 	gap: var(--size-4-2);
 	min-height: var(--lv-row-min);
 	padding: var(--size-4-1) var(--size-4-2);
+	/*
+	 * Its own corner, not core's.
+	 *
+	 * `.tree-item-self` is nearly a pill on mobile, which was invisible while
+	 * these rows painted no background and became the shape of the row the
+	 * moment they were tinted. A list in the picker and a task in the list are
+	 * the same kind of object, so they round the same amount.
+	 */
+	border-radius: var(--lv-radius);
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
@@ -262,11 +271,13 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* Follows the last list rather than reserving a band of its own: a rule and a
+   row's worth of padding under a short list is a lot of furniture to say "New
+   list". */
 .lv-nav-foot {
 	flex: 0 0 auto;
-	padding: var(--size-2-3) var(--lv-gutter);
-	padding-bottom: calc(var(--size-2-3) + var(--lv-navbar-clearance));
-	border-top: var(--border-width) solid var(--divider-color);
+	padding: var(--size-2-1) var(--lv-gutter);
+	padding-bottom: calc(var(--size-2-1) + var(--lv-navbar-clearance));
 }
 
 .lv-new .lv-nav-icon,
@@ -505,7 +516,10 @@ body.is-mobile .lv-section-bin {
 	--lv-line: calc(var(--font-ui-medium) * 1.4);
 	padding: var(--size-4-2) var(--size-4-2);
 	margin-bottom: var(--size-2-2);
-	border-radius: var(--lv-radius-s);
+	/* The card's radius, not a tighter one of its own: rows and cards are the
+	   same object in two layouts, and a corner is the most visible place for
+	   them to disagree. */
+	border-radius: var(--lv-radius);
 	/*
 	 * Surface and a shadow, no border.
 	 *
@@ -750,8 +764,8 @@ body.is-mobile .lv-section-bin {
 	gap: var(--size-4-2);
 	/* The scroller's inset plus a row's own padding, so the + lands in the
 	   same column as the checkboxes above it. */
-	padding: var(--size-4-2) calc(var(--lv-row-inset) + var(--size-4-2));
-	min-height: var(--lv-row-min);
+	padding: var(--size-2-2) calc(var(--lv-row-inset) + var(--size-4-2));
+	min-height: 0;
 }
 
 /*
@@ -787,11 +801,19 @@ body.is-mobile .lv-section-bin {
  * in a dark one from the same declaration, with a plain accent border as the
  * fallback where `color-mix` is unavailable.
  */
+/*
+ * A row at rest, a field while typing.
+ *
+ * It was a bordered box sitting permanently under the last task, which took a
+ * task's worth of height to say nothing and left the list ending in furniture.
+ * "New list" at the foot of the picker is the shape being matched: a line you
+ * can click, which becomes an input once it has your attention.
+ */
 .lv-add-input {
 	flex: 1 1 auto;
 	min-width: 0;
 	font-size: var(--font-ui-small);
-	border: var(--border-width) solid var(--interactive-accent);
+	border: var(--border-width) solid transparent;
 	border-radius: var(--radius-m);
 	background: transparent;
 	caret-color: var(--interactive-accent);
@@ -802,6 +824,12 @@ body.is-mobile .lv-section-bin {
 	 * The box starts a little left of the text, hugging the +.
 	 */
 	margin-inline-start: calc(-1 * (var(--size-4-2) + var(--border-width)));
+}
+
+.lv-add-input:focus,
+.lv-add:hover .lv-add-input,
+.lv-add.is-expanded .lv-add-input {
+	border-color: var(--interactive-accent);
 }
 
 .lv-add-input::placeholder {
