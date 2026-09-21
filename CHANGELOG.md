@@ -15,6 +15,36 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.7.0
+
+**A group is shaded a level above the items inside it.** The heading had no
+surface of its own, so the only thing saying a task belonged to a group was its
+indentation.
+
+- A group's band sits at one level, an item inside it at two. An item in no
+  group stays where it was.
+- The step is toward the text colour rather than toward black, which is the
+  contrast pole in either theme — so a light theme reads it as darker, a dark
+  theme as lighter, and the nesting reads the same way round in both.
+- Depth is derived from a list's colour rather than declared beside it, so a
+  coloured list wears both instead of one winning.
+- The band takes the rows' own edges now that it is painted. It had been eight
+  pixels proud on each side, which nothing showed while it was transparent.
+
+**Every card on the wall has a drop position again.** A wall of mixed-height
+cards in columns will eventually put two of them at exactly the same height —
+measured on the real thing, two sat at 5546.46875, an exact tie rather than a
+rounding artefact.
+
+- The drop index counts how many card centres the pointer has passed, so a tie
+  made the count jump by two and left a position between them that no pointer
+  could reach: fifteen of sixteen slots on that wall.
+- The measuring now folds the column and the height into one ordinate, so the
+  arithmetic that reads it stays one-dimensional and stays right. In rows there
+  is one column and it is the centre it always was.
+- The suites could not have caught this. They check that a card lifts and that a
+  drop writes, never that it lands where the preview showed it would.
+
 ## 0.6.0
 
 **Groups stopped being a custom-sort-only feature.**
