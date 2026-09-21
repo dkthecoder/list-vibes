@@ -12,6 +12,10 @@ on:
 
 permissions:
   contents: write
+  # Attestations are signed with a short-lived OIDC token, so the job has to be
+  # allowed to ask for one.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -75,6 +79,15 @@ jobs:
             fs.writeFileSync('RELEASE_NOTES.md', (next < 0 ? rest : rest.slice(0, next)).trim() + '\n');
           " "$TAG"
           test -s RELEASE_NOTES.md || echo "release $TAG" > RELEASE_NOTES.md
+
+      # Proves these three files were built by this workflow from this commit,
+      # so anyone installing the plugin can check the download against the
+      # source rather than taking it on trust. Signed before upload: attesting
+      # afterwards would attest whatever happened to be in the release.
+      - name: Attest the build
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "main.js, manifest.json, styles.css"
 
       - name: Create release
         env:

@@ -287,6 +287,17 @@ function paint(): void {
 	);
 	viewMode = "list";
 
+	// The same list under a sort that is not the file's order. Headings are a
+	// view, so they stay; the rows reorder inside them.
+	sortKey = "alpha-asc";
+	renderInto(
+		document.getElementById("sections-sorted") as HTMLElement,
+		true,
+		"tasks",
+		false
+	);
+	sortKey = "custom";
+
 	state.selection = sectionSel;
 	state.selectedTask = sectionTask;
 

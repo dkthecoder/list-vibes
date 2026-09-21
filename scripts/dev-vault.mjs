@@ -14,7 +14,8 @@ import esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
 import process from "process";
-import builtins from "builtin-modules";
+// Node ships this list; a package to repeat it is a dependency for nothing.
+import { builtinModules as builtins } from "node:module";
 
 const vault = process.argv[2] || process.env.OBSIDIAN_VAULT;
 

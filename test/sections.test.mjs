@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { parseFile } from "./model.mjs";
 import { Mutator } from "./build/model/mutate.js";
 import { makeApp } from "./obsidian-stub.mjs";
+import { addDestination } from "./build/views/viewState.js";
 
 /**
  * A section is a `##` heading and everything under it until the next one.
@@ -498,5 +499,41 @@ describe("addTask into a section", () => {
 		await s.mutator.addTask(s.path, "Fourth", {}, { section: sectionAt(s, "Work") });
 		const work = titlesIn(s, "Work");
 		assert.equal(work[work.length - 1], "Fourth");
+	});
+});
+
+describe("where a new task lands", () => {
+	const SECTIONS = [
+		{ name: "Work", line: 4 },
+		{ name: "Home", line: 9 },
+	];
+
+	/*
+	 * The add box offers "No group" alongside the headings, and the model
+	 * already separates the two destinations: null is the space above the first
+	 * heading, undefined is the end of the file. The rule that picks between
+	 * them lived inside the render function, where nothing could test it, and
+	 * collapsed both onto the fallback.
+	 */
+	test("no headings means the end of the file, as it always did", () => {
+		assert.equal(addDestination(undefined, []), undefined);
+		assert.equal(addDestination(null, []), undefined);
+	});
+
+	test("picking No group means above the first heading, not the last one", () => {
+		assert.equal(addDestination(null, SECTIONS), null);
+	});
+
+	test("picking a heading means that heading", () => {
+		assert.equal(addDestination(4, SECTIONS), 4);
+		assert.equal(addDestination(9, SECTIONS), 9);
+	});
+
+	test("picking nothing means the last heading", () => {
+		assert.equal(addDestination(undefined, SECTIONS), 9);
+	});
+
+	test("a heading that has since gone falls back to the last one", () => {
+		assert.equal(addDestination(999, SECTIONS), 9);
 	});
 });

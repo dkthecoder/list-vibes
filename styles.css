@@ -113,7 +113,6 @@
 	 * floor for engines without `clip`.
 	 */
 	overflow: hidden;
-	overflow: clip;
 	font-family: var(--font-interface);
 	color: var(--text-normal);
 }
@@ -133,6 +132,20 @@
 	--lv-row-min: var(--size-4-12);
 }
 
+/*
+ * `clip` where it is understood.
+ *
+ * Written as two `overflow` declarations it read as a duplicate to any linter
+ * and as a mistake to any reader. The fallback above stands on its own; this
+ * says plainly that the upgrade is conditional.
+ */
+@supports (overflow: clip) {
+	.lv-root,
+	.lv-shell {
+		overflow: clip;
+	}
+}
+
 .lv-shell {
 	display: flex;
 	position: relative;
@@ -140,7 +153,6 @@
 	min-height: 0;
 	/* See .lv-root — this is the container that was actually being scrolled. */
 	overflow: hidden;
-	overflow: clip;
 }
 
 .lv-root.is-wide .lv-nav {
@@ -1030,7 +1042,6 @@ body.is-mobile .lv-section-bin {
 	background: transparent;
 	border: none;
 	box-shadow: none;
-	padding: 0;
 	min-height: var(--size-4-10);
 	max-height: 30vh;
 	resize: none;
@@ -1494,15 +1505,39 @@ body.is-mobile .lv-section-bin {
 .lv-color-pink,
 .lv-color-grey {
 	--lv-accent-soft: var(--lv-surface-alt);
-	--lv-accent-soft: color-mix(in srgb, var(--lv-accent) 10%, var(--lv-surface-alt));
-
 	--lv-accent-edge: var(--divider-color);
-	--lv-accent-edge: color-mix(in srgb, var(--lv-accent) 28%, var(--lv-surface-alt));
-
 	/* Enough of the colour to read as itself against the tint, without becoming
 	   the saturated original again. */
 	--lv-accent-ink: var(--lv-accent);
-	--lv-accent-ink: color-mix(in srgb, var(--lv-accent) 72%, var(--text-normal));
+}
+
+/*
+ * The tint, where the browser can mix one.
+ *
+ * A feature query rather than a second declaration of each: the pair read as a
+ * duplicate, and the fallback above has to stand on its own anyway — an
+ * unresolvable custom property is not "no colour" but a broken one, and would
+ * take the whole item's background with it.
+ */
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+	.lv-root,
+	.lv-color-red,
+	.lv-color-orange,
+	.lv-color-yellow,
+	.lv-color-green,
+	.lv-color-teal,
+	.lv-color-blue,
+	.lv-color-purple,
+	.lv-color-pink,
+	.lv-color-grey {
+		--lv-accent-soft: color-mix(in srgb, var(--lv-accent) 10%, var(--lv-surface-alt));
+		--lv-accent-edge: color-mix(in srgb, var(--lv-accent) 28%, var(--lv-surface-alt));
+		--lv-accent-ink: color-mix(in srgb, var(--lv-accent) 72%, var(--text-normal));
+	}
+
+	.lv-tasks.is-accented .lv-task:hover {
+		background: color-mix(in srgb, var(--lv-accent) 22%, var(--lv-surface-alt));
+	}
 }
 
 /* The picker: a tinted row rather than a bar beside one.
@@ -1548,7 +1583,6 @@ body.is-mobile .lv-section-bin {
  */
 .lv-tasks.is-accented .lv-task:hover {
 	background: var(--background-modifier-hover);
-	background: color-mix(in srgb, var(--lv-accent) 22%, var(--lv-surface-alt));
 }
 
 /* ------------------------------------------------------------------
