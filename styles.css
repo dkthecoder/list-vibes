@@ -357,6 +357,35 @@ body.is-phone .lv-header {
 	cursor: pointer;
 }
 
+/* Where a new task will land.
+
+   Sits on the add row rather than beside a heading, so there is one input to
+   type into however many sections a list has. It names the destination instead
+   of implying it: a task that quietly went somewhere else is only noticed after
+   it has gone.
+
+   It gives up its width before the field does — on a phone the thing being
+   typed matters more than the label on where it goes. */
+.lv-add-section {
+	flex: 0 1 auto;
+	min-width: 0;
+	max-width: 40%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	align-self: center;
+	padding: var(--size-2-1) var(--size-2-2);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+	cursor: var(--cursor);
+}
+
+.lv-add-section:hover {
+	color: var(--text-normal);
+}
+
 /* The starred band's label.
 
    Deliberately not a control. Every other heading on screen folds, renames,

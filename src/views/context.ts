@@ -26,6 +26,15 @@ export interface ViewState {
 	/** Which detail action row is expanded, so only one opens at a time. */
 	openAction: string | null;
 	/**
+	 * The section a new task goes into, as its heading's line.
+	 *
+	 * `null` is the space above the first heading, `undefined` the end of the
+	 * file — which is what adding always did and what a list with no headings
+	 * wants. Held per view rather than written down: it is a thing you set while
+	 * filling one section and stop caring about the moment you leave.
+	 */
+	addSection?: number | null;
+	/**
 	 * Metadata staged on the add box before the task exists.
 	 *
 	 * A new task has no line to splice into yet, so the chips cannot write as

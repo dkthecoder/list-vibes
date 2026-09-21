@@ -67,6 +67,32 @@ check(
 	`${repeats} rows restate their section`
 );
 
+/* ---------------- a new task knows which section it joins ---------------- */
+
+const adder = await page.evaluate((sel) => {
+	const named = document.querySelector(`${sel} .lv-add-section`);
+	const heads = [...document.querySelectorAll(`${sel} .lv-section-name`)].map((h) =>
+		h.textContent.trim()
+	);
+	// A list with no headings has no choice to offer, so the control is absent
+	// rather than present and inert.
+	const plain = document.querySelector("#drag .lv-add-section");
+	return {
+		shown: !!named,
+		text: named?.textContent?.trim() ?? "",
+		isRealSection: heads.includes(named?.textContent?.trim() ?? ""),
+		onPlainList: !!plain,
+	};
+}, PANE);
+
+check("a sectioned list says where a new task will go", adder.shown, adder.text);
+check(
+	"and names one of its own sections",
+	adder.isRealSection,
+	`${adder.text} vs ${adder.text ? "headings" : "none"}`
+);
+check("a list without sections offers no such choice", adder.onPlainList === false);
+
 /* ---------------- starred rises to the top ---------------- */
 
 const starred = await page.evaluate((sel) => {

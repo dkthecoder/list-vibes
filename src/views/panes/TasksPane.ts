@@ -343,7 +343,7 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		 * which makes this testable without a phone.
 		 */
 		const touch = pane.ownerDocument.body.classList.contains("is-mobile");
-		renderAddBox(scroll, ctx, touch);
+		renderAddBox(scroll, ctx, touch, list?.sections ?? []);
 	}
 
 	/* ---------------- completed ---------------- */
@@ -748,7 +748,12 @@ async function pickColor(ctx: ViewContext, list: TaskList): Promise<void> {
  * task; the expanded one just writes a note line beneath it.
  * ------------------------------------------------------------------ */
 
-function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void {
+function renderAddBox(
+	pane: HTMLElement,
+	ctx: ViewContext,
+	simple = false,
+	sections: ListSection[] = []
+): void {
 	const sel = ctx.state.selection;
 	// A simple box never expands, so it is never in the expanded state either —
 	// including on the paint right after a desktop layout became a touch one.
@@ -767,6 +772,53 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void
 		cls: "lv-add-input",
 		attr: { placeholder: "Add a task", "aria-label": "Task name" },
 	});
+
+	/*
+	 * Which section the task lands in.
+	 *
+	 * Only where there is a choice to make. Adding used to append to the end of
+	 * the file, which in a list with headings means whichever section happens to
+	 * be last — however far that is from the one being looked at. Shown on the
+	 * box rather than inferred from what was last touched: a destination you
+	 * cannot see is one you cannot correct before typing.
+	 */
+	if (sections.length) {
+		const chosen = ctx.state.addSection;
+		const named =
+			chosen === null
+				? "No section"
+				: (sections.find((x) => x.line === chosen) ?? sections[sections.length - 1]).name;
+
+		const pick = top.createDiv({ cls: "lv-add-section" });
+		pick.setText(named);
+		pick.setAttribute("aria-label", `Add to ${named}`);
+		pick.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			const menu = new Menu();
+			menu.addItem((i) =>
+				i
+					.setTitle("No section")
+					.setChecked(chosen === null)
+					.onClick(() => {
+						ctx.state.addSection = null;
+						ctx.render("tasks");
+					})
+			);
+			for (const sec of sections) {
+				menu.addItem((i) =>
+					i
+						.setTitle(sec.name)
+						.setChecked(sec.line === chosen)
+						.onClick(() => {
+							ctx.state.addSection = sec.line;
+							ctx.render("tasks");
+						})
+				);
+			}
+			menu.showAtMouseEvent(e);
+		});
+	}
 	submitOnEnter(title);
 
 	let description: HTMLTextAreaElement | null = null;
@@ -789,7 +841,12 @@ function renderAddBox(pane: HTMLElement, ctx: ViewContext, simple = false): void
 		ctx.state.draft = {};
 
 		if (sel.kind === "list") {
-			await ctx.mutator.addTask(sel.path, value, draft, { note });
+			// Absent when the list has no headings, which keeps the old behaviour
+			// exactly: the end of the file.
+			const section = sections.length
+				? (ctx.state.addSection ?? sections[sections.length - 1].line)
+				: undefined;
+			await ctx.mutator.addTask(sel.path, value, draft, { note, section });
 		} else {
 			// From My Day a task still needs a home list. Use the first one and flag it.
 			const first = ctx.store.getLists()[0];
