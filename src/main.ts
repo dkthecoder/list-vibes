@@ -19,11 +19,23 @@ import { DetailView, VIEW_TYPE_DETAIL } from "./views/DetailView";
 import { TaskPickerModal } from "./ui/TaskPickerModal";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
-import { chooseTab, decodeSelection, encodeSelection } from "./views/viewState";
+import {
+	chooseTab,
+	decodeSelection,
+	encodeSelection,
+	openVerdict,
+} from "./views/viewState";
 
 export default class ListsPlugin extends Plugin {
 	declare settings: ListsSettings;
 	store!: ListStore;
+	/**
+	 * A path allowed to open as text, once.
+	 *
+	 * Cleared by the open it lets through, so it can never leave a file stuck
+	 * as markdown — the worst a stale value can do is let one open past.
+	 */
+	private asMarkdown: string | null = null;
 	mutator!: Mutator;
 
 	async onload(): Promise<void> {
@@ -48,6 +60,7 @@ export default class ListsPlugin extends Plugin {
 		this.registerCommands();
 		this.registerVaultEvents();
 		this.registerFileMenu();
+		this.registerFileOpen();
 
 		// Wait for the vault index before the first read, otherwise the folder
 		// may not be populated yet on a cold start.
@@ -206,6 +219,56 @@ export default class ListsPlugin extends Plugin {
 		);
 	}
 
+	/**
+	 * A list file opened anywhere is a list.
+	 *
+	 * The file explorer, a link, quick switcher, a search result — all of them
+	 * land on a markdown leaf, and the list this plugin draws was reachable only
+	 * through its own picker or the file's context menu. This swaps the leaf,
+	 * and only for files in the lists folder: registering the `md` extension
+	 * would take every note in the vault with it.
+	 *
+	 * `asMarkdown` is how the escape hatch gets through. "Open as markdown"
+	 * opens the file the ordinary way, which would arrive here and be swapped
+	 * straight back — a menu item that visibly does nothing. It names the path
+	 * it is about to open, this lets that one open through, and forgets it
+	 * again, so the next open of the same file is a list as usual.
+	 */
+	private registerFileOpen(): void {
+		this.registerEvent(
+			this.app.workspace.on("file-open", (file) => {
+				if (!(file instanceof TFile)) return;
+				const leaf = this.app.workspace.getMostRecentLeaf();
+
+				const verdict = openVerdict({
+					enabled: this.settings.openFilesAsLists,
+					isListFile: this.store.isListFile(file),
+					viewType: leaf?.view.getViewType(),
+					allowedAsMarkdown: this.asMarkdown,
+					path: file.path,
+				});
+
+				if (verdict === "let-through") {
+					this.asMarkdown = null;
+					return;
+				}
+				if (verdict !== "swap" || !leaf) return;
+
+				void leaf.setViewState({
+					type: VIEW_TYPE_LISTS,
+					active: true,
+					state: encodeSelection({ kind: "list", path: file.path }),
+				});
+			})
+		);
+	}
+
+	/** Open a list file as the text it is, once, without it being swapped back. */
+	async openAsMarkdown(path: string): Promise<void> {
+		this.asMarkdown = path;
+		await this.app.workspace.openLinkText(path, "", false);
+	}
+
 	/** "Open as list" on any markdown file inside the lists folder. */
 	private registerFileMenu(): void {
 		this.registerEvent(
@@ -217,6 +280,15 @@ export default class ListsPlugin extends Plugin {
 						.setIcon("list-todo")
 						.onClick(() => void this.openSelection({ kind: "list", path: file.path }))
 				);
+				// The way back to the text, for the frontmatter this reads.
+				if (this.settings.openFilesAsLists) {
+					menu.addItem((i) =>
+						i
+							.setTitle("Open as markdown")
+							.setIcon("file-text")
+							.onClick(() => void this.openAsMarkdown(file.path))
+					);
+				}
 			})
 		);
 	}

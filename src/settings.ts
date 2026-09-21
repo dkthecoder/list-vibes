@@ -55,6 +55,15 @@ export interface ListsSettings {
 	/** From the sidebar, open a picked list as a workspace tab. */
 	openListsInTab: boolean;
 	/**
+	 * Open a file from the lists folder as a list rather than as markdown.
+	 *
+	 * The plugin's own view without having to go through the plugin's own
+	 * picker — tap the file anywhere and it is a list. "Open as markdown" is
+	 * always on the file's menu and in the view's, because the frontmatter this
+	 * reads lives in the text and has to stay reachable.
+	 */
+	openFilesAsLists: boolean;
+	/**
 	 * Keep the task detail panel as a fixed column rather than an overlay.
 	 * Only honoured where there is room for it; a narrow pane always overlays.
 	 */
@@ -159,6 +168,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	sidebarFirst: false,
 	notesFolder: "tasks",
 	openListsInTab: true,
+	openFilesAsLists: true,
 };
 
 export class ListsSettingTab extends PluginSettingTab {
@@ -289,6 +299,12 @@ export class ListsSettingTab extends PluginSettingTab {
 							key: "importanceMode",
 							options: { star: "Star", stars5: "Five stars" },
 						},
+					},
+					{
+						name: "Open list files as lists",
+						desc: "Tapping a file in the lists folder opens it in this view rather than as markdown. Open as markdown is always available from the file's menu and the list's.",
+						aliases: ["explorer", "markdown"],
+						control: { type: "toggle", key: "openFilesAsLists" },
 					},
 					{
 						name: "Default group order",

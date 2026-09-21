@@ -249,3 +249,32 @@ export function addDestination(
 	if (chosen === undefined) return last;
 	return sections.find((s) => s.line === chosen) ? chosen : last;
 }
+
+/** What to do with a file that has just been opened. */
+export type OpenVerdict = "swap" | "let-through" | "ignore";
+
+/**
+ * Whether a file opening should become a list.
+ *
+ * The decision lives here rather than inside the workspace event because the
+ * interesting part is not the swap, it is the exception: "Open as markdown"
+ * opens the file the ordinary way, and without a way past this it would arrive
+ * here and be swapped straight back — a menu item that visibly does nothing.
+ *
+ * `let-through` is the caller's cue to forget the exception, so it holds for
+ * exactly one open and the next one is a list again. A stale value can only
+ * ever let one open past, never strand a file as text.
+ */
+export function openVerdict(o: {
+	enabled: boolean;
+	isListFile: boolean;
+	/** The view already in the leaf. Only markdown is ours to replace. */
+	viewType?: string;
+	/** The one path allowed to open as text, if any. */
+	allowedAsMarkdown: string | null;
+	path: string;
+}): OpenVerdict {
+	if (!o.enabled || !o.isListFile) return "ignore";
+	if (o.allowedAsMarkdown === o.path) return "let-through";
+	return o.viewType === "markdown" ? "swap" : "ignore";
+}

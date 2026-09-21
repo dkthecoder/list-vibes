@@ -274,11 +274,14 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 						});
 					})
 			);
+			// The way back to the text. Named for what it opens rather than for
+			// what the file is, because a list file opened anywhere else is now
+			// a list and this is the one thing that is not.
 			menu.addItem((i) =>
 				i
-					.setTitle("Open as note")
+					.setTitle("Open as markdown")
 					.setIcon("file-text")
-					.onClick(() => void ctx.app.workspace.openLinkText(list.path, "", false))
+					.onClick(() => ctx.openAsMarkdown(list.path))
 			);
 			menu.addItem((i) =>
 				i
