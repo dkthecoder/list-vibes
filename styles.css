@@ -398,8 +398,11 @@ body.is-phone .lv-header {
 .lv-section {
 	display: flex;
 	align-items: center;
-	gap: var(--size-2-2);
-	padding: var(--size-4-3) var(--size-4-2) var(--size-4-1);
+	gap: var(--size-4-2);
+	/* The same rail as `.lv-add` and a row's own padding: the fold control lands
+	   in the checkbox column and the name on the title rail. */
+	padding: var(--size-4-3) calc(var(--lv-row-inset) + var(--size-4-2))
+		var(--size-4-1);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
 	text-transform: uppercase;
@@ -458,11 +461,14 @@ body.is-phone .lv-header {
 .lv-section-starred {
 	cursor: default;
 	color: var(--lv-accent-ink, var(--text-faint));
-	gap: var(--size-2-1);
 }
 
 .lv-section-starred::before {
 	content: "★";
+	/* Stands in for the fold control the band does not have, so its label sits
+	   on the same rail as every other heading's. */
+	flex: 0 0 var(--checkbox-size);
+	text-align: center;
 	font-size: var(--font-ui-smaller);
 	line-height: 1;
 }
@@ -470,6 +476,9 @@ body.is-phone .lv-header {
 .lv-section-chevron {
 	display: flex;
 	align-items: center;
+	justify-content: center;
+	/* The checkbox's slot, so the name after it starts where the titles do. */
+	flex: 0 0 var(--checkbox-size);
 	color: var(--text-faint);
 }
 
