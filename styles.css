@@ -202,15 +202,6 @@
 	gap: var(--size-4-2);
 	min-height: var(--lv-row-min);
 	padding: var(--size-4-1) var(--size-4-2);
-	/*
-	 * Its own corner, not core's.
-	 *
-	 * `.tree-item-self` is nearly a pill on mobile, which was invisible while
-	 * these rows painted no background and became the shape of the row the
-	 * moment they were tinted. A list in the picker and a task in the list are
-	 * the same kind of object, so they round the same amount.
-	 */
-	border-radius: var(--lv-radius);
 	cursor: var(--cursor);
 	-webkit-touch-callout: none;
 	user-select: none;
@@ -218,6 +209,23 @@
 
 /* `.tree-item-self` pins the baseline with a zero-width space; a flex row with
    an icon in it wants neither that nor baseline alignment. */
+/*
+ * Its own corner, not core's.
+ *
+ * `.tree-item-self` is squared off in one place and nearly a pill in another,
+ * and either way it is a single class — the same weight as `.lv-nav-row`, so
+ * whichever stylesheet came last won. That was invisible while these rows
+ * painted no background and became the shape of the row the moment they were
+ * tinted.
+ *
+ * Qualified by the root so the question is not decided by load order. A list in
+ * the picker and a task in the list are the same kind of object, and they round
+ * the same amount.
+ */
+.lv-root .lv-nav-row {
+	border-radius: var(--lv-radius);
+}
+
 .lv-nav-row::before {
 	content: none;
 }
