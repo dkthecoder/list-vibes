@@ -1,6 +1,6 @@
 {
 	"name": "list-vibes",
-	"version": "0.7.0",
+	"version": "0.8.0",
 	"description": "A Microsoft To Do-style task UI over a plain folder of markdown files.",
 	"type": "module",
 	"scripts": {
