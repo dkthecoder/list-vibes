@@ -114,7 +114,9 @@ const starred = await page.evaluate((sel) => {
 		count: rows.length,
 		badged: rows.filter((r) => r.querySelector(".lv-section-badge")).length,
 		foldable: !!band.querySelector(".lv-section-chevron"),
-		deletable: !!band.querySelector(".lv-section-bin"),
+		// The band carries no heading controls at all; deleting a real group
+		// lives in its menu.
+		deletable: !!band.querySelector(".lv-section-more"),
 		total: stars.length,
 	};
 }, PANE);
