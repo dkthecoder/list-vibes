@@ -12,6 +12,7 @@
 import { SmartView } from "../model/store";
 import { Selection, sameSelection } from "./context";
 import { splitIcon } from "../model/parse";
+import { ListSection } from "../model/types";
 
 const SMART_VIEWS: SmartView[] = ["myday", "important", "planned", "all"];
 
@@ -223,4 +224,28 @@ export function chooseTab(
  */
 export function selectionKey(sel: Selection): string {
 	return sel.kind === "list" ? `list:${sel.path}` : `smart:${sel.view}`;
+}
+
+/**
+ * Which section a new task is added to.
+ *
+ * Three destinations, and the difference between two of them is a `null`:
+ * `addTask` reads `null` as the space above the first heading and `undefined`
+ * as the end of the file. So "No group" cannot be defaulted with `??` — that
+ * treats an explicit choice as no choice at all, and quietly files the task
+ * under the last heading while the box still reads "No group".
+ *
+ * A heading the pick no longer matches has been deleted or moved since the
+ * menu was opened. That falls back rather than failing, because the box is
+ * showing the fallback's name by then anyway.
+ */
+export function addDestination(
+	chosen: number | null | undefined,
+	sections: ListSection[]
+): number | null | undefined {
+	if (!sections.length) return undefined;
+	if (chosen === null) return null;
+	const last = sections[sections.length - 1].line;
+	if (chosen === undefined) return last;
+	return sections.find((s) => s.line === chosen) ? chosen : last;
 }

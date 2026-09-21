@@ -370,6 +370,51 @@ check(
 	`scrollTop ${edge.before} → ${edge.after}`
 );
 
+/* ---------------- a sort does not take the headings away ---------------- */
+
+/*
+ * Grouping used to be gated on the custom sort, so choosing any other one made
+ * every heading disappear and left one flat list. The headings are a view of
+ * the file, not a consequence of its order: they stay, and the rows sort inside
+ * them.
+ */
+const sorted = await page.evaluate(() => {
+	const pane = document.getElementById("sections-sorted");
+	const groups = [];
+	for (const el of pane.querySelectorAll(
+		".lv-section:not(.lv-section-starred), .lv-task-title"
+	)) {
+		// Completed is a filtered subset with its own block at the foot, so it
+		// carries no heading and must not be read as part of the last one.
+		if (el.closest(".lv-completed")) continue;
+		if (el.classList.contains("lv-task-title")) {
+			groups[groups.length - 1]?.titles.push(el.textContent.trim());
+		} else {
+			groups.push({ name: el.querySelector(".lv-section-name")?.textContent ?? "", titles: [] });
+		}
+	}
+	return groups;
+});
+
+check(
+	"an A–Z sort keeps every heading",
+	sorted.length >= 4,
+	`${sorted.length} headings`
+);
+
+const unsorted = sorted.find(
+	(g) =>
+		g.titles.length > 1 &&
+		g.titles.some(
+			(t, i) => i > 0 && t.localeCompare(g.titles[i - 1], undefined, { sensitivity: "base" }) < 0
+		)
+);
+check(
+	"and sorts the rows within each one",
+	!unsorted,
+	unsorted ? `${unsorted.name}: ${unsorted.titles.join(" | ")}` : ""
+);
+
 check("no page errors", errors.length === 0, errors[0] ?? "");
 
 await browser.close();

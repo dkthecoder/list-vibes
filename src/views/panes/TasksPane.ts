@@ -22,6 +22,7 @@ import {
 	partitionStarred,
 	sortTasks,
 } from "../../model/sort";
+import { addDestination } from "../viewState";
 
 /**
  * The task list for the current selection, with completed tasks grouped into a
@@ -285,8 +286,19 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 		});
 	}
 
-	// Headings only make sense while the file's own order is intact.
-	const grouped = sortKey === "custom" && !isSmart;
+	/*
+	 * Grouping is a view, not an order.
+	 *
+	 * Sections partition by their headings' own line numbers and the tasks
+	 * arrive already sorted, so every group shows its own rows in whatever order
+	 * is in force. Re-sorting a list should move rows within their headings, not
+	 * take the headings away.
+	 *
+	 * Dragging is the part that needs the file's order intact, and that is
+	 * `sortable` below. Smart views stay flat for a different reason: their rows
+	 * come from several files, so one file's heading names nothing in them.
+	 */
+	const grouped = !isSmart;
 	const mode = isSmart ? "list" : ctx.viewMode();
 
 	/*
@@ -806,10 +818,13 @@ function renderAddBox(
 	 */
 	if (sections.length) {
 		const chosen = ctx.state.addSection;
+		// Read through the same rule the commit uses, so the name on the box is
+		// always the section the task will actually land in.
+		const dest = addDestination(chosen, sections);
 		const named =
-			chosen === null
+			dest === null
 				? "No group"
-				: (sections.find((x) => x.line === chosen) ?? sections[sections.length - 1]).name;
+				: (sections.find((x) => x.line === dest)?.name ?? "No group");
 
 		const pick = top.createDiv({ cls: "lv-add-section" });
 		pick.setText(named);
@@ -863,11 +878,7 @@ function renderAddBox(
 		ctx.state.draft = {};
 
 		if (sel.kind === "list") {
-			// Absent when the list has no headings, which keeps the old behaviour
-			// exactly: the end of the file.
-			const section = sections.length
-				? (ctx.state.addSection ?? sections[sections.length - 1].line)
-				: undefined;
+			const section = addDestination(ctx.state.addSection, sections);
 			await ctx.mutator.addTask(sel.path, value, draft, { note, section });
 		} else {
 			// From My Day a task still needs a home list. Use the first one and flag it.
