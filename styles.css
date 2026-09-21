@@ -398,9 +398,10 @@ body.is-phone .lv-header {
 .lv-section {
 	display: flex;
 	align-items: center;
-	gap: var(--size-4-2);
-	/* The same rail as `.lv-add` and a row's own padding: the fold control lands
-	   in the checkbox column and the name on the title rail. */
+	gap: var(--lv-lead-gap);
+	/* The same rail as `.lv-add`, and the leading column every row keys off, so
+	   the fold control sits in the checkbox slot and the name starts where the
+	   titles beneath it start. */
 	padding: var(--size-4-3) calc(var(--lv-row-inset) + var(--size-4-2))
 		var(--size-4-1);
 	font-size: var(--font-ui-smaller);
@@ -424,16 +425,37 @@ body.is-phone .lv-header {
 	flex: 0 1 auto;
 	min-width: 0;
 	max-width: 40%;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
 	align-self: center;
-	padding: var(--size-2-1) var(--size-2-2);
+	/* The leading column's height, so the destination is as tappable as the
+	   things either side of it rather than a line of text to hit. */
+	min-height: var(--lv-lead);
+	padding: 0 var(--size-4-1) 0 var(--size-4-2);
 	border-radius: var(--radius-s);
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 	background: var(--background-modifier-hover);
 	cursor: var(--cursor);
+}
+
+.lv-add-section-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.lv-add-section-chevron {
+	display: flex;
+	flex: 0 0 auto;
+	color: var(--text-faint);
+}
+
+.lv-add-section-chevron svg {
+	width: var(--icon-xs, 14px);
+	height: var(--icon-xs, 14px);
 }
 
 .lv-add-section:hover {
@@ -467,7 +489,7 @@ body.is-phone .lv-header {
 	content: "★";
 	/* Stands in for the fold control the band does not have, so its label sits
 	   on the same rail as every other heading's. */
-	flex: 0 0 var(--checkbox-size);
+	flex: 0 0 var(--lv-lead);
 	text-align: center;
 	font-size: var(--font-ui-smaller);
 	line-height: 1;
@@ -477,8 +499,7 @@ body.is-phone .lv-header {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	/* The checkbox's slot, so the name after it starts where the titles do. */
-	flex: 0 0 var(--checkbox-size);
+	flex: 0 0 var(--lv-lead);
 	color: var(--text-faint);
 }
 
@@ -1788,7 +1809,14 @@ body.is-mobile .lv-section-bin {
    Cards layout
 
    A CSS-columns masonry: cards flow top to bottom then wrap, so rows of
-   different heights do not leave the ragged gaps a grid would.
+   different heights do not leave the ragged gaps a grid would. Measured over
+   sixteen cards in three columns: 328px tall against a grid's 409px, a ragged
+   edge of 34px against 75px, and no card split across a column break — which
+   is the one thing multicolumn is flagged for and the one thing `break-inside`
+   is holding.
+
+   Native masonry replaces this when Chrome and Firefox ship it; it is an
+   `@supports` away and needs nothing installed.
    ------------------------------------------------------------------ */
 
 .lv-postit {

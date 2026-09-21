@@ -87,6 +87,14 @@ export interface ListsSettings {
 	 */
 	ungroupedFirst: boolean;
 	/**
+	 * Draw `##` headings as groups.
+	 *
+	 * The default for lists that have not said otherwise in their own
+	 * frontmatter. Off shows one flat list, and each row then carries its
+	 * heading as a badge, so nothing about where a task lives is lost.
+	 */
+	showGroups: boolean;
+	/**
 	 * Give every list its own tab rather than reusing one.
 	 *
 	 * On by default. A tab is then only ever created or focused, never handed a
@@ -141,6 +149,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	autoRemoveEmptySections: false,
 	starredSection: true,
 	ungroupedFirst: true,
+	showGroups: true,
 	listOwnTab: true,
 	collapsedSections: {},
 	listOrder: [],
@@ -243,6 +252,12 @@ export class ListsSettingTab extends PluginSettingTab {
 						name: "Starred at the top",
 						desc: "Lift starred tasks into a band of their own above the list. Nothing is written to your file, and the band is only there while something is starred.",
 						control: { type: "toggle", key: "starredSection" },
+					},
+					{
+						name: "Show groups",
+						desc: "Draw a list's ## headings as groups. Off shows one flat list, with each task carrying its heading as a badge. A list can override this in its own frontmatter with groups: shown or groups: hidden.",
+						aliases: ["sections", "headings"],
+						control: { type: "toggle", key: "showGroups" },
 					},
 					{
 						name: "Ungrouped tasks first",

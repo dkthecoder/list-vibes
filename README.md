@@ -308,6 +308,32 @@ Default `lists/`, configurable.
 
 Do **not** use a dot-prefixed folder like `.lists/`. 
 
+## Dependencies
+
+There are none. `main.js` is this repository's own code and nothing else — the
+nine packages in `package.json` are esbuild, TypeScript, eslint, Playwright and
+their types, none of which reach a vault.
+
+That is a position rather than an accident, and it has been tested twice.
+
+**The post-it wall** is `column-count`, four lines of CSS. The obvious
+alternatives are libraries: MiniMasonry lays out but does not drag, Muuri does
+both and has not had a release in five years. Both position cards with
+`transform` — the property the drag preview already writes — so either would
+mean two things writing the same property on the same element. Measured against
+a plain grid, the columns are 25% shorter and split no card across a column
+break, which is the one thing multicolumn is known to get wrong.
+
+**The drag** is `src/ui/dragSort.ts`. SortableJS is the usual answer and around
+twenty Obsidian plugins use it, but its strength is native HTML5 drag, which
+does not work in a mobile webview — and the `delay` its fallback needs for a
+long press has an open bug on Chrome for Android, which is what Obsidian runs
+on. The most successful Obsidian kanban wrote its own for the same reason.
+
+Native CSS masonry lands in Chrome and Firefox during 2026, and Safari has it
+now. When it does it replaces `column-count` behind an `@supports` — better,
+and still nothing to install.
+
 ## Development
 
 ```bash

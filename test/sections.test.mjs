@@ -537,3 +537,32 @@ describe("where a new task lands", () => {
 		assert.equal(addDestination(999, SECTIONS), 9);
 	});
 });
+
+describe("the groups frontmatter key", () => {
+	const withKey = (value) =>
+		parseFile(
+			["---", `groups: ${value}`, "---", "", "## Work", "", "- [ ] A", ""].join("\n"),
+			"lists/L.md"
+		).config.groups;
+
+	test("a list can ask to be shown flat, or grouped", () => {
+		assert.equal(withKey("hidden"), "hidden");
+		assert.equal(withKey("shown"), "shown");
+	});
+
+	/*
+	 * Unset is not the same as either: it is what defers to the global setting,
+	 * so anything unrecognised has to leave the key absent rather than guess.
+	 */
+	test("anything else leaves it unset, so the setting decides", () => {
+		assert.equal(withKey("yes"), undefined);
+		assert.equal(withKey("false"), undefined);
+	});
+
+	test("a list with no key at all is unset", () => {
+		const list = parseFile(["## Work", "", "- [ ] A", ""].join("\n"), "lists/L.md");
+		assert.equal(list.config.groups, undefined);
+		// The headings are still parsed; only the choice of how to draw them is.
+		assert.equal(list.sections.length, 1);
+	});
+});
