@@ -227,13 +227,13 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
 			menu.addSeparator();
 			menu.addItem((i) =>
 				i
-					.setTitle("New section")
+					.setTitle("New group")
 					.setIcon("heading")
 					.onClick(() => {
 						void import("../../ui/PromptModal").then(({ PromptModal }) => {
 							new PromptModal(ctx.app, {
-								title: "New section",
-								placeholder: "Section name",
+								title: "New group",
+								placeholder: "Group name",
 								cta: "Add",
 								onSubmit: (name) => void ctx.mutator.createSection(list.path, name),
 							}).open();
@@ -623,7 +623,7 @@ function renderSectionHead(
 	 */
 	const bin = head.createDiv({ cls: "clickable-icon lv-section-bin" });
 	setIcon(bin, "trash-2");
-	bin.setAttribute("aria-label", count ? "Delete section, keep its tasks" : "Delete section");
+	bin.setAttribute("aria-label", count ? "Delete group, keep its tasks" : "Delete group");
 	bin.addEventListener("click", (e) => {
 		e.stopPropagation();
 		if (!count) {
@@ -633,8 +633,8 @@ function renderSectionHead(
 		void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
 			new ConfirmModal(ctx.app, {
 				title: `Delete "${sec.name}"?`,
-				body: `Its ${count} task${count === 1 ? "" : "s"} will move into the section above. Nothing is deleted.`,
-				cta: "Delete section",
+				body: `Its ${count} task${count === 1 ? "" : "s"} will move into the group above. Nothing is deleted.`,
+				cta: "Delete group",
 				destructive: false,
 				onConfirm: () => void ctx.mutator.removeSection(path, sec.line),
 			}).open();
@@ -643,7 +643,7 @@ function renderSectionHead(
 
 	const more = head.createDiv({ cls: "clickable-icon lv-section-more" });
 	setIcon(more, "more-horizontal");
-	more.setAttribute("aria-label", "Section options");
+	more.setAttribute("aria-label", "Group options");
 	more.addEventListener("click", (e) => {
 		e.stopPropagation();
 		showSectionMenu(e, ctx, path, sec, count);
@@ -671,12 +671,12 @@ function showSectionMenu(
 
 	menu.addItem((i) =>
 		i
-			.setTitle("Rename section")
+			.setTitle("Rename group")
 			.setIcon("pencil")
 			.onClick(() => {
 				void import("../../ui/PromptModal").then(({ PromptModal }) => {
 					new PromptModal(ctx.app, {
-						title: "Rename section",
+						title: "Rename group",
 						value: sec.name,
 						onSubmit: (next) =>
 							void ctx.mutator.renameSection(path, sec.line, next),
@@ -704,7 +704,7 @@ function showSectionMenu(
 
 	menu.addItem((i) =>
 		i
-			.setTitle(count ? "Delete section, keep tasks" : "Delete section")
+			.setTitle(count ? "Delete group, keep tasks" : "Delete group")
 			.setIcon("trash-2")
 			.onClick(() => void ctx.mutator.removeSection(path, sec.line))
 	);
@@ -712,7 +712,7 @@ function showSectionMenu(
 	if (count) {
 		menu.addItem((i) =>
 			i
-				.setTitle("Delete section and its tasks")
+				.setTitle("Delete group and its tasks")
 				.setIcon("trash-2")
 				.onClick(() => {
 					void import("../../ui/ConfirmModal").then(({ ConfirmModal }) => {
@@ -786,7 +786,7 @@ function renderAddBox(
 		const chosen = ctx.state.addSection;
 		const named =
 			chosen === null
-				? "No section"
+				? "No group"
 				: (sections.find((x) => x.line === chosen) ?? sections[sections.length - 1]).name;
 
 		const pick = top.createDiv({ cls: "lv-add-section" });
@@ -798,7 +798,7 @@ function renderAddBox(
 			const menu = new Menu();
 			menu.addItem((i) =>
 				i
-					.setTitle("No section")
+					.setTitle("No group")
 					.setChecked(chosen === null)
 					.onClick(() => {
 						ctx.state.addSection = null;

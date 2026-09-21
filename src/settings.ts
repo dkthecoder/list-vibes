@@ -235,9 +235,9 @@ export class ListsSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Tidy away empty sections")
+			.setName("Tidy away empty groups")
 			.setDesc(
-				"Remove a heading once the last task leaves it. Off by default, so a section you are about to fill does not vanish as you drag."
+				"Remove a heading once the last task leaves it. Off by default, so a group you are about to fill does not vanish as you drag."
 			)
 			.addToggle((t) =>
 				t.setValue(this.plugin.settings.autoRemoveEmptySections).onChange(async (v) => {
@@ -247,7 +247,7 @@ export class ListsSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Completed section")
+			.setName("Completed tasks")
 			.setDesc("Default state for the completed group at the bottom of a list.")
 			.addDropdown((d) =>
 				d
