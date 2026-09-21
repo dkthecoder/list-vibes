@@ -31,6 +31,17 @@
 	--lv-lead: var(--size-4-6);
 	--lv-lead-gap: var(--size-4-2);
 	/*
+	 * The band that titles a run of tasks — a group, Completed, the starred
+	 * band. One set of tokens for all three, so sizing a heading is one edit
+	 * rather than three, and a snippet can resize every one of them at once.
+	 */
+	--lv-heading-size: var(--font-ui-medium);
+	--lv-heading-weight: var(--font-semibold);
+	/* As typed, so a group reads the way the `##` line in the file reads. */
+	--lv-heading-case: none;
+	--lv-heading-track: normal;
+	--lv-heading-color: var(--text-normal);
+	/*
 	 * Rounded corners, capped.
 	 *
 	 * The rest of this view borrows the theme's tokens on purpose, but radius is
@@ -404,11 +415,11 @@ body.is-phone .lv-header {
 	   titles beneath it start. */
 	padding: var(--size-4-3) calc(var(--lv-row-inset) + var(--size-4-2))
 		var(--size-4-1);
-	font-size: var(--font-ui-smaller);
-	font-weight: var(--font-semibold);
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: var(--text-faint);
+	font-size: var(--lv-heading-size);
+	font-weight: var(--lv-heading-weight);
+	text-transform: var(--lv-heading-case);
+	letter-spacing: var(--lv-heading-track);
+	color: var(--lv-heading-color);
 	cursor: pointer;
 }
 
@@ -540,6 +551,19 @@ body.is-phone .lv-header {
 .lv-section:hover .lv-section-more,
 .lv-section-more:focus-visible {
 	opacity: 1;
+}
+
+/* Completed sits inside `.lv-completed`, which already carries the row inset,
+   so its band supplies only a row's own padding and lands on the same rail. */
+.lv-completed-head {
+	padding-inline: var(--size-4-2);
+}
+
+/* A band that folds is a button; the background is what says so. The starred
+   band does not fold and so does not light up. */
+.lv-section.is-foldable:hover {
+	background: var(--background-modifier-hover);
+	border-radius: var(--lv-radius);
 }
 
 body.is-mobile .lv-section-more {
@@ -777,40 +801,6 @@ body.is-mobile .lv-section-more {
 
 .lv-completed {
 	margin-top: var(--size-4-2);
-}
-
-.lv-completed-head {
-	display: flex;
-	align-items: center;
-	gap: var(--size-2-3);
-	min-height: var(--size-4-9);
-	padding: 0 var(--size-4-2);
-	border-radius: var(--lv-radius);
-	cursor: var(--cursor);
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-	font-weight: var(--font-semibold);
-	-webkit-touch-callout: none;
-	user-select: none;
-}
-
-.lv-completed-head:hover {
-	background: var(--background-modifier-hover);
-}
-
-.lv-completed-chevron {
-	display: flex;
-	align-items: center;
-}
-
-.lv-completed-chevron .svg-icon {
-	width: var(--icon-s, 16px);
-	height: var(--icon-s, 16px);
-}
-
-.lv-completed-count {
-	color: var(--text-faint);
-	font-variant-numeric: tabular-nums;
 }
 
 .lv-completed-body {
