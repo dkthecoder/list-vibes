@@ -77,8 +77,11 @@ view over it.
   and lets you change it, *No group* included.
 - **Sorting keeps them.** Groups are a view of the file, so any sort reorders
   the rows inside each heading rather than dissolving the headings.
-- Tasks in **no group** keep their own run above the groups, separated by a
-  rule, so nothing has to be in one.
+- **Order the groups separately** from the tasks inside them — file order, A–Z
+  or Z–A, in the same menu. A group has no due date of its own, so the two are
+  chosen rather than one being inferred from the other.
+- Tasks in **no group** keep their own run below the groups and above
+  Completed, separated by a rule, so nothing has to be in one.
 - An **empty group** is drawn so it can be dropped into, and can be tidied away
   by itself if you switch that on.
 - **Turn groups off** — `groups: hidden` on a list, or the setting for all of
@@ -249,7 +252,17 @@ changing it cannot touch a byte of the file. Every sort keeps the file's `##`
 headings: a group is a view of the file rather than a consequence of its order,
 so the headings stay and the rows reorder inside them.
 
-Dragging is only offered under **custom** sort, and never in a smart view.
+The headings carry an order of their own — file order, A–Z or Z–A — chosen in
+the same menu and stored the same way. Neither sort can stand in for the other:
+a group has no due date and no importance of its own, so ordering the groups by
+the task sort would mean inventing an aggregate and calling it the group's.
+Tasks in no group sit below every group, and Completed below that. Subtasks are
+never sorted and never grouped; they stay under the task they belong to.
+
+Dragging a heading is offered only under **file order**, and dragging a task
+only under **custom** sort — each follows its own order rather than the other's,
+so choosing "Due date" for the tasks does not stop you reordering the groups.
+Neither is offered in a smart view.
 Custom sort *is* the file's order, so moving a row is a real edit and the new
 position is what you see next time. Under a computed sort, dropping a task
 between two others would write a change the sort immediately undoes — which

@@ -417,6 +417,48 @@ check(
 	unsorted ? `${unsorted.name}: ${unsorted.titles.join(" | ")}` : ""
 );
 
+/* ---------------- the groups carry an order of their own ---------------- */
+
+/*
+ * Two sorts, not one. The task sort orders rows inside a heading; the group
+ * sort orders the headings. Neither is derived from the other, and ungrouped
+ * tasks sit below every group and above Completed whichever is chosen.
+ */
+const order = await page.evaluate(() => {
+	const pane = document.getElementById("sections-sorted");
+	const out = [];
+	for (const el of pane.querySelectorAll(".lv-section, .lv-group, .lv-completed")) {
+		if (el.closest(".lv-completed") && !el.classList.contains("lv-completed")) continue;
+		if (el.classList.contains("lv-section-starred")) continue;
+		if (el.classList.contains("lv-starred-run")) continue;
+		if (el.classList.contains("lv-section")) {
+			out.push("group:" + el.querySelector(".lv-section-name")?.textContent);
+		} else if (el.classList.contains("lv-completed")) out.push("completed");
+		else if (!el.classList.contains("lv-in-group")) out.push("ungrouped");
+	}
+	return out;
+});
+
+const groups = order.filter((o) => o.startsWith("group:")).map((o) => o.slice(6));
+const alphabetical = [...groups].sort((a, b) =>
+	a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+);
+check(
+	"an A–Z group sort orders the headings themselves",
+	groups.join("|") === alphabetical.join("|"),
+	groups.join(", ")
+);
+check(
+	"ungrouped sits below every group",
+	order.lastIndexOf("ungrouped") > order.lastIndexOf(order.filter((o) => o.startsWith("group:")).pop()),
+	order.join(" > ")
+);
+check(
+	"and Completed sits below that",
+	order.indexOf("completed") === order.length - 1,
+	order.join(" > ")
+);
+
 /* ---------------- groups can be turned off ---------------- */
 
 /*

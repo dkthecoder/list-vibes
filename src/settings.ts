@@ -1,7 +1,7 @@
 import { App, PluginSettingTab, SettingDefinitionItem } from "obsidian";
 import type ListsPlugin from "./main";
 import { Dialect, ViewMode } from "./model/types";
-import { SORT_OPTIONS, SortKey } from "./model/sort";
+import { GROUP_SORT_OPTIONS, GroupSortKey, SORT_OPTIONS, SortKey } from "./model/sort";
 
 export interface ListsSettings {
 	/** Vault-relative folder holding the list files. */
@@ -31,6 +31,15 @@ export interface ListsSettings {
 	importanceMode: "star" | "stars5";
 	/** Sort applied to lists that have not been given their own. */
 	defaultSort: SortKey;
+	/**
+	 * How the `##` headings themselves are ordered.
+	 *
+	 * Its own question, not a consequence of the task sort: a group has no due
+	 * date and no importance of its own, so organising within the groups and
+	 * organising the groups are chosen separately.
+	 */
+	defaultGroupSort: GroupSortKey;
+	groupSortByList: Record<string, GroupSortKey>;
 	/** Per-list sort choice, keyed by file path. View-only, never written to the file. */
 	sortByList: Record<string, SortKey>;
 	/** Add the view to the sidebar automatically when Obsidian starts. */
@@ -78,14 +87,6 @@ export interface ListsSettings {
 	 * does not move anything is a star that does very little.
 	 */
 	starredSection: boolean;
-	/**
-	 * Where tasks that are in no group sit: above the groups or below them.
-	 *
-	 * Above by default, because that is where they are in the file — anything
-	 * before the first heading — and a view that disagrees with the file about
-	 * order is a view you cannot drag in confidently.
-	 */
-	ungroupedFirst: boolean;
 	/**
 	 * Draw `##` headings as groups.
 	 *
@@ -142,13 +143,14 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	stampTime: true,
 	importanceMode: "star",
 	defaultSort: "custom",
+	defaultGroupSort: "custom",
+	groupSortByList: {},
 	sortByList: {},
 	prettyTitles: true,
 	defaultView: "list",
 	viewByList: {},
 	autoRemoveEmptySections: false,
 	starredSection: true,
-	ungroupedFirst: true,
 	showGroups: true,
 	listOwnTab: true,
 	collapsedSections: {},
@@ -260,12 +262,6 @@ export class ListsSettingTab extends PluginSettingTab {
 						control: { type: "toggle", key: "showGroups" },
 					},
 					{
-						name: "Ungrouped tasks first",
-						desc: "Show tasks that are in no group above the groups rather than below them. On by default, because that is where they are in the file.",
-						aliases: ["groups", "sections"],
-						control: { type: "toggle", key: "ungroupedFirst" },
-					},
-					{
 						name: "Tidy away empty groups",
 						desc: "Remove a heading once the last task leaves it. Off by default, so a group you are about to fill does not vanish as you drag.",
 						aliases: ["sections"],
@@ -292,6 +288,18 @@ export class ListsSettingTab extends PluginSettingTab {
 							type: "dropdown",
 							key: "importanceMode",
 							options: { star: "Star", stars5: "Five stars" },
+						},
+					},
+					{
+						name: "Default group order",
+						desc: "Applied to lists that have not been given their own. Groups are ordered separately from the tasks inside them.",
+						aliases: ["sections", "headings"],
+						control: {
+							type: "dropdown",
+							key: "defaultGroupSort",
+							options: Object.fromEntries(
+								GROUP_SORT_OPTIONS.map((o) => [o.key, o.label])
+							),
 						},
 					},
 					{
@@ -376,7 +384,7 @@ const REREAD = new Set(["folder", "enableSubtasks", "showCompleted"]);
 /** Changes that only alter what is already on screen. */
 const REPAINT = new Set([
 	"starredSection",
-	"ungroupedFirst",
+	"defaultGroupSort",
 	"importanceMode",
 	"defaultSort",
 	"prettyTitles",

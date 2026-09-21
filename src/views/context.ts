@@ -6,7 +6,7 @@ import { ListColor, Task, TaskMeta, ViewMode,
 	TaskList,
 } from "../model/types";
 import type { RenderScope } from "./ListsView";
-import { SortKey } from "../model/sort";
+import { GroupSortKey, SortKey } from "../model/sort";
 
 export type Selection =
 	| { kind: "list"; path: string }
@@ -90,6 +90,9 @@ export interface ViewContext extends DetailContext {
 	/** Sort for the current list: per-list choice, then frontmatter, then default. */
 	sortKey: () => SortKey;
 	setSortKey: (key: SortKey) => void;
+	/** How the groups themselves are ordered, chosen separately from the tasks. */
+	groupSortKey: () => GroupSortKey;
+	setGroupSortKey: (key: GroupSortKey) => void;
 
 	/** Rows or the post-it wall, for the current list. */
 	viewMode: () => ViewMode;

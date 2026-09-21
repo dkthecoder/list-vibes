@@ -15,6 +15,33 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.8.0
+
+**The groups carry an order of their own.** Sorting a list ordered the tasks
+inside each heading and left the headings themselves in file order, so there was
+no way to say "alphabetically" and have it mean the groups too.
+
+- A second order, chosen in the same menu: file order, A–Z or Z–A. Organise
+  within the groups, and organise the groups.
+- Neither sort stands in for the other. A group has no due date and no
+  importance of its own, so ordering groups by the task sort would mean
+  inventing an aggregate and calling it the group's.
+- Dragging a heading now follows the group order rather than the task sort.
+  Choosing "Due date" for the tasks had been quietly disabling it, which is a
+  question it has nothing to say about.
+- Both are view-only and stored per list, like the task sort. Nothing is written
+  to your markdown.
+
+**Tasks in no group sit below the groups**, with Completed below that. They were
+above, by the argument that it is where they are in the file — which only held
+while the file's own order was the only order there was.
+
+The `Ungrouped tasks first` setting goes with it: the position is now fixed, and
+a setting whose reason has gone is a switch with nothing behind it.
+
+Subtasks are unchanged, and deliberately so — they are never sorted and never
+grouped, and stay under the task they belong to.
+
 ## 0.7.0
 
 **A group is shaded a level above the items inside it.** The heading had no
