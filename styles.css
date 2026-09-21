@@ -224,6 +224,10 @@
  */
 .lv-root .lv-nav-row {
 	border-radius: var(--lv-radius);
+	/* The gap a task row keeps from the next one. Once these became boxes they
+	   needed the same air between them, or a coloured picker reads as one
+	   striped block rather than a list of things. */
+	margin-bottom: var(--size-2-2);
 }
 
 .lv-nav-row::before {
