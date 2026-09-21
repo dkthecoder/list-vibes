@@ -149,15 +149,66 @@ export class Notice {
 	}
 }
 
+/**
+ * A menu that remembers what was put in it.
+ *
+ * It used to return `this` and draw nothing, which meant no suite could see a
+ * menu's contents — every item the plugin offers was untestable, and a section
+ * that failed to appear would have looked exactly like one that did.
+ *
+ * The items are published on the window rather than drawn, because what a suite
+ * needs to know is what was offered, not what it looked like.
+ */
+interface MenuEntry {
+	title: string;
+	checked: boolean;
+	disabled: boolean;
+}
+
 export class Menu {
-	addItem(): this {
+	readonly items: MenuEntry[] = [];
+
+	addItem(cb: (item: unknown) => unknown): this {
+		const entry: MenuEntry = { title: "", checked: false, disabled: false };
+		const item = {
+			setTitle(t: string) {
+				entry.title = t;
+				return item;
+			},
+			setIcon() {
+				return item;
+			},
+			setChecked(v: boolean) {
+				entry.checked = !!v;
+				return item;
+			},
+			setDisabled(v: boolean) {
+				entry.disabled = !!v;
+				return item;
+			},
+			setSection() {
+				return item;
+			},
+			onClick() {
+				return item;
+			},
+		};
+		cb(item);
+		this.items.push(entry);
 		return this;
 	}
+
 	addSeparator(): this {
+		this.items.push({ title: "---", checked: false, disabled: true });
 		return this;
 	}
+
 	showAtMouseEvent(): void {
-		/* no-op in the harness */
+		(window as unknown as { __lvMenu?: MenuEntry[] }).__lvMenu = this.items;
+	}
+
+	showAtPosition(): void {
+		this.showAtMouseEvent();
 	}
 }
 
