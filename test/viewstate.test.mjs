@@ -10,6 +10,7 @@ import {
 	selectionKey,
 	encodeTaskRef,
 	decodeTaskRef,
+	openVerdict,
 } from "./build/views/viewState.js";
 
 /* A tab only remembers its own list if this round-trips exactly. */
@@ -415,5 +416,48 @@ test("chooseTab, one tab per list", async (t) => {
 	await t.test("a new tab is still forced when asked for one", () => {
 		const tabs = [{ selection: { kind: "list", path: "lists/A.md" }, pinned: false }];
 		assert.deepEqual(chooseTab(tabs, LIST("lists/A.md"), true, true), { action: "new" });
+	});
+});
+
+describe("openVerdict", () => {
+	const base = {
+		enabled: true,
+		isListFile: true,
+		viewType: "markdown",
+		allowedAsMarkdown: null,
+		path: "lists/Work.md",
+	};
+
+	test("a list file opened as markdown becomes a list", () => {
+		assert.equal(openVerdict(base), "swap");
+	});
+
+	test("a file outside the lists folder is left alone", () => {
+		assert.equal(openVerdict({ ...base, isListFile: false }), "ignore");
+	});
+
+	test("so is every file when the setting is off", () => {
+		assert.equal(openVerdict({ ...base, enabled: false }), "ignore");
+	});
+
+	/* A leaf already showing something else is either ours or somebody's, and
+	   replacing either would be taking a tab that was not offered. */
+	test("a leaf that is not markdown is not ours to replace", () => {
+		assert.equal(openVerdict({ ...base, viewType: "list-vibes" }), "ignore");
+		assert.equal(openVerdict({ ...base, viewType: undefined }), "ignore");
+	});
+
+	test("the named path opens as text instead of being swapped back", () => {
+		assert.equal(
+			openVerdict({ ...base, allowedAsMarkdown: "lists/Work.md" }),
+			"let-through"
+		);
+	});
+
+	test("but only that path, not the next file opened", () => {
+		assert.equal(
+			openVerdict({ ...base, allowedAsMarkdown: "lists/Other.md" }),
+			"swap"
+		);
 	});
 });

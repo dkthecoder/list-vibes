@@ -150,6 +150,7 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			paint();
 		},
 		sortKey: () => sortKey,
+		openAsMarkdown: noop,
 		groupSortKey: () => groupSortKey,
 		setGroupSortKey: (k: GroupSortKey) => {
 			groupSortKey = k;

@@ -42,6 +42,11 @@ Obsidian's right panel or opens as a drawer, whichever the device has.
   touching the filename. Toggleable if you want the true name.
 - Open a list **in the sidebar** or **as a tab**. In tab mode the sidebar stays a
   picker, the way the file explorer works.
+- **Tap a list file anywhere** — the explorer, a link, the quick switcher — and
+  it opens as a list rather than as markdown. Only files in the lists folder;
+  the rest of your vault is untouched. **Open as markdown** is on the file's
+  menu and the list's, because the frontmatter this reads lives in the text.
+  Toggleable if you would rather these files open as text.
 
 ### Tasks
 

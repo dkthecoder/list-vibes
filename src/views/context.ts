@@ -91,6 +91,8 @@ export interface ViewContext extends DetailContext {
 	sortKey: () => SortKey;
 	setSortKey: (key: SortKey) => void;
 	/** How the groups themselves are ordered, chosen separately from the tasks. */
+	/** Open a list file as the text it is, without it being swapped back. */
+	openAsMarkdown: (path: string) => void;
 	groupSortKey: () => GroupSortKey;
 	setGroupSortKey: (key: GroupSortKey) => void;
 

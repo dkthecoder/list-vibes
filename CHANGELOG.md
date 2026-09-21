@@ -15,6 +15,25 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.9.0
+
+**A list file opened anywhere is a list.** The view was reachable through the
+plugin's own picker or the file's context menu, so a file tapped in the explorer
+was markdown and you had to go and find it again somewhere else.
+
+- The explorer, a link, the quick switcher, a search result — all of them now
+  land on the list.
+- Only files in the lists folder. Registering the `md` extension would have
+  taken every note in the vault with it.
+- **Open as markdown** is on the file's menu and in the list's own, because the
+  `icon`, `sort`, `view` and `groups` keys this reads live in the text and have
+  to stay reachable. It opens as text once; the next open is a list again.
+- Off in one setting, for anyone who would rather these files opened as text.
+
+The view's "Open as note" is now "Open as markdown" and goes through the same
+door — left as it was, it would have opened the file and been swapped straight
+back, a menu item that visibly did nothing.
+
 ## 0.8.0
 
 **The groups carry an order of their own.** Sorting a list ordered the tasks

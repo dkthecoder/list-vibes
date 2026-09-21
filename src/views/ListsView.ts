@@ -397,6 +397,8 @@ export class ListsView extends ItemView {
 				);
 			},
 
+			openAsMarkdown: (path: string) => void this.plugin.openAsMarkdown(path),
+
 			groupSortKey: () => {
 				const sel = this.state.selection;
 				if (sel.kind !== "list") return "custom";
