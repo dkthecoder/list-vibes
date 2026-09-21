@@ -85,6 +85,70 @@ export function dropIndex(centres: number[], from: number, y: number): number {
 	return Math.max(0, Math.min(centres.length - 1, to));
 }
 
+/** Just enough of a rect to place something in the flow. */
+export interface FlowRect {
+	left: number;
+	top: number;
+	height: number;
+}
+
+const centreOf = (r: FlowRect): number => r.top + r.height / 2;
+
+/** The distinct column positions, left to right. Rounded, because a sub-pixel
+    difference between two cards in one column is not a second column. */
+function columnsOf(rects: FlowRect[]): number[] {
+	return [...new Set(rects.map((r) => Math.round(r.left)))].sort((a, b) => a - b);
+}
+
+/** Wider than the tallest column, so a later column always outranks an earlier
+    one however far down the earlier one runs. */
+function columnSpan(rects: FlowRect[]): number {
+	const centres = rects.map(centreOf);
+	return Math.max(...centres) - Math.min(...centres) + 1;
+}
+
+/**
+ * Where each element sits along the flow, as one number.
+ *
+ * `dropIndex` orders by a single value, and on the wall two cards can share a
+ * centre *exactly* — a wall of mixed-height cards in columns guarantees it
+ * eventually, and one measured on the real thing put cards 6 and 11 both at
+ * 5546.46875. A tie makes the count jump by two, and the position between them
+ * is then one no pointer can reach.
+ *
+ * So the column is the first key and the height the second, folded into one
+ * ordinate. The arithmetic that consumes it stays one-dimensional and stays
+ * right; only the measuring knows there are two dimensions.
+ *
+ * In rows there is one column and this is the centre it always was.
+ */
+export function flowOrdinates(rects: FlowRect[]): number[] {
+	if (!rects.length) return [];
+	const cols = columnsOf(rects);
+	if (cols.length < 2) return rects.map(centreOf);
+
+	const span = columnSpan(rects);
+	const base = Math.min(...rects.map(centreOf));
+	return rects.map(
+		(r) => cols.indexOf(Math.round(r.left)) * span + (centreOf(r) - base)
+	);
+}
+
+/** The pointer's own place in that same flow, so the two can be compared. */
+export function flowOrdinate(rects: FlowRect[], x: number, y: number): number {
+	if (!rects.length) return y;
+	const cols = columnsOf(rects);
+	if (cols.length < 2) return y;
+
+	// The last column that starts at or before the pointer; left of them all is
+	// the first, which is where a drag that has wandered off the edge belongs.
+	let col = 0;
+	for (let i = 0; i < cols.length; i++) if (cols[i] <= x) col = i;
+
+	const base = Math.min(...rects.map(centreOf));
+	return col * columnSpan(rects) + (y - base);
+}
+
 /** A container's bounds, in the same coordinate space as the pointer. */
 export interface DropBox {
 	top: number;
@@ -217,6 +281,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	let live = false;
 	let siblings: HTMLElement[] = [];
 	let centres: number[] = [];
+	let rects: FlowRect[] = [];
 	let shiftPx = 0;
 	let target = opts.index;
 	let groups: DragContainer[] = [];
@@ -236,10 +301,13 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		}
 	};
 
-	const measure = (els: HTMLElement[]): number[] =>
+	/* Kept as rects rather than centres: the pointer has to be placed in the
+	   same flow as the rows, and that needs their columns as well as their
+	   heights. */
+	const rectsOf = (els: HTMLElement[]): FlowRect[] =>
 		els.map((el) => {
 			const r = el.getBoundingClientRect();
-			return r.top + r.height / 2;
+			return { left: r.left, top: r.top, height: r.height };
 		});
 
 	const begin = () => {
@@ -269,7 +337,8 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		home = Math.max(0, groups.findIndex((g) => g.rows === siblings));
 		over = home;
 
-		centres = measure(siblings);
+		rects = rectsOf(siblings);
+		centres = flowOrdinates(rects);
 		// Rows are not all the same height — a task with steps is taller than a
 		// bare one — so the gap opens by the height of the row being moved, in
 		// pixels. A percentage would resolve against each row's own height and
@@ -356,12 +425,13 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 				const rows = groups[over]?.rows ?? [];
 				// No index of our own in a foreign run, so nothing is excluded
 				// from the count and every row counts as passed or not.
-				target = dropIndex(measure(rows), -1, y);
+				const theirs = rectsOf(rows);
+				target = dropIndex(flowOrdinates(theirs), -1, flowOrdinate(theirs, x, y));
 				return;
 			}
 		}
 
-		const next = dropIndex(centres, opts.index, y);
+		const next = dropIndex(centres, opts.index, flowOrdinate(rects, x, y));
 		if (next === target) return;
 		target = next;
 		// Shift the rows the dragged one is passing, so the gap opens where it
