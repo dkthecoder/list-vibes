@@ -40,6 +40,15 @@
 	 * `min()` keeps a modest theme's radius and refuses an extravagant one.
 	 */
 	--lv-radius: min(var(--radius-m, 8px), 10px);
+	/*
+	 * How far one row sits from the next, in either pane.
+	 *
+	 * Named rather than written twice. A list in the picker and a task in the
+	 * list are the same object in two places, and the two ways they can stop
+	 * matching are a corner and a gap — so both are decided once, here, and
+	 * read from there.
+	 */
+	--lv-row-gap: var(--size-2-2);
 	--lv-radius-s: min(var(--radius-s, 6px), 8px);
 
 	/* Checkboxes default to --font-text-size, which is sized for editor body
@@ -224,10 +233,9 @@
  */
 .lv-root .lv-nav-row {
 	border-radius: var(--lv-radius);
-	/* The gap a task row keeps from the next one. Once these became boxes they
-	   needed the same air between them, or a coloured picker reads as one
-	   striped block rather than a list of things. */
-	margin-bottom: var(--size-2-2);
+	/* Once these became boxes they needed the same air between them, or a
+	   coloured picker reads as one striped block rather than a list of things. */
+	margin-bottom: var(--lv-row-gap);
 }
 
 .lv-nav-row::before {
@@ -546,7 +554,7 @@ body.is-mobile .lv-section-bin {
 	 */
 	--lv-line: calc(var(--font-ui-medium) * 1.4);
 	padding: var(--size-4-2) var(--size-4-2);
-	margin-bottom: var(--size-2-2);
+	margin-bottom: var(--lv-row-gap);
 	/* The card's radius, not a tighter one of its own: rows and cards are the
 	   same object in two layouts, and a corner is the most visible place for
 	   them to disagree. */
