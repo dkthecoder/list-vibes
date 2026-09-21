@@ -1,6 +1,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { dropContainer, dropIndex } from "./build/ui/dragSort.js";
+import {
+	dropContainer,
+	dropIndex,
+	flowOrdinate,
+	flowOrdinates,
+} from "./build/ui/dragSort.js";
 
 /**
  * The index a drag lands on. Off-by-one errors here are invisible in review and
@@ -145,5 +150,51 @@ describe("dropContainer", () => {
 
 	test("with no containers the current one is kept", () => {
 		assert.equal(dropContainer([], 50, 50, 3), 3);
+	});
+});
+
+/*
+ * A wall of mixed-height cards in columns will eventually put two of them at
+ * exactly the same height — measured on the real wall, cards 6 and 11 both sat
+ * at 5546.46875. `dropIndex` orders by one number, so a tie makes its count
+ * jump by two and leaves a drop position that no pointer can reach.
+ */
+describe("flow ordinates", () => {
+	// Two columns. The third card in column one ties with the first in column
+	// two, which is the shape that breaks a centre-only measure.
+	const WALL = [
+		{ left: 0, top: 0, height: 40 }, //    col 1, centre 20
+		{ left: 0, top: 40, height: 60 }, //   col 1, centre 70
+		{ left: 0, top: 100, height: 40 }, //  col 1, centre 120
+		{ left: 100, top: 0, height: 40 }, //  col 2, centre 20  <- ties with #0
+		{ left: 100, top: 40, height: 40 }, // col 2, centre 60
+	];
+
+	test("every card gets its own place in the order", () => {
+		const o = flowOrdinates(WALL);
+		assert.equal(new Set(o).size, WALL.length, "two cards share an ordinate");
+		for (let i = 1; i < o.length; i++) {
+			assert.ok(o[i] > o[i - 1], `ordinate ${i} does not follow ${i - 1}`);
+		}
+	});
+
+	test("every drop position is reachable", () => {
+		const o = flowOrdinates(WALL);
+		const seen = new Set();
+		for (const col of [0, 100]) {
+			for (let y = -20; y < 180; y += 0.5) {
+				seen.add(dropIndex(o, 0, flowOrdinate(WALL, col, y)));
+			}
+		}
+		assert.equal(seen.size, WALL.length, `only reached ${[...seen].sort().join(",")}`);
+	});
+
+	test("in rows there is one column, so it is the centre it always was", () => {
+		const rows = [
+			{ left: 0, top: 0, height: 40 },
+			{ left: 0, top: 40, height: 40 },
+			{ left: 0, top: 80, height: 40 },
+		];
+		assert.deepEqual(flowOrdinates(rows), [20, 60, 100]);
 	});
 });
