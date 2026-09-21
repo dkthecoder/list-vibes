@@ -39,7 +39,12 @@ const PATTERN = new RegExp(
 	[
 		"`([^`]+)`", // 1 code
 		"\\[\\[([^\\]|]+)(?:\\|([^\\]]+))?\\]\\]", // 2 target, 3 label
-		"\\[([^\\]]*)\\]\\(([^)\\s]+)\\)", // 4 label, 5 href
+		// 4 label, 5 href. The destination takes one level of balanced parens,
+		// because real URLs carry them — `/wiki/She_(TV_series)` — and scanning
+		// to the first `)` ends the link early and leaves the true closing paren
+		// behind as text. One level is what Markdown itself asks for; deeper
+		// nesting is meant to be escaped.
+		"\\[([^\\]]*)\\]\\(((?:[^()\\s]|\\([^()\\s]*\\))+)\\)",
 		"(https?://[^\\s)]+)", // 6 bare url — boundary checked below, not by lookbehind
 		"~~([^~]+)~~", // 7 strike
 		"\\*\\*([^*]+)\\*\\*", // 8 bold

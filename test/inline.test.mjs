@@ -123,3 +123,45 @@ describe("parseInline", () => {
 		}
 	});
 });
+
+/**
+ * URLs with parentheses of their own.
+ *
+ * Markdown's rule is that parens inside a link destination must be balanced,
+ * and Wikipedia's disambiguators — `She_(TV_series)` — are the everyday case.
+ * Scanning to the first `)` ends the destination early and leaves the real
+ * closing paren behind as text, which is how a list of shows ended up reading
+ * "She⧉) 2020".
+ */
+describe("links whose URL contains parentheses", () => {
+	test("a balanced pair inside the URL is part of the URL", () => {
+		const [link] = parseInline("[She](https://en.wikipedia.org/wiki/She_(TV_series))");
+		assert.equal(link.t, "link");
+		assert.equal(link.href, "https://en.wikipedia.org/wiki/She_(TV_series)");
+		assert.equal(link.label, "She");
+	});
+
+	test("nothing leaks out after the link", () => {
+		const parts = parseInline("[She](https://x.dev/a_(b)) 2020");
+		assert.equal(parts.length, 2);
+		assert.equal(parts[1].t, "text");
+		assert.equal(parts[1].v, " 2020");
+	});
+
+	test("a plain URL is unaffected", () => {
+		const [link] = parseInline("[Salakaar](https://m.imdb.com/title/tt35077054/)");
+		assert.equal(link.href, "https://m.imdb.com/title/tt35077054/");
+	});
+
+	test("parentheses at the end of the path still close the link", () => {
+		const parts = parseInline("[Woh](https://en.wikipedia.org/wiki/Pati_(2019_film)) 2019 #film");
+		assert.equal(parts[0].href, "https://en.wikipedia.org/wiki/Pati_(2019_film)");
+		assert.equal(parts.some((p) => p.t === "tag" && p.v === "#film"), true);
+	});
+
+	test("an unbalanced paren does not swallow the rest of the line", () => {
+		const parts = parseInline("[a](https://x.dev/b) c) d");
+		assert.equal(parts[0].href, "https://x.dev/b");
+		assert.equal(parts[1].v, " c) d");
+	});
+});
