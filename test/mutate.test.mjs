@@ -493,6 +493,69 @@ describe("notes", () => {
 			assert.equal(s.parse().tasks.length, 3);
 		});
 
+		test(`a note with a paragraph break round-trips (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.task(0), "First para.\n\nSecond para.");
+			assert.equal(s.parse().tasks[0].note, "First para.\n\nSecond para.");
+			assert.equal(s.parse().tasks.length, 3, "list structure changed");
+		});
+
+		test(`a paragraph break is written as an empty line, not a stray indent (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.task(0), "First para.\n\nSecond para.");
+			assert.deepEqual(s.lines().slice(7, 10), [
+				"\tFirst para.",
+				"",
+				"\tSecond para.",
+			]);
+		});
+
+		test(`rewriting one paragraph leaves the break alone (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.task(0), "First para.\n\nSecond para.");
+			const t = s.parse().tasks[0];
+			await s.mutator.setNote(t, "First para.\n\nSecond para EDITED.");
+			assert.equal(
+				s.parse().tasks[0].note,
+				"First para.\n\nSecond para EDITED.",
+				"the paragraph break collapsed on the second write"
+			);
+			assert.equal(s.parse().tasks.length, 3, "list structure changed");
+		});
+
+		test(`a description of bullets round-trips (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			const text = "- Elisa Loah - EA Sports\n- ZUNA x KURDO";
+			await s.mutator.setNote(s.task(0), text);
+			assert.equal(s.parse().tasks[0].note, text);
+			assert.equal(s.parse().tasks[0].children.length, 0, "a bullet became a step");
+		});
+
+		test(`a checkbox typed into the description stays in it (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			const text = "shopping:\n- [ ] milk\n- [ ] bread";
+			await s.mutator.setNote(s.task(0), text);
+			const t = s.parse().tasks[0];
+			assert.equal(t.note, text, "the description lost its checkbox lines");
+			assert.equal(t.children.length, 0, "description text became steps");
+			assert.equal(s.parse().tasks.length, 3, "list structure changed");
+		});
+
+		test(`the escape is written to disk, not shown to the user (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			await s.mutator.setNote(s.task(0), "- [ ] milk");
+			assert.equal(s.lines()[7], "\t\\- [ ] milk");
+			assert.equal(s.parse().tasks[0].note, "- [ ] milk");
+		});
+
+		test(`a fenced block in the description round-trips (${via})`, async () => {
+			const s = setup(SAMPLE, { open });
+			const text = "```js\nconst x = 1;\n```";
+			await s.mutator.setNote(s.task(0), text);
+			assert.equal(s.parse().tasks[0].note, text);
+			assert.equal(s.parse().tasks.length, 3, "the fence swallowed a task");
+		});
+
 		test(`setting the same note is a no-op (${via})`, async () => {
 			const s = setup(SAMPLE, { open });
 			const before = s.read();

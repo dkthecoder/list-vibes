@@ -51,7 +51,10 @@ export function renderTaskRow(
 	 * opening the task to find out whether it mattered.
 	 */
 	const preview = notePreview(task.note);
-	if (preview) body.createDiv({ cls: "lv-task-note", text: preview });
+	// Rendered rather than plain, so a link in the preview is reachable without
+	// opening the task. renderInline stops the click, leaving the rest of the
+	// row to open the detail as before.
+	if (preview) renderInline(body.createDiv({ cls: "lv-task-note" }), preview, ctx);
 
 	const bits: { text: string; cls?: string }[] = [];
 	if (opts.showList) {

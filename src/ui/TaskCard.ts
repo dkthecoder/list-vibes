@@ -6,6 +6,7 @@ import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
 import { renderInline } from "./inline";
+import { renderNote } from "./noteView";
 import { renderImportance } from "./Importance";
 
 /**
@@ -56,7 +57,7 @@ export function renderTaskCard(
 
 	/* --- note, shown rather than hidden --- */
 	if (task.note) {
-		card.createDiv({ cls: "lv-card-note", text: task.note });
+		renderNote(card.createDiv({ cls: "lv-card-note" }), task.note, ctx);
 	}
 
 	/* --- steps, also on the face --- */

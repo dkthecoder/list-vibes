@@ -1192,6 +1192,40 @@ body.is-mobile .lv-section-more {
  * `resize` is off because the height is not the user's to set any more — it
  * follows what they typed, which is the thing they were adjusting it to match.
  */
+/*
+ * The description at rest.
+ *
+ * Styled to match the textarea it stands in for, so clicking into it swaps the
+ * element without the text appearing to move. `hidden` needs saying out loud:
+ * the class rules below it would otherwise win over the attribute's default.
+ */
+.lv-note-read {
+	/* Box and type mirror .lv-note-input exactly, so clicking into the
+	   description swaps the element without the text appearing to move. */
+	width: 100%;
+	min-height: var(--size-4-9);
+	padding: var(--size-4-2) var(--size-4-3);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	cursor: text;
+}
+
+.lv-note-read:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.lv-note-placeholder {
+	color: var(--text-faint);
+}
+
+.lv-note-read[hidden],
+.lv-note-input[hidden] {
+	display: none;
+}
+
 .lv-note-input {
 	/* Sized by `autoGrow`, which supplies only the number. */
 	height: var(--lv-grow-height, auto);
