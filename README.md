@@ -1,10 +1,10 @@
 # List Vibes
 
-A native-like list/to-do extension for Obsidian for those who dont want to busing pure markdown for everything. Born out of my fustration for Reminder Apps/Todo List apps that are not syncable, easy to use or ergonomic. (honestly, how the hell do we have AI but no reliably decent wayto do lists/todos)
+A native-feeling list/to-do extension for Obsidian for those who dont want to be using pure markdown for everything. Born out of my fustration for Reminder Apps/Todo List apps that are not syncable, easy to use or ergonomic. (honestly, how the hell do we have AI but no reliably decent way to do lists/todos)
 
 The extension uses a folder of markdown files. One file is a list. One line is a task. There is no database, no index and no cache — open any of these files in the editor and you are looking at exactly what the plugin is looking at.
 
-For context I dog-food this extension as I am all in on it.
+For context I dog-food this extension as I am all in on it. I do try to test and squash bugs as much as I can and improve the extensions as much as I can but feedback and help is always appreciated to try make this the best example of how lists/todos should be done! 
 
 **Desktop, tablet and phone.** One view, one codebase: the layout collapses
 from three panes to two to one as the space runs out, and the task detail
