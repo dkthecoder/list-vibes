@@ -73,7 +73,20 @@ const detail = await page.evaluate(() => {
 				: null,
 			hasClear: !!r.querySelector(".lv-action-clear:not(.is-empty)"),
 		})),
-		noteText: all(".lv-note-input").map(textStart),
+		// The rendered view is what is on screen at rest; the textarea is
+		// display:none until clicked and measures as nothing.
+		noteText: all(".lv-note-read").map(textStart),
+		// Both halves of the description must share one left inset, or the text
+		// jumps sideways the moment the field is clicked into. Computed padding
+		// rather than geometry, because one of the two is always hidden.
+		noteInset: [".lv-note-read", ".lv-note-input"].map((sel) => {
+			const el = document.querySelector(sel);
+			if (!el) return null;
+			const cs = getComputedStyle(el);
+			return Math.round(
+				parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft)
+			);
+		}),
 		leadStart: all(".lv-step:not(.lv-step-add)").map(
 			(row) => start(row) + parseFloat(getComputedStyle(row).paddingLeft)
 		),
@@ -96,6 +109,13 @@ check(
 		detail.leadStart.length > 0 &&
 		agree([detail.noteText[0], detail.leadStart[0]]),
 	`note=${spread(detail.noteText)} slots=${spread(detail.leadStart)}`
+);
+
+check(
+	"and the description's two views share one left inset, so the text does not move",
+	detail.noteInset.every((v) => v !== null) &&
+		new Set(detail.noteInset).size === 1,
+	`read=${detail.noteInset[0]} input=${detail.noteInset[1]}`
 );
 
 /* ------------------------------------------------------------------

@@ -340,17 +340,30 @@ const grow = await page.evaluate(async (pane) => {
 		el.dispatchEvent(new Event("input", { bubbles: true }));
 		await sleep();
 		const back = Math.round(el.getBoundingClientRect().height);
-		return { before, after, back, scrolls, wraps: getComputedStyle(el).whiteSpace };
+		const resting = Math.round(parseFloat(getComputedStyle(el).minHeight)) || 0;
+		return { before, after, back, resting, scrolls, wraps: getComputedStyle(el).whiteSpace };
 	};
 
 	const long = "A step title long enough that it cannot possibly fit on one line in a panel this narrow, and then some more.";
 	const veryLong = Array.from({ length: 60 }, (_, i) => `line ${i}`).join("\n");
 
-	return {
-		note: await measure(".lv-note-input", long),
-		step: await measure(".lv-step-input", long),
-		capped: await measure(".lv-note-input", veryLong),
+	/*
+	 * The description renders at rest and becomes a textarea on click, so the
+	 * field has to be opened before there is a box to measure. What is being
+	 * checked is unchanged: that the box grows with its content.
+	 */
+	const openNote = async () => {
+		frame.querySelector(".lv-note-read")?.click();
+		await sleep();
 	};
+
+	await openNote();
+	const note = await measure(".lv-note-input", long);
+	const step = await measure(".lv-step-input", long);
+	await openNote();
+	const capped = await measure(".lv-note-input", veryLong);
+
+	return { note, step, capped };
 }, DETAIL);
 
 for (const [what, m] of Object.entries(grow)) {
@@ -361,10 +374,16 @@ for (const [what, m] of Object.entries(grow)) {
 		m.after > m.before,
 		`${m.before}px -> ${m.after}px at 300px wide`
 	);
+	/*
+	 * Against the resting minimum the stylesheet sets, not against whatever the
+	 * field happened to be when this started. The description opens holding the
+	 * task's note and is measured at the width it is opened at, so its starting
+	 * height is the height of that text — which is not what emptying returns to.
+	 */
 	check(
 		`and the ${what} field shrinks back when it is emptied`,
-		m.back === m.before,
-		`${m.after}px -> ${m.back}px, resting ${m.before}px`
+		m.back === m.resting,
+		`${m.after}px -> ${m.back}px, resting ${m.resting}px`
 	);
 	check(
 		`and the ${what} field does not scroll while it fits`,

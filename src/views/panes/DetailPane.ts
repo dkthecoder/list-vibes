@@ -5,6 +5,7 @@ import { Task, isComplete,
 } from "../../model/types";
 import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
+import { caretOffset, renderNote, rendersVerbatim } from "../../ui/noteView";
 import { makeDragSortable } from "../../ui/dragSort";
 import { renderCheckbox } from "../../ui/checkbox";
 import { autoGrow, boundsOf, sizeToContent } from "../../ui/autoGrow";
@@ -105,6 +106,104 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 	});
 
 	renderImportance(card, task, ctx);
+
+	/* ---------------- description ---------------- */
+	/*
+	 * Directly beneath the title, where Todoist, Things, Reminders, Linear and
+	 * every issue tracker put it. To Do, which the rest of this panel follows,
+	 * puts it last — an order that suits a list of short errands rather than
+	 * one where the description *is* the task.
+	 */
+	const noteCard = scroll.createDiv({ cls: "lv-card lv-note" });
+
+	/*
+	 * One field, two views: what it says, and what you are typing.
+	 *
+	 * A textarea cannot render a link, and a description is often mostly links.
+	 * So the rendered view is what sits there at rest and the textarea arrives
+	 * on click — the arrangement Obsidian's own editor uses, which is why it
+	 * needs no explaining to anyone already in Obsidian.
+	 */
+	const noteRead = noteCard.createDiv({ cls: "lv-note-read" });
+	const note = noteCard.createEl("textarea", {
+		cls: "lv-note-input",
+		attr: { placeholder: "Add note", rows: "1", "aria-label": "Task note" },
+	});
+
+	// The last value known to be on disk. Repainting from this rather than from
+	// `task` keeps the rendered view right in the moment between saving and the
+	// reparse that rebuilds this pane.
+	let saved = task.note ?? "";
+
+	const paint = () => {
+		noteRead.empty();
+		if (saved) renderNote(noteRead, saved, ctx);
+		else noteRead.createSpan({ cls: "lv-note-placeholder", text: "Add note" });
+	};
+
+	const setEditing = (editing: boolean) => {
+		noteCard.toggleClass("is-editing", editing);
+		noteRead.hidden = editing;
+		note.hidden = !editing;
+	};
+
+	const beginEdit = (caret?: number) => {
+		note.value = saved;
+		setEditing(true);
+		// After the value and after it is shown: setting `value` from code fires
+		// no input event, and a field still display:none measures as nothing.
+		sizeToContent(note, boundsOf(note));
+		note.focus();
+		const at = caret ?? note.value.length;
+		note.setSelectionRange(at, at);
+	};
+
+	noteRead.setAttribute("tabindex", "0");
+	noteRead.setAttribute("role", "button");
+	noteRead.setAttribute("aria-label", "Edit note");
+
+	noteRead.addEventListener("click", (e) => {
+		// A link is a link. Clicking one follows it rather than starting an edit.
+		if ((e.target as HTMLElement).closest("a")) return;
+		/*
+		 * Place the caret where it was clicked, but only when the rendered text
+		 * and the source are the same characters. A markdown link renders
+		 * shorter than it is written, so an offset taken from the rendering
+		 * would land somewhere else in the file.
+		 */
+		const at = rendersVerbatim(saved)
+			? caretOffset(noteRead, e.clientX, e.clientY)
+			: undefined;
+		beginEdit(at);
+	});
+
+	noteRead.addEventListener("keydown", (e) => {
+		if (e.key === "Enter" || e.key === " ") {
+			e.preventDefault();
+			beginEdit();
+		}
+	});
+
+	note.addEventListener("blur", () => {
+		saved = note.value.replace(/\r/g, "").trimEnd();
+		setEditing(false);
+		paint();
+		void ctx.mutator.setNote(task, note.value);
+	});
+
+	note.addEventListener("keydown", (e) => {
+		if (e.key === "Escape") {
+			e.preventDefault();
+			note.value = saved;
+			sizeToContent(note, boundsOf(note));
+			note.blur();
+		}
+	});
+
+	// Once, not per edit: autoGrow binds an input listener each time it is called.
+	autoGrow(note);
+	paint();
+	setEditing(false);
 
 	/* ---------------- steps ---------------- */
 	if (ctx.settings.enableSubtasks) {
@@ -330,28 +429,6 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 		onClear: task.meta.repeat
 			? () => void ctx.mutator.setField(task, "repeat", null)
 			: undefined,
-	});
-
-	/* ---------------- note ---------------- */
-	const noteCard = scroll.createDiv({ cls: "lv-card lv-note" });
-	const note = noteCard.createEl("textarea", {
-		cls: "lv-note-input",
-		attr: { placeholder: "Add note", rows: "1", "aria-label": "Task note" },
-	});
-	note.value = task.note ?? "";
-	// After the value, because setting it from code fires no `input` event and
-	// an unmeasured field would open at one row with three lines inside it.
-	autoGrow(note);
-	note.addEventListener("blur", () => {
-		void ctx.mutator.setNote(task, note.value);
-	});
-	note.addEventListener("keydown", (e) => {
-		if (e.key === "Escape") {
-			e.preventDefault();
-			note.value = task.note ?? "";
-			sizeToContent(note, boundsOf(note));
-			note.blur();
-		}
 	});
 
 	/* ---------------- footer ---------------- */
