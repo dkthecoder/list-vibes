@@ -15,6 +15,20 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.12.0
+
+**The post-it wall is experimental, and off.** It is finished on a desktop and
+not on a tablet or a phone, and a feature that works properly on one of the
+three is something to opt into rather than something to meet. Settings has an
+Experimental section now, and the wall is the first thing in it.
+
+Turned off, a list is rows whatever its frontmatter says — `view: postit` is
+ignored rather than rewritten, so nothing on disk changes and turning the wall
+back on gives every list the layout it had. The layout control and the "post-it
+for new lists" menu item are absent while it is off rather than present and
+inert, and "New lists start as" moves into the same section as the thing it
+chooses between.
+
 ## 0.11.0
 
 **A description keeps what you put in it.** Blank lines between paragraphs were

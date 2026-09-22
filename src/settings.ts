@@ -75,6 +75,16 @@ export interface ListsSettings {
 	prettyTitles: boolean;
 	/** Layout a new list starts in, for lists whose file does not say. */
 	defaultView: ViewMode;
+	/**
+	 * Offer the post-it wall at all.
+	 *
+	 * Off by default. The wall is finished on a desktop and not on a tablet or
+	 * a phone, and a feature that only works on one of the three is a thing to
+	 * opt into rather than to meet. A list that has chosen it keeps `view:
+	 * postit` in its frontmatter meanwhile — ignored rather than rewritten, so
+	 * turning this on gives every list back the layout it had.
+	 */
+	postItView: boolean;
 	/** Throw confetti when a task is completed. Ignored under reduced motion. */
 	confetti: boolean;
 	/** Glint when a task is starred. Ignored under reduced motion. */
@@ -157,6 +167,7 @@ export const DEFAULT_SETTINGS: ListsSettings = {
 	sortByList: {},
 	prettyTitles: true,
 	defaultView: "list",
+	postItView: false,
 	viewByList: {},
 	autoRemoveEmptySections: false,
 	starredSection: true,
@@ -239,14 +250,6 @@ export class ListsSettingTab extends PluginSettingTab {
 						name: "Tidy list titles",
 						desc: "Show `my-work-list` as \"my work list\" above the tasks. Display only; the file keeps its name.",
 						control: { type: "toggle", key: "prettyTitles" },
-					},
-					{
-						name: "New lists start as",
-						control: {
-							type: "dropdown",
-							key: "defaultView",
-							options: { list: "Rows", postit: "Post-it wall" },
-						},
 					},
 				],
 			},
@@ -346,6 +349,27 @@ export class ListsSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
+				heading: "Experimental",
+				items: [
+					{
+						name: "Post-it wall",
+						desc: "A card wall instead of rows, per list or as the default. Off by default: it is finished on the desktop and not yet on a tablet or a phone. A list that has chosen the wall keeps that choice in its frontmatter while this is off — it is ignored, not rewritten, and comes back when you turn this on.",
+						aliases: ["cards", "postit", "wall", "layout"],
+						control: { type: "toggle", key: "postItView" },
+					},
+					{
+						name: "New lists start as",
+						desc: "Only while the post-it wall is on.",
+						control: {
+							type: "dropdown",
+							key: "defaultView",
+							options: { list: "Rows", postit: "Post-it wall" },
+						},
+					},
+				],
+			},
+			{
+				type: "group",
 				heading: "Storage",
 				items: [
 					{
@@ -405,5 +429,6 @@ const REPAINT = new Set([
 	"defaultSort",
 	"prettyTitles",
 	"defaultView",
+	"postItView",
 ]);
 
