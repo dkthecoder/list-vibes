@@ -11,7 +11,7 @@ is the demo vault: seven lists, each built around one thing the plugin does.
 | file | what it shows |
 | --- | --- |
 | `desktop/1-list-and-detail.png` | All three panes: picker, the Japan trip list with a starred band and four groups, a task open in Obsidian's right panel |
-| `desktop/2-postit-wall.png` | Groceries as a post-it wall, cards carrying their heading as a badge |
+| `desktop/2-postit-wall.png` | Groceries as a post-it wall — experimental, off by default — cards carrying their heading as a badge |
 | `desktop/3-my-day.png` | My Day reading every list at once, each row naming its list and group |
 | `desktop/4-markdown.png` | The Work list opened as markdown — frontmatter settings, one task per line |
 
@@ -23,7 +23,7 @@ is the demo vault: seven lists, each built around one thing the plugin does.
 | `mobile/2-list.jpg` | Work collapsed to one pane, starred band and groups intact |
 | `mobile/3-detail-drawer.jpg` | A task as a drawer over the list: note, steps, group, My Day, reminder, due, repeat |
 | `mobile/4-my-day.jpg` | My Day on a phone |
-| `mobile/5-postit-wall.jpg` | The wall reflowed to a single column |
+| `mobile/5-postit-wall.jpg` | The wall reflowed to a single column. Experimental: this is the platform it is least finished on |
 
 The detail is shot on its own on mobile and docked on desktop because that is
 what it is: a real Obsidian leaf, docked right on a desktop and a drawer on a

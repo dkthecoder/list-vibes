@@ -482,6 +482,33 @@ check(
 	`${nesting.withChildren} row(s) with subtasks, ${nesting.nested} nested`
 );
 
+/* ---------------- the wall is behind a switch ---------------- */
+
+/*
+ * The post-it wall is experimental and off by default: it is finished on a
+ * desktop and not on a tablet or a phone. Off, a list is rows whatever its
+ * frontmatter says, and the control that would offer the wall is absent rather
+ * than inert — a button that cannot do anything is worse than no button.
+ */
+const wall = await page.evaluate(() => {
+	const cards = (id) => document.getElementById(id)?.querySelectorAll(".lv-card-task").length ?? 0;
+	const labels = (id) =>
+		[...(document.getElementById(id)?.querySelectorAll(".lv-header-action") ?? [])].map(
+			(b) => b.getAttribute("aria-label") ?? "sort"
+		);
+	return {
+		onDrawsCards: cards("cards") > 0,
+		offDrawsNone: cards("drag") === 0,
+		onOffersTheSwitch: labels("cards").some((l) => /post-it|rows/i.test(l)),
+		offHidesIt: !labels("drag").some((l) => /post-it|rows/i.test(l)),
+	};
+});
+
+check("with the wall on, a list draws cards", wall.onDrawsCards);
+check("and offers the switch back to rows", wall.onOffersTheSwitch);
+check("with it off, the same list is rows", wall.offDrawsNone);
+check("and the layout control is gone, not inert", wall.offHidesIt);
+
 check("no page errors", errors.length === 0, errors.slice(0, 2).join(" | "));
 
 await browser.close();

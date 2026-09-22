@@ -1,10 +1,8 @@
 # List Vibes
 
-A Microsoft To Do–style task app built on a folder of markdown files.
+A native-like list/to-do extension for Obsidian for those who dont want to busing pure markdown for everything. Born out of my fustration for Reminder Apps/Todo List apps that are not syncable, easy to use or ergonomic. (honestly, how the hell do we have AI but no reliably decent wayto do lists/todos)
 
-One file is a list. One line is a task. There is no database, no index and no
-cache — open any of these files in the editor and you are looking at exactly
-what the plugin is looking at.
+The extension uses a folder of markdown files. One file is a list. One line is a task. There is no database, no index and no cache — open any of these files in the editor and you are looking at exactly what the plugin is looking at.
 
 **Desktop, tablet and phone.** One view, one codebase: the layout collapses
 from three panes to two to one as the space runs out, and the task detail

@@ -431,6 +431,10 @@ export class ListsView extends ItemView {
 			viewMode: () => {
 				const sel = this.state.selection;
 				if (sel.kind !== "list") return "list";
+				// Gated here rather than at each place that draws a card: a list
+				// keeps `view: postit` in its frontmatter while the wall is off,
+				// so turning it on gives every list back the layout it had.
+				if (!this.plugin.settings.postItView) return "list";
 				// Normalised on the way out as well as on load: settings written by
 				// an older version say "cards", and so may a list's frontmatter.
 				return (

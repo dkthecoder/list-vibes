@@ -108,13 +108,15 @@ let importanceMode: "star" | "stars5" = "star";
 let listOnly = false;
 /** The global "Show groups" setting, so a pane can be drawn with it off. */
 let showGroups = true;
+/** The experimental post-it wall, off by default like the real setting. */
+let postItView = false;
 
 function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 	return {
 		app: { workspace: { openLinkText: noop } } as unknown as ViewContext["app"],
 		store: store as unknown as ViewContext["store"],
 		mutator,
-		settings: { ...DEFAULT_SETTINGS, importanceMode, showGroups },
+		settings: { ...DEFAULT_SETTINGS, importanceMode, showGroups, postItView },
 		state,
 		wide,
 		// A list opened as its own tab, with the picker left in the sidebar. It
@@ -173,7 +175,9 @@ function ctxFor(root: HTMLElement, wide: boolean): ViewContext {
 			sortKey = k;
 			paint();
 		},
-		viewMode: () => viewMode,
+		// The same gate `ListsView` applies: with the wall off, a list is rows
+		// whatever its frontmatter says.
+		viewMode: () => (postItView ? viewMode : "list"),
 		setViewMode: (m: ViewMode) => {
 			viewMode = m;
 			paint();
@@ -261,11 +265,13 @@ function paint(): void {
 	renderInto(document.getElementById("desktop") as HTMLElement, true, "tasks", true);
 
 	// The post-it wall, the Google Keep-style layout.
+	postItView = true;
 	viewMode = "postit";
 	const savedSel = state.selectedTask;
 	state.selectedTask = null;
 	renderInto(document.getElementById("cards") as HTMLElement, true, "tasks", false);
 	viewMode = "list";
+	postItView = false;
 	state.selectedTask = savedSel;
 
 	// File order with nothing selected: the only state in which rows can be
@@ -286,6 +292,7 @@ function paint(): void {
 
 	// The same list as a wall, which is where a completed card has to carry the
 	// section it came from: Completed is not grouped, so the heading is gone.
+	postItView = true;
 	viewMode = "postit";
 	renderInto(
 		document.getElementById("sections-cards") as HTMLElement,
@@ -294,6 +301,7 @@ function paint(): void {
 		false
 	);
 	viewMode = "list";
+	postItView = false;
 
 	// The same list under a sort that is not the file's order. Headings are a
 	// view, so they stay; the rows reorder inside them.
