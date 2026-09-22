@@ -4,6 +4,8 @@ A native-like list/to-do extension for Obsidian for those who dont want to busin
 
 The extension uses a folder of markdown files. One file is a list. One line is a task. There is no database, no index and no cache — open any of these files in the editor and you are looking at exactly what the plugin is looking at.
 
+For context I dog-food this extension as I am all in on it.
+
 **Desktop, tablet and phone.** One view, one codebase: the layout collapses
 from three panes to two to one as the space runs out, and the task detail
 docks in Obsidian's right panel or opens as a drawer, whichever the device has.
@@ -54,7 +56,8 @@ docks in Obsidian's right panel or opens as a drawer, whichever the device has.
 - **Tidy titles** turn `my-work-list.md` into "My work list" for display, without
   touching the filename. Toggleable if you want the true name.
 - Open a list **in the sidebar** or **as a tab**. In tab mode the sidebar stays a
-  picker, the way the file explorer works.
+  picker, the way the file explorer works. It can open on startup, on whichever
+  side you keep it.
 - **Tap a list file anywhere** — the explorer, a link, the quick switcher — and
   it opens as a list rather than as markdown. Only files in the lists folder;
   the rest of your vault is untouched. **Open as markdown** is on the file's
@@ -116,8 +119,10 @@ view over it.
 
 - **My Day**, **Important**, **Planned** and **Tasks** — cross-list views that
   read every list in the folder.
-- **Rows or post-its** — a list layout or a card wall, chosen per list or as a
-  default.
+- **Rows**, or the **post-it wall** — a card wall instead of a list, chosen per
+  list or as a default. The wall is **experimental and off by default**: it is
+  finished on the desktop and not yet on a tablet or a phone. Turn it on under
+  Experimental in settings.
 - **Sorting** — custom order, importance, due date, date created (newest or
   oldest), or alphabetical. Remembered per list.
 - **Confetti and glints** — a short burst in the list's own colour when a task
