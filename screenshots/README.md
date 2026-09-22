@@ -1,6 +1,6 @@
 # Screenshots
 
-**Captured from List Vibes 0.9.2.** Real Obsidian on both platforms — window
+**Captured from List Vibes 0.11.0.** Real Obsidian on both platforms — window
 chrome, ribbon and tab strip included — not the headless renders these replaced.
 
 Desktop is macOS at 2×; phone is Android at 1440×2939. The vault in every shot
