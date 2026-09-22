@@ -27,6 +27,13 @@ export class Setting {}
 export class PluginSettingTab {}
 export class Plugin {}
 export class ItemView {}
+export class App {}
+export class FuzzySuggestModal {}
+export class SuggestModal {}
+export class TAbstractFile {}
+export class WorkspaceParent {}
+export class WorkspaceTabs {}
+export class WorkspaceSplit {}
 export class WorkspaceLeaf {}
 export function setIcon() {}
 export function normalizePath(p) {
@@ -161,3 +168,4 @@ export function makeApp(files, openEditors = []) {
 		},
 	};
 }
+export class Scope {}
