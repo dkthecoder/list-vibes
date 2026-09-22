@@ -1,5 +1,5 @@
 import { App, MarkdownView, Notice, TFile } from "obsidian";
-import { HEADING_RE, parseLine } from "./parse";
+import { HEADING_RE, escapeNoteLine, parseLine } from "./parse";
 import { setFrontmatterKey } from "./frontmatter";
 import { nextOccurrence } from "./recurrence";
 import { stampNow } from "./datetime";
@@ -683,7 +683,17 @@ export class Mutator {
 		if (clean === (task.note ?? "")) return;
 
 		const indent = this.childIndent(task);
-		const insert = clean ? clean.split("\n").map((l) => indent + l.trim()) : [];
+		// A paragraph break is written as a genuinely empty line. Indenting it
+		// would leave a line of trailing whitespace that reads as blank but is
+		// not, which editors and diffs both go on to quarrel about.
+		//
+		// A line that would read back as a step is escaped, so what the box is
+		// given is what it gives back.
+		const insert = clean
+			? clean
+					.split("\n")
+					.map((l) => (l.trim() ? indent + escapeNoteLine(l.trim()) : ""))
+			: [];
 
 		const existing = [...task.noteLines].sort((a, b) => a - b);
 		const contiguous =
@@ -1069,7 +1079,9 @@ export class Mutator {
 					.replace(/\r/g, "")
 					.trim()
 					.split("\n")
-					.map((l) => indent + unit + l.trim())
+					.map((l) =>
+						l.trim() ? indent + unit + escapeNoteLine(l.trim()) : ""
+					)
 			: [];
 
 		await this.insertLines(listPath, at, [line, ...noteLines]);

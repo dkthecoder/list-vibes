@@ -289,6 +289,92 @@ test("indented prose beneath a task becomes its note", () => {
 	assert.equal(list.tasks.length, 2);
 });
 
+test("a blank line between paragraphs stays part of the note", () => {
+	const md = ["- [ ] Write update", "\tFirst paragraph.", "", "\tSecond paragraph.", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "First paragraph.\n\nSecond paragraph.");
+	assert.equal(list.tasks.length, 2, "the blank line broke the list structure");
+});
+
+test("the blank line is counted among the note's lines, so the block stays contiguous", () => {
+	const md = ["- [ ] Write update", "\tFirst paragraph.", "", "\tSecond paragraph."].join("\n");
+	const lines = parseFile(md, "x.md").tasks[0].noteLines;
+	assert.deepEqual(lines, [1, 2, 3]);
+});
+
+test("a blank line before the next task is separation, not note", () => {
+	const md = ["- [ ] Write update", "\tA note.", "", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "A note.");
+	assert.deepEqual(list.tasks[0].noteLines, [1]);
+	assert.equal(list.tasks.length, 2);
+});
+
+test("a blank line before a step is separation, not note", () => {
+	const md = ["- [ ] Write update", "\tA note.", "", "\t- [ ] A step"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "A note.");
+	assert.deepEqual(list.tasks[0].noteLines, [1]);
+	assert.equal(list.tasks[0].children.length, 1, "the step was lost");
+});
+
+test("a trailing blank line at the end of the file is not absorbed", () => {
+	const md = ["- [ ] Write update", "\tA note.", "", ""].join("\n");
+	const t = parseFile(md, "x.md").tasks[0];
+	assert.equal(t.note, "A note.");
+	assert.deepEqual(t.noteLines, [1]);
+});
+
+test("runs of blank lines inside a note are kept as written", () => {
+	const md = ["- [ ] Write update", "\tOne.", "", "", "\tTwo.", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "One.\n\n\nTwo.");
+	assert.equal(list.tasks.length, 2);
+});
+
+test("a plain bullet under a task is description, not nothing", () => {
+	const md = ["- [ ] Songs", "\t- Elisa Loah - EA Sports", "\t- ZUNA x KURDO", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "- Elisa Loah - EA Sports\n- ZUNA x KURDO");
+	assert.equal(list.tasks[0].children.length, 0, "a bullet became a step");
+	assert.equal(list.tasks.length, 2);
+});
+
+test("every bullet marker is description, numbered ones included", () => {
+	const md = ["- [ ] Mixes", "\t* star", "\t+ plus", "\t1. first", "\t2) second"].join("\n");
+	assert.equal(parseFile(md, "x.md").tasks[0].note, "* star\n+ plus\n1. first\n2) second");
+});
+
+test("a checkbox line is still a step, not description", () => {
+	const md = ["- [ ] Task", "\t- [ ] a real step", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].children.length, 1, "the step was swallowed into the note");
+	assert.equal(list.tasks[0].children[0].title, "a real step");
+	assert.equal(list.tasks[0].note, undefined);
+});
+
+test("an escaped checkbox stays description and makes no step", () => {
+	const md = ["- [ ] Task", "\tshopping:", "\t\\- [ ] milk", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "shopping:\n- [ ] milk");
+	assert.equal(list.tasks[0].children.length, 0, "an escaped checkbox became a step");
+	assert.equal(list.tasks.length, 2);
+});
+
+test("a fence indented under a task is description, not a document fence", () => {
+	const md = ["- [ ] Task", "\t```js", "\tconst x = 1;", "\t```", "- [ ] Other"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks[0].note, "```js\nconst x = 1;\n```");
+	assert.equal(list.tasks.length, 2, "the fence swallowed the next task");
+});
+
+test("a top-level fence still hides what it contains", () => {
+	const md = ["- [ ] Before", "```", "- [ ] not a task", "```", "- [ ] After"].join("\n");
+	const list = parseFile(md, "x.md");
+	assert.equal(list.tasks.length, 2, "a fenced line was parsed as a task");
+	assert.deepEqual(list.tasks.map((t) => t.title), ["Before", "After"]);
+});
+
 test("frontmatter config is read", () => {
 	const md = ["---", "icon: 💼", "sort: due", "showCompleted: collapsed", "---", "", "- [ ] A"].join("\n");
 	const list = parseFile(md, "Work.md");
