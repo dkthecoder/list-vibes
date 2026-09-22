@@ -1,7 +1,7 @@
 {
 	"id": "list-vibes",
 	"name": "List Vibes",
-	"version": "0.9.2",
+	"version": "0.10.0",
 	"minAppVersion": "1.13.0",
 	"description": "Turn a folder of markdown files into to-do lists, with a task list, a completed section, and a detail panel for steps and dates.",
 	"author": "dkthecoder",
