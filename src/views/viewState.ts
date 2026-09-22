@@ -280,3 +280,28 @@ export function openVerdict(o: {
 	if (o.allowedAsMarkdown === o.path) return "let-through";
 	return o.viewType === "markdown" ? "swap" : "ignore";
 }
+
+/** Which container a List Vibes leaf sits in, relative to the sidebar we want. */
+export type LeafPlace = "sidebar" | "main" | "other";
+
+export type SidebarChoice =
+	| { action: "reveal"; index: number }
+	| { action: "create" };
+
+/**
+ * Which leaf is the sidebar picker, given where each of ours lives.
+ *
+ * `getLeavesOfType` walks the main area before either sidebar, so the first
+ * leaf it returns is a tab whenever one is open. Taking that one made the
+ * ribbon icon focus whichever list happened to be open, and made the startup
+ * guard conclude the picker was already there when it was not — so a vault
+ * with tabs open and no picker never got one back.
+ *
+ * Asking "is one in *this* container" rather than "is there one anywhere" is
+ * the same question `listTabs` already asks of the main area, in the other
+ * direction.
+ */
+export function chooseSidebarLeaf(places: LeafPlace[]): SidebarChoice {
+	const i = places.indexOf("sidebar");
+	return i >= 0 ? { action: "reveal", index: i } : { action: "create" };
+}

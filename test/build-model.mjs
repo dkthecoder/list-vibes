@@ -48,3 +48,17 @@ await esbuild.build({
 	plugins: [aliasObsidian],
 	logLevel: "warning",
 });
+
+// The plugin class itself, for the leaf-choice wiring in main.ts. Built to its
+// own folder so the `obsidian` alias above — which is relative to
+// test/build/<dir>/ — resolves to the same stub every other bundle uses.
+await esbuild.build({
+	entryPoints: ["src/main.ts"],
+	bundle: true,
+	format: "esm",
+	target: "es2022",
+	platform: "node",
+	outfile: "test/build/plugin/main.js",
+	plugins: [aliasObsidian],
+	logLevel: "warning",
+});

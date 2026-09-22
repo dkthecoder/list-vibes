@@ -11,6 +11,7 @@ import {
 	encodeTaskRef,
 	decodeTaskRef,
 	openVerdict,
+	chooseSidebarLeaf,
 } from "./build/views/viewState.js";
 
 /* A tab only remembers its own list if this round-trips exactly. */
@@ -459,5 +460,38 @@ describe("openVerdict", () => {
 			openVerdict({ ...base, allowedAsMarkdown: "lists/Other.md" }),
 			"swap"
 		);
+	});
+});
+
+/* ------------------------------------------------------------------ *
+ * The sidebar picker is chosen by container, never by "first of type"
+ * ------------------------------------------------------------------ */
+
+describe("chooseSidebarLeaf", () => {
+	test("reveals the sidebar leaf even when tabs were found first", () => {
+		// getLeavesOfType walks rootSplit before leftSplit, so the main tabs
+		// come first. Picking [0] would reveal a tab and leave the picker shut.
+		const places = ["main", "main", "sidebar", "main"];
+		assert.deepEqual(chooseSidebarLeaf(places), { action: "reveal", index: 2 });
+	});
+
+	test("creates one when only tabs are open", () => {
+		assert.deepEqual(chooseSidebarLeaf(["main", "main"]), { action: "create" });
+	});
+
+	test("creates one when nothing is open at all", () => {
+		assert.deepEqual(chooseSidebarLeaf([]), { action: "create" });
+	});
+
+	test("reveals the first sidebar leaf when a stale one is still there", () => {
+		// A leaf Obsidian could not build a view for still reports our type.
+		assert.deepEqual(
+			chooseSidebarLeaf(["sidebar", "sidebar"]),
+			{ action: "reveal", index: 0 }
+		);
+	});
+
+	test("a leaf in the other sidebar is not the one we asked for", () => {
+		assert.deepEqual(chooseSidebarLeaf(["other", "main"]), { action: "create" });
 	});
 });

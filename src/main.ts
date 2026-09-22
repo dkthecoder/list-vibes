@@ -20,9 +20,11 @@ import { TaskPickerModal } from "./ui/TaskPickerModal";
 import { PromptModal } from "./ui/PromptModal";
 import { Selection } from "./views/context";
 import {
+	chooseSidebarLeaf,
 	chooseTab,
 	decodeSelection,
 	encodeSelection,
+	LeafPlace,
 	openVerdict,
 } from "./views/viewState";
 
@@ -378,7 +380,7 @@ export default class ListsPlugin extends Plugin {
 	 * Bookmarks, without stealing focus from whatever the user had open.
 	 */
 	private async ensureInSidebar(): Promise<void> {
-		if (this.app.workspace.getLeavesOfType(VIEW_TYPE_LISTS).length) return;
+		if (chooseSidebarLeaf(this.listLeafPlaces().places).action === "reveal") return;
 		try {
 			if (this.settings.sidebarFirst) {
 				const leaf = this.leafAtFrontOfSidebar();
@@ -387,10 +389,7 @@ export default class ListsPlugin extends Plugin {
 					return;
 				}
 			}
-			await this.app.workspace.ensureSideLeaf(VIEW_TYPE_LISTS, this.settings.side, {
-				active: false,
-				reveal: false,
-			});
+			await this.openSidebarLeaf({ active: false, reveal: false });
 		} catch {
 			// A workspace layout that will not take the leaf is not worth a
 			// notice on startup; the ribbon icon still opens it.
@@ -501,6 +500,51 @@ export default class ListsPlugin extends Plugin {
 		}
 	}
 
+	/**
+	 * Make the picker's leaf in the sidebar the settings name.
+	 *
+	 * Not `ensureSideLeaf`, which reuses the first leaf of the type it finds
+	 * *anywhere* — with a list open as a tab that is the tab, so asking for a
+	 * sidebar leaf would hand back a main one and the picker would never
+	 * appear. `getLeftLeaf`/`getRightLeaf` only ever build in the side asked
+	 * for, mobile drawer included; `ensureSideLeaf` stays as the fallback for
+	 * the layout where they cannot.
+	 */
+	private async openSidebarLeaf(o: {
+		active: boolean;
+		reveal: boolean;
+	}): Promise<WorkspaceLeaf | null> {
+		const { workspace } = this.app;
+		const leaf =
+			this.settings.side === "left"
+				? workspace.getLeftLeaf(false)
+				: workspace.getRightLeaf(false);
+		if (!leaf) {
+			return await workspace.ensureSideLeaf(VIEW_TYPE_LISTS, this.settings.side, o);
+		}
+		await leaf.setViewState({ type: VIEW_TYPE_LISTS, active: o.active });
+		if (o.reveal) await workspace.revealLeaf(leaf);
+		return leaf;
+	}
+
+	/**
+	 * Our leaves, paired with the container each sits in.
+	 *
+	 * The sidebar the settings name is "sidebar"; the other one is "other", so
+	 * a picker someone dragged across is not mistaken for the one we asked for.
+	 */
+	private listLeafPlaces(): { leaves: WorkspaceLeaf[]; places: LeafPlace[] } {
+		const { workspace } = this.app;
+		const side = this.settings.side === "left" ? workspace.leftSplit : workspace.rightSplit;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_LISTS);
+		const places = leaves.map((l): LeafPlace => {
+			const root = l.getRoot();
+			if (root === side) return "sidebar";
+			return root === workspace.rootSplit ? "main" : "other";
+		});
+		return { leaves, places };
+	}
+
 	/** Our leaves in the main workspace, in layout order. Sidebar ones excluded. */
 	private listTabs(): WorkspaceLeaf[] {
 		const { workspace } = this.app;
@@ -510,24 +554,24 @@ export default class ListsPlugin extends Plugin {
 	}
 
 	/**
-	 * Open the view in the configured sidebar, or focus it if already open.
-	 * `ensureSideLeaf` is used rather than `getLeftLeaf`, which returns null on
-	 * mobile.
+	 * Open the picker in the configured sidebar, or focus it if already there.
+	 *
+	 * "Already there" means in that sidebar, not anywhere: a list open as a tab
+	 * is one of ours too, and focusing it instead left the picker shut while
+	 * the ribbon icon appeared to do nothing.
 	 */
 	async activateView(): Promise<ListsView | null> {
 		const { workspace } = this.app;
 
-		const existing = workspace.getLeavesOfType(VIEW_TYPE_LISTS);
-		if (existing.length) {
-			await workspace.revealLeaf(existing[0]);
-			return existing[0].view as ListsView;
+		const { leaves, places } = this.listLeafPlaces();
+		const choice = chooseSidebarLeaf(places);
+		if (choice.action === "reveal") {
+			const leaf = leaves[choice.index];
+			await workspace.revealLeaf(leaf);
+			return leaf.view as ListsView;
 		}
 
-		const leaf: WorkspaceLeaf = await workspace.ensureSideLeaf(
-			VIEW_TYPE_LISTS,
-			this.settings.side,
-			{ reveal: true, active: true }
-		);
+		const leaf = await this.openSidebarLeaf({ active: true, reveal: true });
 		return (leaf?.view as ListsView) ?? null;
 	}
 }
