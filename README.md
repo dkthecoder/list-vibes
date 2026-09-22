@@ -6,39 +6,6 @@ The extension uses a folder of markdown files. One file is a list. One line is a
 
 For context I dog-food this extension as I am all in on it. I do try to test and squash bugs as much as I can and improve the extensions as much as I can but feedback and help is always appreciated to try make this the best example of how lists/todos should be done! 
 
-**Desktop, tablet and phone.** One view, one codebase: the layout collapses
-from three panes to two to one as the space runs out, and the task detail
-docks in Obsidian's right panel or opens as a drawer, whichever the device has.
-
-<p align="center">
-  <img src="screenshots/desktop/1-list-and-detail.png" width="840" alt="A list open on the desktop: the picker and its four cross-list views on the left, the Japan trip list in the middle with a starred band and four groups, and a task open in Obsidian's right panel.">
-</p>
-
-<p align="center">
-  <img src="screenshots/desktop/2-postit-wall.png" width="270" alt="The Groceries list as a post-it wall, each card carrying the heading it came from as a badge.">
-  &nbsp;
-  <img src="screenshots/desktop/3-my-day.png" width="270" alt="My Day, reading every list at once, each row naming the list and group it came from.">
-  &nbsp;
-  <img src="screenshots/desktop/4-markdown.png" width="270" alt="The same Work list opened as markdown: the list's settings in frontmatter, and one task per line with its dates and steps.">
-</p>
-
-<p align="center">
-  <img src="screenshots/mobile/1-lists.jpg" width="140" alt="The list picker on a phone, with the four cross-list views above seven coloured lists.">
-  &nbsp;
-  <img src="screenshots/mobile/2-list.jpg" width="140" alt="The Work list on a phone, collapsed to a single pane with its starred band and groups intact.">
-  &nbsp;
-  <img src="screenshots/mobile/3-detail-drawer.jpg" width="140" alt="A task open as a drawer over the list: note, steps, group, My Day, a reminder, a due date and repeat.">
-  &nbsp;
-  <img src="screenshots/mobile/4-my-day.jpg" width="140" alt="My Day on a phone, reading every list at once.">
-  &nbsp;
-  <img src="screenshots/mobile/5-postit-wall.jpg" width="140" alt="The post-it wall on a phone, reflowed to a single column.">
-</p>
-
-<p align="center">
-  <sub>Captured from <b>List Vibes 0.11.0</b> — desktop on macOS, phone on Android, both running the
-  <a href="screenshots/README.md">demo vault</a>.</sub>
-</p>
-
 ## Features
 
 ### Lists
@@ -284,3 +251,38 @@ This app is co-created with AI and has been vibe coded.
 ## Licence
 
 MIT
+
+## Screenshots
+
+**Desktop, tablet and phone.** One view, one codebase: the layout collapses
+from three panes to two to one as the space runs out, and the task detail
+docks in Obsidian's right panel or opens as a drawer, whichever the device has.
+
+<p align="center">
+  <img src="screenshots/desktop/1-list-and-detail.png" width="840" alt="A list open on the desktop: the picker and its four cross-list views on the left, the Japan trip list in the middle with a starred band and four groups, and a task open in Obsidian's right panel.">
+</p>
+
+<p align="center">
+  <img src="screenshots/desktop/2-postit-wall.png" width="270" alt="The Groceries list as a post-it wall, each card carrying the heading it came from as a badge.">
+  &nbsp;
+  <img src="screenshots/desktop/3-my-day.png" width="270" alt="My Day, reading every list at once, each row naming the list and group it came from.">
+  &nbsp;
+  <img src="screenshots/desktop/4-markdown.png" width="270" alt="The same Work list opened as markdown: the list's settings in frontmatter, and one task per line with its dates and steps.">
+</p>
+
+<p align="center">
+  <img src="screenshots/mobile/1-lists.jpg" width="140" alt="The list picker on a phone, with the four cross-list views above seven coloured lists.">
+  &nbsp;
+  <img src="screenshots/mobile/2-list.jpg" width="140" alt="The Work list on a phone, collapsed to a single pane with its starred band and groups intact.">
+  &nbsp;
+  <img src="screenshots/mobile/3-detail-drawer.jpg" width="140" alt="A task open as a drawer over the list: note, steps, group, My Day, a reminder, a due date and repeat.">
+  &nbsp;
+  <img src="screenshots/mobile/4-my-day.jpg" width="140" alt="My Day on a phone, reading every list at once.">
+  &nbsp;
+  <img src="screenshots/mobile/5-postit-wall.jpg" width="140" alt="The post-it wall on a phone, reflowed to a single column.">
+</p>
+
+<p align="center">
+  <sub>Captured from <b>List Vibes 0.11.0</b> — desktop on macOS, phone on Android, both running the
+  <a href="screenshots/README.md">demo vault</a>.</sub>
+</p>
