@@ -86,10 +86,12 @@ const adder = await page.evaluate((sel) => {
 }, PANE);
 
 check("a sectioned list says where a new task will go", adder.shown, adder.text);
+/* Nothing picked means no group. The last heading was a destination nobody
+   chose, and the furthest from the top of the list. */
 check(
-	"and names one of its own sections",
-	adder.isRealSection,
-	`${adder.text} vs ${adder.text ? "headings" : "none"}`
+	"and defaults to no group rather than a heading nobody picked",
+	adder.text === "No group",
+	adder.text
 );
 check("a list without sections offers no such choice", adder.onPlainList === false);
 
@@ -432,6 +434,7 @@ const order = await page.evaluate(() => {
 	for (const el of pane.querySelectorAll(".lv-section, .lv-group, .lv-completed")) {
 		if (el.closest(".lv-completed") && !el.classList.contains("lv-completed")) continue;
 		if (el.classList.contains("lv-section-starred")) continue;
+		if (el.classList.contains("lv-section-loose")) continue;
 		if (el.classList.contains("lv-starred-run")) continue;
 		if (el.classList.contains("lv-section")) {
 			out.push("group:" + el.querySelector(".lv-section-name")?.textContent);
@@ -461,6 +464,37 @@ check(
 	order.join(" > ")
 );
 
+/* ---------------- every band starts on the same rail ---------------- */
+
+/*
+ * A heading's text starts where the task titles under it start. It is the
+ * difference between two declarations in different rules, so it is a rendered
+ * fact rather than a readable one — and it has broken twice: once when the band
+ * gained a margin, once when Completed's inset correction was removed with the
+ * band it was correcting for. Neither showed up anywhere.
+ */
+const rails = await page.evaluate(() => {
+	const P = "#sections ";
+	const left = (sel) => {
+		const el = document.querySelector(P + sel);
+		return el ? Math.round(el.getBoundingClientRect().left) : null;
+	};
+	return {
+		group: left(".lv-section:not(.lv-section-starred):not(.lv-completed-head) .lv-section-name"),
+		completed: left(".lv-completed-head .lv-section-name"),
+		starred: left(".lv-section-starred .lv-section-name"),
+		ungrouped: left(".lv-section-loose .lv-section-name"),
+		title: left(".lv-task-title"),
+	};
+});
+
+const distinct = [...new Set(Object.values(rails).filter((v) => v !== null))];
+check(
+	"every heading starts on the task titles' rail",
+	distinct.length === 1,
+	Object.entries(rails).map(([k, v]) => `${k}=${v}`).join(" ")
+);
+
 /* ---------------- tasks above the first heading ---------------- */
 
 /*
@@ -474,25 +508,30 @@ const ungrouped = await page.evaluate(() => {
 	const run = [...pane.querySelectorAll(".lv-group")].find(
 		(el) => !el.classList.contains("lv-in-group") && !el.classList.contains("lv-starred-run")
 	);
-	const rule = pane.querySelector(".lv-ungrouped-rule");
+	const band = pane.querySelector(".lv-section-loose");
 	// Completed's header is a `.lv-section` too since the bands were unified,
 	// and it sits below the ungrouped run rather than above it.
 	const heads = [
 		...pane.querySelectorAll(
-			".lv-section:not(.lv-section-starred):not(.lv-completed-head)"
+			".lv-section:not(.lv-section-starred):not(.lv-completed-head):not(.lv-section-loose)"
 		),
 	];
 	const last = heads[heads.length - 1];
 	return {
 		tasks: run ? run.querySelectorAll(".lv-task").length : 0,
-		hasRule: !!rule,
+		hasBand: !!band,
+		bandCount: band?.querySelector(".lv-section-count")?.textContent ?? "",
 		belowEveryGroup:
 			!!run && !!last && (last.compareDocumentPosition(run) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
 	};
 });
 
 check("the ungrouped run holds the tasks above the first heading", ungrouped.tasks === 2, `${ungrouped.tasks}`);
-check("a rule separates it from the groups", ungrouped.hasRule);
+check(
+	"it has a band of its own, with its count",
+	ungrouped.hasBand && ungrouped.bandCount === "2",
+	`band=${ungrouped.hasBand} count=${ungrouped.bandCount}`
+);
 check("and it sits below every group", ungrouped.belowEveryGroup);
 
 /* ---------------- the sort menu offers both orders ---------------- */
@@ -550,7 +589,7 @@ if (Array.isArray(menu)) {
  */
 const flat = await page.evaluate(() => {
 	const pane = document.getElementById("sections-flat");
-	const heads = [...pane.querySelectorAll(".lv-section:not(.lv-section-starred)")].filter(
+	const heads = [...pane.querySelectorAll(".lv-section:not(.lv-section-starred):not(.lv-section-loose)")].filter(
 		(e) => !e.closest(".lv-completed")
 	);
 	return {
