@@ -29,6 +29,13 @@ for new lists" menu item are absent while it is off rather than present and
 inert, and "New lists start as" moves into the same section as the thing it
 chooses between.
 
+**The ribbon icon opens the picker again.** `getLeavesOfType` walks the main
+area before either sidebar, so with a list open as a tab the first leaf it
+returned was that tab: the icon focused it and the sidebar stayed shut. The
+startup check read the same answer as "the picker is already open", so a vault
+with tabs open and no picker never got one back. Both now ask which container a
+leaf is in rather than whether one exists anywhere.
+
 ## 0.11.0
 
 **A description keeps what you put in it.** Blank lines between paragraphs were
