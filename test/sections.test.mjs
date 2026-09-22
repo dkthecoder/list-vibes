@@ -529,12 +529,14 @@ describe("where a new task lands", () => {
 		assert.equal(addDestination(9, SECTIONS), 9);
 	});
 
-	test("picking nothing means the last heading", () => {
-		assert.equal(addDestination(undefined, SECTIONS), 9);
+	/* The last heading is a destination nobody chose, and the furthest from the
+	   top of the list. No group is the honest default. */
+	test("picking nothing means no group", () => {
+		assert.equal(addDestination(undefined, SECTIONS), null);
 	});
 
-	test("a heading that has since gone falls back to the last one", () => {
-		assert.equal(addDestination(999, SECTIONS), 9);
+	test("a heading that has since gone falls back to no group", () => {
+		assert.equal(addDestination(999, SECTIONS), null);
 	});
 });
 

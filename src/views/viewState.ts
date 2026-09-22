@@ -245,9 +245,11 @@ export function addDestination(
 ): number | null | undefined {
 	if (!sections.length) return undefined;
 	if (chosen === null) return null;
-	const last = sections[sections.length - 1].line;
-	if (chosen === undefined) return last;
-	return sections.find((s) => s.line === chosen) ? chosen : last;
+	// Nothing picked means no group. Defaulting to the last heading put a task
+	// under whichever group happened to be last in the file, which is a
+	// destination nobody chose and the one furthest from the top of the list.
+	if (chosen === undefined) return null;
+	return sections.find((s) => s.line === chosen) ? chosen : null;
 }
 
 /** What to do with a file that has just been opened. */

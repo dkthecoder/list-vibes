@@ -413,17 +413,19 @@ body.is-phone .lv-header {
 	align-items: center;
 	gap: var(--lv-lead-gap);
 	/*
-	 * Painted, so it takes the runs' edges rather than the scroller's — and a
-	 * gap beneath it, because a band that touches the first row under it reads
-	 * as the same object rather than as a title over one.
+	 * No surface of its own, deliberately.
+	 *
+	 * A heading sits on the pane; the rows under it are cards on a surface.
+	 * That difference of plane is what separates them, and painting the heading
+	 * put it on the rows' plane — after which no colour could tell the two
+	 * apart, because they were the same material, touching.
+	 *
+	 * The padding is the same rail as `.lv-add`, and the leading column every
+	 * row keys off, so the fold control sits in the checkbox slot and the name
+	 * starts where the titles beneath it start.
 	 */
-	margin: 0 var(--lv-row-inset) var(--size-4-1);
-	border-radius: var(--lv-radius);
-	background: var(--lv-accent-soft);
-	/* The same rail as `.lv-add`, and the leading column every row keys off, so
-	   the fold control sits in the checkbox slot and the name starts where the
-	   titles beneath it start. */
-	padding: var(--size-4-3) var(--size-4-2) var(--size-4-1);
+	padding: var(--size-4-3) calc(var(--lv-row-inset) + var(--size-4-2))
+		var(--size-4-1);
 	font-size: var(--lv-heading-size);
 	font-weight: var(--lv-heading-weight);
 	text-transform: var(--lv-heading-case);
@@ -515,6 +517,21 @@ body.is-phone .lv-header {
 	line-height: 1;
 }
 
+/* The ungrouped band folds nothing, so nothing fills the leading column and its
+   name would slide into it. An empty spacer holds the slot, the way the starred
+   band's star does. */
+.lv-section-loose::before {
+	content: "";
+	flex: 0 0 var(--lv-lead);
+}
+
+/* Completed's heading sits inside `.lv-completed`, which carries the row inset
+   already, so it adds only a row's own padding and lands on the same rail as
+   every other heading. */
+.lv-completed-head {
+	padding-inline: var(--size-4-2);
+}
+
 .lv-section-chevron {
 	display: flex;
 	align-items: center;
@@ -560,12 +577,6 @@ body.is-phone .lv-header {
 .lv-section:hover .lv-section-more,
 .lv-section-more:focus-visible {
 	opacity: 1;
-}
-
-/* Completed sits inside `.lv-completed`, which already carries the row inset,
-   so its band supplies only a row's own padding and lands on the same rail. */
-.lv-completed-head {
-	padding-inline: var(--size-4-2);
 }
 
 /* A band that folds is a button; the background is what says so. The starred

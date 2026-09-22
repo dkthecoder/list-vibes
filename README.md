@@ -85,8 +85,10 @@ view over it.
 - **Order the groups separately** from the tasks inside them — file order, A–Z
   or Z–A, in the same menu. A group has no due date of its own, so the two are
   chosen rather than one being inferred from the other.
-- Tasks in **no group** keep their own run below the groups and above
-  Completed, separated by a rule, so nothing has to be in one.
+- Tasks in **no group** get a band of their own below the groups and above
+  Completed — named and counted, and only there when something is in it. A
+  band rather than a group: there is no heading in the file to rename or move.
+- **Adding defaults to no group**, not to whichever heading happens to be last.
 - An **empty group** is drawn so it can be dropped into, and can be tidied away
   by itself if you switch that on.
 - **Turn groups off** — `groups: hidden` on a list, or the setting for all of

@@ -634,9 +634,23 @@ function renderTasks(
 	 * reason to be there.
 	 */
 	const drawLoose = () => {
+		/*
+		 * A heading of its own, but only where there is something under it.
+		 *
+		 * It is a band rather than a group: there is no `##` line in the file to
+		 * rename, move or delete, so it carries a name and a count and nothing
+		 * else — the same shape the starred band has. A list whose every task is
+		 * in a group never sees it.
+		 */
 		if (loose.length && bounds.length) {
-			scroll.createDiv({ cls: "lv-ungrouped-rule" });
+			renderHeading(scroll, {
+				label: "Ungrouped",
+				count: loose.length,
+				modifier: "lv-section-loose",
+			});
 		}
+		// Drawn even when empty, so a task can always be dragged back out of
+		// every group.
 		if (loose.length || bounds.length) addRun(loose);
 	};
 

@@ -15,6 +15,33 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.10.0
+
+**The group heading has no surface again.** It was painted so it could sit a
+level above the rows, and once the rows stopped being a level below it, the two
+were the same material touching — a heading you could not tell from an item.
+
+A heading sits on the pane; the rows under it are cards on a surface. That
+difference of plane is what separates them, and no colour on the band could do
+that job, because any band puts the heading on the rows' plane.
+
+**Tasks in no group get a band of their own**, named and counted, drawn only
+when something is in it. It is a band rather than a group: there is no `##` line
+in the file to rename, move or delete, so it carries a name and a count and
+nothing else, the way the starred band does. A list whose every task is in a
+group never sees it.
+
+**Adding to a list with groups defaults to no group.** It defaulted to the last
+heading — a destination nobody chose, and the furthest from the top of the list.
+
+Two alignment bugs went with it. Completed's heading had drifted eight pixels
+off the rail every other line starts on, and the new ungrouped band would have
+done the same: with nothing to fold, nothing filled the leading column and the
+name slid into it. Both are now covered by a check that measures every band
+against the task titles, because this is a rendered fact rather than a readable
+one — it is the difference between two declarations in different rules, and it
+had broken twice without anything noticing.
+
 ## 0.9.2
 
 **A task could be drawn twice under a sorted group order.** What makes a task
