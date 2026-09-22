@@ -15,6 +15,47 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.11.0
+
+**A description keeps what you put in it.** Blank lines between paragraphs were
+dropped before a note could claim them, a plain bullet was neither task nor note
+so fell out of the model altogether, and a fenced block indented under a task
+toggled the document's fence state and swallowed the rest of the note. None of
+it was destroyed — files are still edited one line at a time — but it was
+invisible, and the first edit of such a note wrote the model back without it.
+
+Blank lines are now held until a later line proves the note continues, so the
+gap between two paragraphs is part of the note while the gap before the next
+task is still separation. A bullet under a task is description, because nothing
+else could claim it. A fence is only a fence when it is unindented.
+
+**A checkbox typed into a description stays in the description.** On disk an
+indented `- [ ] x` beneath a task *is* a step — the same bytes whichever was
+meant — so what the box was given came back as two subtasks and a missing line.
+Writing one now escapes it with a backslash, which markdown renders away, and
+the two are told apart. Only newly written descriptions escape; a checkbox
+already sitting under a task stays the step it has always been, so nothing on
+disk needs migrating.
+
+**The description is at the top of the panel, and its links are live.** It sat
+last, behind the steps and five metadata rows, because that is where Microsoft
+To Do puts it — an order that suits a list of short errands more than one where
+the description is the task. Todoist, Things, Reminders and every issue tracker
+put it under the title, and so does this now.
+
+It was also drawn as plain text, which made the description the one place a URL
+went to be unreachable. The card now holds two views of one field: the rendered
+view sits there at rest so its links can be clicked, and the textarea arrives on
+click, the way Obsidian's own editor behaves. Both are styled from the same box
+and type so the text does not shift as they swap, and the column harness
+measures that rather than trusting it. Post-it cards and row previews render
+their descriptions too.
+
+Clicking into a description puts the caret where you clicked, when the
+description renders to the characters it is written with. A labelled link draws
+shorter than it is written, so for those the caret goes to the end instead —
+unhelpful rather than wrong.
+
 ## 0.10.0
 
 **The group heading has no surface again.** It was painted so it could sit a
