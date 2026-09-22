@@ -412,8 +412,12 @@ body.is-phone .lv-header {
 	display: flex;
 	align-items: center;
 	gap: var(--lv-lead-gap);
-	/* Painted now, so it takes the runs' edges rather than the scroller's. */
-	margin: 0 var(--lv-row-inset);
+	/*
+	 * Painted, so it takes the runs' edges rather than the scroller's — and a
+	 * gap beneath it, because a band that touches the first row under it reads
+	 * as the same object rather than as a title over one.
+	 */
+	margin: 0 var(--lv-row-inset) var(--size-4-1);
 	border-radius: var(--lv-radius);
 	background: var(--lv-accent-soft);
 	/* The same rail as `.lv-add`, and the leading column every row keys off, so
@@ -1586,22 +1590,6 @@ body.is-mobile .lv-section-more {
 	border-left: none;
 }
 
-/*
- * An item inside a group is one level below the group's own band.
- *
- * Derived from the tint rather than declared beside it, so colour and depth
- * compose instead of one overriding the other — and the step is toward the
- * text, which is the contrast pole in either theme. A light theme reads it as
- * darker, a dark theme as lighter, and the nesting reads the same way round in
- * both. Without `color-mix` there is simply no step, which is better than one
- * in the wrong direction.
- */
-@supports (color: color-mix(in srgb, red 50%, blue)) {
-	.lv-tasks .lv-in-group .lv-task,
-	.lv-tasks .lv-in-group .lv-card-task {
-		background: color-mix(in srgb, var(--lv-accent-soft) 94%, var(--text-normal) 6%);
-	}
-}
 
 /*
  * Hover, restated for a coloured list.

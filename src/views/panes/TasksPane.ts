@@ -602,7 +602,15 @@ function renderTasks(
 		}
 	}
 
-	const firstHeading = bounds[0]?.line ?? Infinity;
+	/*
+	 * The file's first heading, not the first one shown.
+	 *
+	 * What makes a task ungrouped is sitting above every heading in the file,
+	 * which the group sort cannot change. Reading it off the sorted list meant
+	 * that under A–Z a task under an earlier heading counted as ungrouped as
+	 * well as being drawn in its own group — the same task, on screen twice.
+	 */
+	const firstHeading = Math.min(...opts.sections.map((sec) => sec.line), Infinity);
 	const loose = remaining.filter((t) => t.line < firstHeading);
 
 	/*
