@@ -15,6 +15,23 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.9.2
+
+**A task could be drawn twice under a sorted group order.** What makes a task
+ungrouped is sitting above every heading in the file, and that was being read
+off the *sorted* headings rather than the file's own. Under A–Z a task under an
+earlier heading counted as ungrouped as well as being drawn in its own group —
+the same task, on screen twice.
+
+**The shading between a group and the items in it is gone.** A band and the
+rows under it were a level apart and touching, which read as a colour clash
+rather than as depth. They share one surface now, with a gap beneath the band
+so it reads as a title over the rows rather than as part of them.
+
+Nothing had ever drawn the ungrouped run with anything in it — no fixture had a
+task above the first `##`, and neither did any real list. One does now, and
+three checks cover where it lands.
+
 ## 0.9.1
 
 **The sort menu's two headings were drawn as dead options.** "Sort tasks" and

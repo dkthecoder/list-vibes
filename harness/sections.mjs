@@ -386,9 +386,11 @@ const sorted = await page.evaluate(() => {
 	for (const el of pane.querySelectorAll(
 		".lv-section:not(.lv-section-starred), .lv-task-title"
 	)) {
-		// Completed is a filtered subset with its own block at the foot, so it
-		// carries no heading and must not be read as part of the last one.
+		// Completed is a filtered subset with its own block at the foot, and the
+		// ungrouped run sits below the last heading without belonging to it.
+		// Neither must be read as part of the group above.
 		if (el.closest(".lv-completed")) continue;
+		if (el.classList.contains("lv-task-title") && !el.closest(".lv-in-group")) continue;
 		if (el.classList.contains("lv-task-title")) {
 			groups[groups.length - 1]?.titles.push(el.textContent.trim());
 		} else {
@@ -458,6 +460,40 @@ check(
 	order.indexOf("completed") === order.length - 1,
 	order.join(" > ")
 );
+
+/* ---------------- tasks above the first heading ---------------- */
+
+/*
+ * No fixture had a task above the first `##` until now, so the ungrouped run
+ * had never been drawn with anything in it — in the harness or, as it turned
+ * out, in any real list either. It renders below every group and above
+ * Completed, with a rule between it and the groups.
+ */
+const ungrouped = await page.evaluate(() => {
+	const pane = document.getElementById("sections");
+	const run = [...pane.querySelectorAll(".lv-group")].find(
+		(el) => !el.classList.contains("lv-in-group") && !el.classList.contains("lv-starred-run")
+	);
+	const rule = pane.querySelector(".lv-ungrouped-rule");
+	// Completed's header is a `.lv-section` too since the bands were unified,
+	// and it sits below the ungrouped run rather than above it.
+	const heads = [
+		...pane.querySelectorAll(
+			".lv-section:not(.lv-section-starred):not(.lv-completed-head)"
+		),
+	];
+	const last = heads[heads.length - 1];
+	return {
+		tasks: run ? run.querySelectorAll(".lv-task").length : 0,
+		hasRule: !!rule,
+		belowEveryGroup:
+			!!run && !!last && (last.compareDocumentPosition(run) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
+	};
+});
+
+check("the ungrouped run holds the tasks above the first heading", ungrouped.tasks === 2, `${ungrouped.tasks}`);
+check("a rule separates it from the groups", ungrouped.hasRule);
+check("and it sits below every group", ungrouped.belowEveryGroup);
 
 /* ---------------- the sort menu offers both orders ---------------- */
 
