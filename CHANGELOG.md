@@ -15,6 +15,37 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.13.0
+
+**Ticking a task no longer snatches the row away.** A completed task keeps its
+place, struck through, for about a second and a half, then fades and closes the
+gap behind it — long enough that a mistaken tick can be taken back where it
+happened rather than hunted for in the completed section. The file is still
+written the moment the box is ticked; only the row waits.
+
+**And it no longer walks the list toward the top.** A repaint replaces a pane
+wholesale, so the scroll offset was carried across by hand — which is only right
+when nothing above the viewport changed height, and completing a task always
+changes it. The offset is kept against the row the reader was looking at
+instead, so that row stays put whatever happens above it.
+
+**A row that changes place now travels to it.** Starring a task lifts it into the
+band at the top, and the row simply appeared there. Every row that moves is now
+animated from where it was, on the same curve and duration a drag already uses
+for rows getting out of the way. Sort changes and moves between groups slide for
+the same reason.
+
+**A newly starred task holds still for half a second**, so the star is seen to
+light up where it was pressed, and an accidental one can be undone before the row
+has gone anywhere.
+
+Reduced motion means none of it: no confetti, no fade, no slide. The grace
+periods stay, because time to notice a mistake is an affordance rather than
+decoration.
+
+**Rows sit a little further apart.** The gap was half a row's own inner padding;
+now it matches.
+
 ## 0.12.0
 
 **The post-it wall is experimental, and off.** It is finished on a desktop and

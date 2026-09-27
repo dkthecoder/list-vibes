@@ -40,6 +40,8 @@ export class DetailView extends ItemView {
 			selectedTask: null,
 			pane: "detail",
 			completedOpen: false,
+			leaving: new Map(),
+			lifting: new Map(),
 			composing: false,
 			openAction: null,
 			draft: {},

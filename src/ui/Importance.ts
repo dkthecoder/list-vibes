@@ -8,6 +8,7 @@ import {
 } from "../model/sort";
 import { DetailContext } from "../views/context";
 import { sparkleBurst } from "./burst";
+import { clearLeaving, leavingKey, markLeaving } from "../views/leaving";
 
 /**
  * The importance control, in whichever mode the user picked.
@@ -49,8 +50,17 @@ function renderStar(
 
 	const flip = (e: Event) => {
 		e.stopPropagation();
-		// Setting importance only. Clearing it is not a thing to celebrate.
-		if (!on && ctx.settings.starBurst) sparkleBurst(el);
+		const key = leavingKey(task.filePath, task.line);
+		if (on) {
+			// Clearing it: nothing to celebrate, and nothing to hold — the row is
+			// already where you can see it, so it can simply drop back.
+			clearLeaving(ctx.state.lifting, key);
+		} else {
+			if (ctx.settings.starBurst) sparkleBurst(el);
+			// Held down for a moment, so the star is seen to light where it was
+			// pressed and a mistaken one can be taken back before the row moves.
+			markLeaving(ctx.state.lifting, key, Date.now());
+		}
 		void ctx.mutator.setField(task, "priority", on ? null : STAR_PRIORITY);
 	};
 	el.addEventListener("click", flip);
