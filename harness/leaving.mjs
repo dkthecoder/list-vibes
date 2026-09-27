@@ -286,8 +286,36 @@ async function heightAt(target, ageMs) {
 	);
 }
 
+/**
+ * The row's height at the very end of its window, driven rather than waited for.
+ *
+ * Asking for an age of 1990 out of 2000 left ten milliseconds for the repaint to
+ * happen in, and a slower machine spent them — so the row had already left and
+ * there was nothing to measure. The end state is a property of the animation, not
+ * of how fast the paint was, so the animations are wound to their end and read
+ * there. Deterministic on any machine.
+ */
+async function heightAtEnd(target) {
+	return target.evaluate(
+		({ title, pane }) => {
+			window.lvSetLeaving(title, 0);
+			const row = Array.from(document.querySelectorAll(`${pane} .lv-task`)).find((r) =>
+				r.classList.contains("is-leaving")
+			);
+			if (!row) return null;
+			for (const a of row.getAnimations()) {
+				const t = a.effect.getTiming();
+				a.currentTime = (Number(t.delay) || 0) + (Number(t.duration) || 0);
+			}
+			// Reading the rect flushes the style the wound-on animations produced.
+			return Math.round(row.getBoundingClientRect().height);
+		},
+		{ title: DONE, pane: PANE }
+	);
+}
+
 const full = await heightAt(page, 0);
-const closing = await heightAt(page, 1990);
+const closing = await heightAtEnd(page);
 check(
 	"the row still has its full height while it waits",
 	full !== null && full > 20,
@@ -296,7 +324,7 @@ check(
 check(
 	"and has closed to nothing by the end of the window",
 	closing !== null && closing < 8,
-	`${closing}px at 1990ms of 2000 (was ${full}px)`
+	`${closing}px at the end of the window (was ${full}px)`
 );
 
 /*
@@ -326,11 +354,11 @@ await phone.waitForTimeout(200);
 await phone.evaluate(() => document.body.classList.add("is-phone", "is-mobile"));
 await phone.waitForTimeout(100);
 const phoneFull = await heightAt(phone, 0);
-const phoneClosing = await heightAt(phone, 1990);
+const phoneClosing = await heightAtEnd(phone);
 check(
 	"a phone row closes too, floor and all",
 	phoneClosing !== null && phoneClosing < 8,
-	`${phoneClosing}px at 1990ms (was ${phoneFull}px)`
+	`${phoneClosing}px at the end of the window (was ${phoneFull}px)`
 );
 
 /* ------------------------------------------------------------------ */
