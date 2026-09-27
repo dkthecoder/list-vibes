@@ -13,10 +13,12 @@
 
 /** How long the crossed-out row holds still, before it starts to go. */
 export const LINGER_MS = 1600;
-/** Fade and collapse, once the linger is up. */
-export const FADE_MS = 400;
+/** Fading out, once the linger is up. */
+export const FADE_MS = 200;
+/** Closing the gap, once it has faded. */
+export const COLLAPSE_MS = 200;
 /** The whole window, from tick to gone. */
-export const LEAVE_MS = LINGER_MS + FADE_MS;
+export const LEAVE_MS = LINGER_MS + FADE_MS + COLLAPSE_MS;
 
 /**
  * How long a newly starred row keeps its place before being lifted into the band.
@@ -112,15 +114,23 @@ export function shiftLeaving(
 /**
  * Put a row into its leaving state, resumed to wherever the window has got to.
  *
- * The negative `animation-delay` is the load-bearing part. A scoped repaint
- * replaces the whole pane, so a row carrying an animation is a *new* element
- * every time and its animation starts from zero — which, with anything else in
- * the vault changing, means a row that never gets past the first frame. A delay
- * of minus the elapsed time starts it already that far in.
+ * The `animation-delay` is the load-bearing part. A scoped repaint replaces the
+ * whole pane, so a row carrying an animation is a *new* element every time and
+ * its animation starts from zero — which, with anything else in the vault
+ * changing, means a row that never gets past the first frame. A delay reduced by
+ * the elapsed time starts it already that far in: positive while the row is still
+ * waiting, negative once its turn has come.
  *
- * The duration is set here rather than in the stylesheet so the constants above
- * stay the only place the timing is written down. The keyframes still hold the
- * *split* between lingering and going, as percentages of it.
+ * Two animations rather than one with percentages, because a property named only
+ * in a later keyframe interpolates from its base value across the *whole*
+ * animation, not across the segment it appears in. As one animation the padding
+ * began shrinking the instant the task was ticked — a slow squeeze through the
+ * wait on a desktop, and invisible on a phone where the content height dominates,
+ * so the two form factors behaved differently. Given a window each, every
+ * property interpolates over the window it belongs to.
+ *
+ * Durations and delays are set here rather than in the stylesheet so the
+ * constants above stay the only place the timing is written down.
  */
 export function applyLeaving(
 	row: HTMLElement,
@@ -131,8 +141,8 @@ export function applyLeaving(
 	const age = leavingAge(map, key, now);
 	if (age === null || age >= LEAVE_MS) return;
 	row.addClass("is-leaving");
-	row.style.animationDuration = `${LEAVE_MS}ms`;
-	row.style.animationDelay = `-${age}ms`;
+	row.style.animationDuration = `${FADE_MS}ms, ${COLLAPSE_MS}ms`;
+	row.style.animationDelay = `${LINGER_MS - age}ms, ${LINGER_MS + FADE_MS - age}ms`;
 	// The height to close from. Measured rather than guessed because a row with a
 	// note preview is twice the height of one without, and a collapse that starts
 	// from the wrong number either clips the row or pauses before it moves.
