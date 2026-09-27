@@ -15,6 +15,21 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.13.1
+
+**A ticked row now leaves the same way on a phone as on a desktop.** The collapse
+lowered the row's ceiling but not its floor, and `min-height` wins — so the row
+stopped a third of the way down on a desktop and half way on a phone, then
+snapped shut when it was removed. The floor is animated away with the rest now.
+
+The row also held still for its whole wait on neither. A property named only in a
+later keyframe interpolates from its base value across the entire animation, not
+across the segment it appears in, so the row's padding started shrinking the
+moment the task was ticked: a slow squeeze on a desktop, and invisible on a phone
+where wrapped content dominates the row's height. The fade and the collapse have
+a window of their own each now, so each property changes over the window it
+belongs to.
+
 ## 0.13.0
 
 **Ticking a task no longer snatches the row away.** A completed task keeps its
