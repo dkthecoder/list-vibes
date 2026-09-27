@@ -59,7 +59,7 @@
 	 * matching are a corner and a gap — so both are decided once, here, and
 	 * read from there.
 	 */
-	--lv-row-gap: var(--size-2-2);
+	--lv-row-gap: var(--size-4-2);
 	--lv-radius-s: min(var(--radius-s, 6px), 8px);
 
 	/* Checkboxes default to --font-text-size, which is sized for editor body
