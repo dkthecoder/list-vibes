@@ -7,6 +7,7 @@ import { renderInline } from "./inline";
 import { renderImportance } from "./Importance";
 import { notePreview } from "./notePreview";
 import { renderSectionBadge } from "./sectionBadge";
+import { applyLeaving, markLeaving, clearLeaving, leavingKey } from "../views/leaving";
 
 /**
  * One task row: checkbox, title, a metadata subtitle, and the importance star.
@@ -19,6 +20,9 @@ export function renderTaskRow(
 	opts: { showList?: boolean; showSection?: boolean } = {}
 ): HTMLElement {
 	const row = parent.createDiv({ cls: "lv-task" });
+	// Identity that survives a repaint, so a scroller can put the row the reader
+	// was looking at back where it was.
+	row.dataset.lvKey = leavingKey(task.filePath, task.line);
 	row.toggleClass("is-complete", isComplete(task));
 	if (
 		ctx.state.selectedTask?.filePath === task.filePath &&
@@ -30,9 +34,14 @@ export function renderTaskRow(
 	/* --- checkbox --- */
 	renderCheckbox(row, task, (e) => {
 		e.stopPropagation();
-		// Completing only. Un-ticking is a correction, not an achievement.
-		if (ctx.settings.confetti && !isComplete(task)) {
-			confettiBurst(e.target as HTMLElement);
+		const key = leavingKey(task.filePath, task.line);
+		if (isComplete(task)) {
+			// Un-ticking inside the window is the undo this whole delay exists for.
+			clearLeaving(ctx.state.leaving, key);
+		} else {
+			// Completing only. Un-ticking is a correction, not an achievement.
+			if (ctx.settings.confetti) confettiBurst(e.target as HTMLElement);
+			markLeaving(ctx.state.leaving, key, Date.now());
 		}
 		void ctx.mutator.toggle(task);
 	});
@@ -108,6 +117,19 @@ export function renderTaskRow(
 		ctx.selectTask(task);
 		if (!ctx.wide) ctx.showPane("detail");
 	});
+
+	/*
+	 * Last, because it measures the row: the collapse needs a height to close
+	 * from, and the children are only there once they have been built.
+	 *
+	 * Only ever a task that is done. Completing a repeating task inserts the next
+	 * occurrence above it, which moves every line below down one — so a key held
+	 * here can come to point at a line that has become a new, unfinished task, and
+	 * crossing that out would fade away the row the tick had just created.
+	 */
+	if (isComplete(task)) {
+		applyLeaving(row, ctx.state.leaving, leavingKey(task.filePath, task.line), Date.now());
+	}
 
 	return row;
 }

@@ -138,13 +138,28 @@ function collate(a: string, b: string): number {
 }
 
 /** Split into open and completed, preserving whatever order was applied. */
-export function partitionCompleted(tasks: Task[]): {
+/**
+ * Split the open tasks from the completed ones, in the order given.
+ *
+ * `keepOpen` holds a completed task on the open side anyway. That is the grace
+ * period after a tick: the task is done in the file already, but the row stays
+ * where the eye left it for a moment so a mistake can be undone. Because the
+ * split runs after the sort, a held task keeps its sorted place rather than
+ * being appended.
+ */
+export function partitionCompleted(
+	tasks: Task[],
+	keepOpen?: (task: Task) => boolean
+): {
 	open: Task[];
 	done: Task[];
 } {
 	const open: Task[] = [];
 	const done: Task[] = [];
-	for (const t of tasks) (isComplete(t) ? done : open).push(t);
+	for (const t of tasks) {
+		const complete = isComplete(t) && !keepOpen?.(t);
+		(complete ? done : open).push(t);
+	}
 	return { open, done };
 }
 
@@ -210,11 +225,21 @@ export function sortSections<T extends { name: string }>(
  * star on something already done is a record of what mattered rather than a
  * claim on the top of the list.
  */
-export function partitionStarred(tasks: Task[]): { starred: Task[]; rest: Task[] } {
+/**
+ * Lift the starred tasks out, in the order given.
+ *
+ * `keepRest` holds a starred task down among the rest anyway — the moment after
+ * it was starred, so the star can be seen to light where it was pressed and an
+ * accidental one undone before the row travels to the band.
+ */
+export function partitionStarred(
+	tasks: Task[],
+	keepRest?: (task: Task) => boolean
+): { starred: Task[]; rest: Task[] } {
 	const starred: Task[] = [];
 	const rest: Task[] = [];
 	for (const t of tasks) {
-		if (isStarred(t) && !isComplete(t)) starred.push(t);
+		if (isStarred(t) && !isComplete(t) && !keepRest?.(t)) starred.push(t);
 		else rest.push(t);
 	}
 	return { starred, rest };

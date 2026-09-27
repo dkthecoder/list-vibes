@@ -12,6 +12,8 @@ import { renderTasksPane } from "./panes/TasksPane";
 import { keyboardOverlap } from "./keyboard";
 import { isTextEntry } from "./focus";
 import { resetIfScrolled, unscrollableAncestors } from "./pinScroll";
+import { swapPane } from "./scrollAnchor";
+import { LEAVE_MS, LIFT_MS, pruneLeaving } from "./leaving";
 import { ListColor, Task, ViewMode, normalizeViewMode } from "../model/types";
 import { GroupSortKey, SortKey, orderLists } from "../model/sort";
 import {
@@ -35,14 +37,14 @@ export const VIEW_TYPE_LISTS = "list-vibes-view";
  */
 const WIDE_BREAKPOINT = 620;
 
-
-
 export class ListsView extends ItemView {
 	private plugin: ListsPlugin;
 	private state: ViewState;
 	private unsubscribe: (() => void) | null = null;
 	private observer: ResizeObserver | null = null;
 	private wide = false;
+	/** Pending sweep of the grace-period map, so a held row actually leaves. */
+	private leavingTimer: number | null = null;
 	private queued = false;
 	private queuedScope: RenderScope = "all";
 	/**
@@ -68,6 +70,8 @@ export class ListsView extends ItemView {
 			selectedTask: null,
 			pane: "nav",
 			completedOpen: plugin.settings.showCompleted === "expanded",
+			leaving: new Map(),
+			lifting: new Map(),
 			composing: false,
 			openAction: null,
 			draft: {},
@@ -230,6 +234,8 @@ export class ListsView extends ItemView {
 		this.unsubscribe = null;
 		this.observer?.disconnect();
 		this.observer = null;
+		if (this.leavingTimer !== null) window.clearTimeout(this.leavingTimer);
+		this.leavingTimer = null;
 	}
 
 	/** Persisted by Obsidian per leaf, so every tab keeps its own list. */
@@ -813,9 +819,48 @@ export class ListsView extends ItemView {
 		}
 	}
 
+	/**
+	 * Repaint once the oldest held row runs out of time.
+	 *
+	 * Nothing else would: the file stopped changing the moment the tick was
+	 * written, so without a clock of its own a ticked row would sit crossed out
+	 * until something unrelated happened in the vault. One timer for the whole
+	 * map, re-armed after each paint, rather than one per row.
+	 */
+	private scheduleLeavingSweep(): void {
+		if (this.leavingTimer !== null) {
+			window.clearTimeout(this.leavingTimer);
+			this.leavingTimer = null;
+		}
+		const held: [Map<string, number>, number][] = [
+			[this.state.leaving, LEAVE_MS],
+			[this.state.lifting, LIFT_MS],
+		];
+		const now = Date.now();
+		let soonest = Infinity;
+		for (const [map, windowMs] of held) {
+			for (const at of map.values()) soonest = Math.min(soonest, at + windowMs - now);
+		}
+		if (soonest === Infinity) return;
+
+		this.leavingTimer = window.setTimeout(
+			() => {
+				this.leavingTimer = null;
+				const at = Date.now();
+				// Both, and not short-circuited: each has to be swept whatever the other
+				// did, or a star held past its window waits on the next tick to be freed.
+				const wentLeaving = pruneLeaving(this.state.leaving, at, LEAVE_MS);
+				const wentLifting = pruneLeaving(this.state.lifting, at, LIFT_MS);
+				if (wentLeaving || wentLifting) this.render("tasks");
+			},
+			Math.max(0, soonest)
+		);
+	}
+
 	private paint(scope: RenderScope = "all"): void {
 		this.wide = this.contentEl.clientWidth >= WIDE_BREAKPOINT;
 		this.pruneSelection();
+		this.scheduleLeavingSweep();
 
 		const shape = this.shape();
 		const reuse = scope !== "all" && shape === this.lastShape && !!this.shellEl;
@@ -978,19 +1023,4 @@ export class ListsView extends ItemView {
  * across lists. Its scroll offset is carried over by hand, since that is the one
  * piece of the old element worth keeping.
  */
-function swapPane(el: HTMLElement, render: (parent: HTMLElement) => void): HTMLElement {
-	const scrolled = el.querySelector<HTMLElement>(".lv-scroll, .lv-nav-scroll");
-	const keep = scrolled ? scrolled.scrollTop : 0;
 
-	const holder = createDiv();
-	render(holder);
-	const next = holder.firstElementChild as HTMLElement | null;
-	if (!next) return el;
-
-	el.replaceWith(next);
-	if (keep) {
-		const sc = next.querySelector<HTMLElement>(".lv-scroll, .lv-nav-scroll");
-		if (sc) sc.scrollTop = keep;
-	}
-	return next;
-}

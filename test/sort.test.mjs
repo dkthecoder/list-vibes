@@ -149,6 +149,71 @@ test("partitionCompleted splits while preserving order", () => {
 	assert.deepEqual(titles(done), ["fig"]);
 });
 
+/*
+ * A task ticked a moment ago keeps its place in the open list for its grace
+ * period, so an accidental tick can be undone without hunting for the row in the
+ * completed section. It is still done in the file — only the drawing waits.
+ */
+
+test("a completed task the caller still holds stays in the open list", () => {
+	const sorted = sortTasks(list(), "alpha-asc");
+	const { open, done } = partitionCompleted(sorted, (t) => t.title === "fig");
+	assert.deepEqual(titles(open), ["apple", "Banana", "Cherry", "date", "Elderberry", "fig"]);
+	assert.deepEqual(titles(done), []);
+});
+
+test("and it keeps its sorted position, not the end", () => {
+	const sorted = sortTasks(list(), "alpha-desc");
+	const { open } = partitionCompleted(sorted, (t) => t.title === "fig");
+	// alpha-desc puts fig between Elderberry and date; holding it must not move it.
+	assert.deepEqual(titles(open), ["fig", "Elderberry", "date", "Cherry", "Banana", "apple"]);
+});
+
+test("holding one completed task does not hold another", () => {
+	const md = ["- [x] one ✅ 2026-08-01", "- [x] two ✅ 2026-08-01"].join("\n");
+	const ts = parseFile(md, "x.md").tasks;
+	const { open, done } = partitionCompleted(ts, (t) => t.title === "one");
+	assert.deepEqual(titles(open), ["one"]);
+	assert.deepEqual(titles(done), ["two"]);
+});
+
+test("with no predicate it splits as it always did", () => {
+	const sorted = sortTasks(list(), "alpha-asc");
+	const { open, done } = partitionCompleted(sorted);
+	assert.deepEqual(titles(done), ["fig"]);
+	assert.equal(open.length, 5);
+});
+
+/*
+ * Starring a task lifts it into the band at the top. It is held back from that
+ * for a moment so the star can be seen to light up where it was pressed, and an
+ * accidental star undone without the row having gone anywhere.
+ */
+
+test("a starred task the caller holds back stays where it was", () => {
+	const md = ["- [ ] plain", "- [ ] shiny \u23eb"].join("\n");
+	const ts = parseFile(md, "x.md").tasks;
+	const { starred, rest } = partitionStarred(ts, (t) => t.title === "shiny");
+	assert.deepEqual(titles(starred), []);
+	assert.deepEqual(titles(rest), ["plain", "shiny"]);
+});
+
+test("holding one starred task does not hold another", () => {
+	const md = ["- [ ] one \u23eb", "- [ ] two \u23eb"].join("\n");
+	const ts = parseFile(md, "x.md").tasks;
+	const { starred, rest } = partitionStarred(ts, (t) => t.title === "one");
+	assert.deepEqual(titles(starred), ["two"]);
+	assert.deepEqual(titles(rest), ["one"]);
+});
+
+test("with no predicate the band fills as it always did", () => {
+	const md = ["- [ ] plain", "- [ ] shiny \u23eb"].join("\n");
+	const ts = parseFile(md, "x.md").tasks;
+	const { starred, rest } = partitionStarred(ts);
+	assert.deepEqual(titles(starred), ["shiny"]);
+	assert.deepEqual(titles(rest), ["plain"]);
+});
+
 test("numeric-aware collation orders 2 before 10", () => {
 	const md = ["- [ ] Item 10", "- [ ] Item 2", "- [ ] Item 1"].join("\n");
 	const ts = parseFile(md, "x.md").tasks;

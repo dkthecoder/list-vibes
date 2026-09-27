@@ -2098,9 +2098,69 @@ body.lv-is-dragging .lv-step:hover {
 	background: var(--background-secondary);
 }
 
+/* ------------------------------------------------------------------
+   A ticked task on its way out
+
+   Ticking writes the file at once; only the row waits. It holds its
+   place, struck through, long enough for a mistaken tick to be taken
+   back, then fades and closes the gap behind it.
+
+   The percentages are the split between waiting and going. The
+   duration is set inline from `LEAVE_MS` in views/leaving.ts, so the
+   timing lives in one place — 80% is the end of the linger, and the
+   last tenth is the collapse.
+   ------------------------------------------------------------------ */
+
+@keyframes lv-leaving {
+	0%,
+	80% {
+		opacity: 1;
+		max-height: var(--lv-leave-h, 6rem);
+	}
+	90% {
+		opacity: 0;
+		max-height: var(--lv-leave-h, 6rem);
+	}
+	100% {
+		opacity: 0;
+		max-height: 0;
+		padding-block: 0;
+		margin-block: 0;
+	}
+}
+
+.lv-task.is-leaving,
+.lv-card-task.is-leaving {
+	animation-name: lv-leaving;
+	animation-timing-function: linear;
+	animation-fill-mode: forwards;
+	/* So the row's own content is clipped as the box closes rather than
+	   spilling past it for the last frames. */
+	overflow: hidden;
+}
+
+/* Struck through the moment it is ticked, which is the feedback that the
+   tick registered — the row staying put is otherwise indistinguishable
+   from nothing having happened. */
+.lv-task.is-leaving .lv-task-title,
+.lv-card-task.is-leaving .lv-card-title {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.lv-sortable {
 		transition: none;
+	}
+
+	/*
+	 * The grace period is kept and the motion dropped. The delay is an
+	 * affordance — time to notice a mistake — not decoration, so it stays;
+	 * the row simply holds still and then goes.
+	 */
+	.lv-task.is-leaving,
+	.lv-card-task.is-leaving {
+		animation: none;
 	}
 }
 

@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { LeavingMap } from "./leaving";
 import { ListStore, SmartView } from "../model/store";
 import { Mutator } from "../model/mutate";
 import { ListsSettings } from "../settings";
@@ -21,6 +22,20 @@ export interface ViewState {
 	selectedTask: { filePath: string; line: number } | null;
 	pane: PaneName;
 	completedOpen: boolean;
+	/**
+	 * Tasks ticked a moment ago, held in the open list for their grace period.
+	 *
+	 * Transient and per-view, like the rest of this: the tick itself is already in
+	 * the file, so nothing here needs to survive the view being closed.
+	 */
+	leaving: LeavingMap;
+	/**
+	 * Tasks starred a moment ago, held down among the rest for their short window.
+	 *
+	 * Separate from `leaving` because the two holds run to different deadlines and a
+	 * task can plausibly be in both — starred, then ticked before it ever travelled.
+	 */
+	lifting: LeavingMap;
 	/** True while the add box is expanded into its title + description form. */
 	composing: boolean;
 	/** Which detail action row is expanded, so only one opens at a time. */

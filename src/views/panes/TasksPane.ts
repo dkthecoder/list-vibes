@@ -1,4 +1,5 @@
 import { Menu, setIcon } from "obsidian";
+import { LIFT_MS, isLeaving, leavingKey } from "../leaving";
 import { SMART_VIEWS, ViewContext } from "../context";
 import {
   ListSection,
@@ -321,7 +322,15 @@ export function renderTasksPane(parent: HTMLElement, ctx: ViewContext): void {
     : (list?.tasks ?? []);
 
   const sortKey = isSmart ? "custom" : ctx.sortKey();
-  const { open, done } = partitionCompleted(sortTasks(raw, sortKey));
+  /*
+   * A task ticked a moment ago is held on the open side, in the place the sort
+   * already gave it, so an accidental tick can be undone where it happened
+   * rather than in the completed section.
+   */
+  const now = Date.now();
+  const { open, done } = partitionCompleted(sortTasks(raw, sortKey), (t) =>
+    isLeaving(ctx.state.leaving, leavingKey(t.filePath, t.line), now)
+  );
 
   if (!open.length && !done.length) {
     const empty = scroll.createDiv({ cls: "lv-empty" });
@@ -598,7 +607,12 @@ function renderTasks(
    */
   let remaining = tasks;
   if (opts.starredFirst) {
-    const { starred, rest } = partitionStarred(tasks);
+    // A task starred a moment ago stays put, so the star lights where it was
+    // pressed and the row travels only once the press has been seen.
+    const heldDown = Date.now();
+    const { starred, rest } = partitionStarred(tasks, (t) =>
+      isLeaving(ctx.state.lifting, leavingKey(t.filePath, t.line), heldDown, LIFT_MS)
+    );
     if (starred.length) {
       renderHeading(scroll, {
         label: "Starred",

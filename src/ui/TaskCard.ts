@@ -2,6 +2,7 @@ import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
 import { renderSectionBadge } from "./sectionBadge";
 import { confettiBurst } from "./burst";
+import { applyLeaving, markLeaving, clearLeaving, leavingKey } from "../views/leaving";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
 import { ViewContext } from "../views/context";
@@ -24,6 +25,7 @@ export function renderTaskCard(
 	opts: { showList?: boolean; showSection?: boolean } = {}
 ): HTMLElement {
 	const card = parent.createDiv({ cls: "lv-card-task" });
+	card.dataset.lvKey = leavingKey(task.filePath, task.line);
 	card.toggleClass("is-complete", isComplete(task));
 	if (
 		ctx.state.selectedTask?.filePath === task.filePath &&
@@ -37,12 +39,15 @@ export function renderTaskCard(
 
 	renderCheckbox(head, task, (e) => {
 		e.stopPropagation();
-		if (ctx.settings.confetti && !isComplete(task)) {
-			confettiBurst(e.target as HTMLElement);
+		const key = leavingKey(task.filePath, task.line);
+		if (isComplete(task)) {
+			clearLeaving(ctx.state.leaving, key);
+		} else {
+			if (ctx.settings.confetti) confettiBurst(e.target as HTMLElement);
+			markLeaving(ctx.state.leaving, key, Date.now());
 		}
 		void ctx.mutator.toggle(task);
 	});
-
 
 	const titleEl = head.createDiv({ cls: "lv-card-title" });
 	renderInline(titleEl, task.title, ctx);
@@ -123,6 +128,13 @@ export function renderTaskCard(
 		ctx.selectTask(task);
 		if (!ctx.wide) ctx.showPane("detail");
 	});
+
+	// Same grace period as a row, for the same reason — the wall shares the
+	// partition, so a held card without the marking would look like a tick that
+	// did nothing. Only ever a task that is done; see renderTaskRow.
+	if (isComplete(task)) {
+		applyLeaving(card, ctx.state.leaving, leavingKey(task.filePath, task.line), Date.now());
+	}
 
 	return card;
 }

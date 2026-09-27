@@ -50,6 +50,18 @@ export function installDomHelpers(): void {
 	p.createDiv = function (info?: ElInfo | string) {
 		return (this as never as { createEl: (t: string, i?: ElInfo | string) => HTMLElement }).createEl("div", info as ElInfo);
 	};
+	/*
+	 * Obsidian's bare `createDiv()` — a detached div, as opposed to the method of
+	 * the same name that appends to an element. The view uses it to build a
+	 * replacement pane offscreen before swapping it in.
+	 */
+	(globalThis as unknown as { createDiv: (info?: ElInfo | string) => HTMLElement }).createDiv = (
+		info
+	) => {
+		const el = document.createElement("div");
+		applyInfo(el, info as ElInfo);
+		return el;
+	};
 	p.createSpan = function (info?: ElInfo | string) {
 		return (this as never as { createEl: (t: string, i?: ElInfo | string) => HTMLElement }).createEl("span", info as ElInfo);
 	};

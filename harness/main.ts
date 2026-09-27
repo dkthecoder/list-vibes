@@ -18,6 +18,8 @@ import { ListColor, ViewMode } from "../src/model/types";
 import { keyboardOverlap } from "../src/views/keyboard";
 import { resetIfScrolled, unscrollableAncestors } from "../src/views/pinScroll";
 import { makeEditableName } from "../src/ui/editableName";
+import { leavingKey, markLeaving } from "../src/views/leaving";
+import { swapPane } from "../src/views/scrollAnchor";
 
 installDomHelpers();
 
@@ -78,6 +80,8 @@ const state: ViewState = {
 	composing: false,
 	openAction: null,
 	draft: {},
+	leaving: new Map(),
+	lifting: new Map(),
 };
 
 let sortKey: SortKey = "custom";
@@ -369,6 +373,56 @@ paint();
 	listOnly = v;
 	paint();
 };
+
+/*
+ * Put a task into the leaving window by title, aged by hand.
+ *
+ * The real trigger is a tick, which writes the file — and this harness's mutator
+ * only records what it was asked to do. Setting the map directly is what lets a
+ * suite see the states the animation passes through without waiting two real
+ * seconds for each one.
+ */
+(window as unknown as { lvSetLeaving: (title: string, ageMs: number) => void }).lvSetLeaving = (
+	title,
+	ageMs
+) => {
+	state.leaving.clear();
+	for (const l of lists) {
+		const hit = l.all.find((t) => t.title === title);
+		if (hit) markLeaving(state.leaving, leavingKey(hit.filePath, hit.line), Date.now() - ageMs);
+	}
+	paint();
+};
+(window as unknown as { lvClearLeaving: () => void }).lvClearLeaving = () => {
+	state.leaving.clear();
+	paint();
+};
+
+/* The same, for the shorter hold a newly starred row gets before it is lifted. */
+(window as unknown as { lvSetLifting: (title: string, ageMs: number) => void }).lvSetLifting = (
+	title,
+	ageMs
+) => {
+	state.lifting.clear();
+	for (const l of lists) {
+		const hit = l.all.find((t) => t.title === title);
+		if (hit) markLeaving(state.lifting, leavingKey(hit.filePath, hit.line), Date.now() - ageMs);
+	}
+	paint();
+};
+(window as unknown as { lvClearLifting: () => void }).lvClearLifting = () => {
+	state.lifting.clear();
+	paint();
+};
+
+/*
+ * The real pane swap, so a suite can check that a scroller survives one.
+ *
+ * It is the view's own function rather than a copy: what is being guarded is the
+ * arithmetic *and* the measuring, and a reimplementation in the harness would
+ * agree with itself while the plugin drifted.
+ */
+(window as unknown as { lvSwapPane: typeof swapPane }).lvSwapPane = swapPane;
 
 /*
  * The real measurement code, exposed so a suite can apply the same number the
