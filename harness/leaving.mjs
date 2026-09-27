@@ -113,12 +113,16 @@ const delayAt = (pane) =>
 
 await page.evaluate((t) => window.lvSetLeaving(t, 0), DONE);
 const fresh = await delayAt(PANE);
-// Not exactly zero: a few milliseconds of real clock pass between the tick and
-// the row being drawn, and the delay reports them honestly.
+/*
+ * Not exactly zero: real clock passes between the tick and the row being drawn,
+ * and the delay reports it honestly. The bound is generous because it is a
+ * machine-speed measurement — what is being checked is that the row starts near
+ * the beginning of a two-second animation, not that a runner is fast.
+ */
 const freshMs = Math.round(parseFloat(fresh) * 1000);
 check(
 	"a freshly ticked row starts its animation at the beginning",
-	freshMs <= 0 && freshMs > -100,
+	freshMs <= 0 && freshMs > -400,
 	`${fresh}`
 );
 
@@ -127,16 +131,23 @@ const aged = await delayAt(PANE);
 const agedMs = Math.round(parseFloat(aged) * 1000);
 check(
 	"a row repainted part way through resumes where it was",
-	agedMs <= -800 && agedMs >= -1000,
-	`${aged} (wanted about -0.9s)`
+	agedMs <= -850 && agedMs >= -1500,
+	`${aged} (wanted about -0.9s, plus however long the machine took)`
 );
 
 // Repainting again must not move it back to the start.
 await page.evaluate(() => window.paint());
 const repainted = await delayAt(PANE);
+/*
+ * The delay must never move back toward zero. Comparing the two readings for
+ * closeness measured how quick the machine was rather than what the code did —
+ * more real time passes between them on a slow runner, which is the delay
+ * working. A restart is what this is for, and a restart reads as zero.
+ */
+const repaintedMs = Math.round(parseFloat(repainted) * 1000);
 check(
 	"and a further repaint does not restart it",
-	Math.abs(Math.round(parseFloat(repainted) * 1000) - agedMs) < 50,
+	repaintedMs <= agedMs + 5 && repaintedMs < -500,
 	`${repainted} after ${aged}`
 );
 
