@@ -103,52 +103,51 @@ check("the held row is struck through", !!struck && struck.includes("line-throug
    4. The animation resumes across a repaint rather than restarting
    ------------------------------------------------------------------ */
 
+/*
+ * The fade's delay, in milliseconds. It counts *down* from the linger: a row just
+ * ticked waits 1600ms before fading, one ticked 900ms ago waits 700. The row is
+ * carrying two animations now, so the first of the two is the one to read.
+ */
 const delayAt = (pane) =>
 	page.evaluate((p) => {
 		const row = Array.from(document.querySelectorAll(`${p} .lv-task`)).find((r) =>
 			r.classList.contains("is-leaving")
 		);
-		return row ? getComputedStyle(row).animationDelay : null;
+		if (!row) return null;
+		const first = getComputedStyle(row).animationDelay.split(",")[0].trim();
+		return Math.round(parseFloat(first) * 1000);
 	}, pane);
 
 await page.evaluate((t) => window.lvSetLeaving(t, 0), DONE);
 const fresh = await delayAt(PANE);
-/*
- * Not exactly zero: real clock passes between the tick and the row being drawn,
- * and the delay reports it honestly. The bound is generous because it is a
- * machine-speed measurement — what is being checked is that the row starts near
- * the beginning of a two-second animation, not that a runner is fast.
- */
-const freshMs = Math.round(parseFloat(fresh) * 1000);
+// Full linger still to wait, less the few milliseconds the machine took.
 check(
-	"a freshly ticked row starts its animation at the beginning",
-	freshMs <= 0 && freshMs > -400,
-	`${fresh}`
+	"a freshly ticked row has its whole wait ahead of it",
+	fresh <= 1600 && fresh > 1200,
+	`${fresh}ms (wanted about 1600)`
 );
 
 await page.evaluate((t) => window.lvSetLeaving(t, 900), DONE);
 const aged = await delayAt(PANE);
-const agedMs = Math.round(parseFloat(aged) * 1000);
 check(
 	"a row repainted part way through resumes where it was",
-	agedMs <= -850 && agedMs >= -1500,
-	`${aged} (wanted about -0.9s, plus however long the machine took)`
+	aged <= 700 && aged > 100,
+	`${aged}ms (wanted about 700 — the linger less the 900 already spent)`
 );
 
 // Repainting again must not move it back to the start.
 await page.evaluate(() => window.paint());
 const repainted = await delayAt(PANE);
 /*
- * The delay must never move back toward zero. Comparing the two readings for
- * closeness measured how quick the machine was rather than what the code did —
- * more real time passes between them on a slow runner, which is the delay
- * working. A restart is what this is for, and a restart reads as zero.
+ * The wait may only ever shrink. Comparing two readings for closeness measured
+ * how quick the machine was rather than what the code did — more real time
+ * passes between them on a slow runner, which is the countdown working. A
+ * restart is what this guards, and a restart reads as the whole linger again.
  */
-const repaintedMs = Math.round(parseFloat(repainted) * 1000);
 check(
 	"and a further repaint does not restart it",
-	repaintedMs <= agedMs + 5 && repaintedMs < -500,
-	`${repainted} after ${aged}`
+	repainted <= aged + 5 && repainted < 1000,
+	`${repainted}ms after ${aged}ms`
 );
 
 /* ------------------------------------------------------------------
@@ -261,6 +260,105 @@ check(
 	"once the hold is up it takes its place in the band",
 	b.inBand.includes(STARRED),
 	JSON.stringify(b.inBand)
+);
+
+/* ------------------------------------------------------------------
+   8. The gap actually closes
+
+   The row's box has to reach nothing by the end of the window, or removing
+   it from the list snaps the rows below upward by whatever is left — which
+   is the jump the fade was supposed to replace. `min-height` is the trap:
+   it beats `max-height` in CSS, so a collapse that animates only max-height
+   stops dead at the row's floor. On a phone that floor is most of the row.
+   ------------------------------------------------------------------ */
+
+/** The row's rendered height at a given point in its window. */
+async function heightAt(target, ageMs) {
+	return target.evaluate(
+		({ title, ageMs, pane }) => {
+			window.lvSetLeaving(title, ageMs);
+			const row = Array.from(document.querySelectorAll(`${pane} .lv-task`)).find((r) =>
+				r.classList.contains("is-leaving")
+			);
+			return row ? Math.round(row.getBoundingClientRect().height) : null;
+		},
+		{ title: DONE, ageMs, pane: PANE }
+	);
+}
+
+/**
+ * The row's height at the very end of its window, driven rather than waited for.
+ *
+ * Asking for an age of 1990 out of 2000 left ten milliseconds for the repaint to
+ * happen in, and a slower machine spent them — so the row had already left and
+ * there was nothing to measure. The end state is a property of the animation, not
+ * of how fast the paint was, so the animations are wound to their end and read
+ * there. Deterministic on any machine.
+ */
+async function heightAtEnd(target) {
+	return target.evaluate(
+		({ title, pane }) => {
+			window.lvSetLeaving(title, 0);
+			const row = Array.from(document.querySelectorAll(`${pane} .lv-task`)).find((r) =>
+				r.classList.contains("is-leaving")
+			);
+			if (!row) return null;
+			for (const a of row.getAnimations()) {
+				const t = a.effect.getTiming();
+				a.currentTime = (Number(t.delay) || 0) + (Number(t.duration) || 0);
+			}
+			// Reading the rect flushes the style the wound-on animations produced.
+			return Math.round(row.getBoundingClientRect().height);
+		},
+		{ title: DONE, pane: PANE }
+	);
+}
+
+const full = await heightAt(page, 0);
+const closing = await heightAtEnd(page);
+check(
+	"the row still has its full height while it waits",
+	full !== null && full > 20,
+	`${full}px`
+);
+check(
+	"and has closed to nothing by the end of the window",
+	closing !== null && closing < 8,
+	`${closing}px at the end of the window (was ${full}px)`
+);
+
+/*
+ * And it must hold that height for the whole wait, not creep downward.
+ *
+ * A property named only in the last keyframe interpolates from its base value
+ * across the entire animation, not across the segment it appears in — so a
+ * padding zeroed at 100% starts shrinking at 0%. The row squeezed slowly for a
+ * second and a half on a desktop, and on a phone, where the content height
+ * dominates, it did not show at all. The two form factors have to match.
+ */
+const midLinger = await heightAt(page, 800);
+const lateLinger = await heightAt(page, 1600);
+check(
+	"the row does not creep downward while it waits",
+	Math.abs(midLinger - full) <= 1 && Math.abs(lateLinger - full) <= 1,
+	`${full}px at 0ms, ${midLinger}px at 800ms, ${lateLinger}px at 1600ms`
+);
+
+/*
+ * And on a phone, where the row's floor is most of its height — the case that
+ * turns a fade into a jump.
+ */
+const phone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+await phone.goto(url);
+await phone.waitForTimeout(200);
+await phone.evaluate(() => document.body.classList.add("is-phone", "is-mobile"));
+await phone.waitForTimeout(100);
+const phoneFull = await heightAt(phone, 0);
+const phoneClosing = await heightAtEnd(phone);
+check(
+	"a phone row closes too, floor and all",
+	phoneClosing !== null && phoneClosing < 8,
+	`${phoneClosing}px at the end of the window (was ${phoneFull}px)`
 );
 
 /* ------------------------------------------------------------------ */

@@ -2111,19 +2111,32 @@ body.lv-is-dragging .lv-step:hover {
    last tenth is the collapse.
    ------------------------------------------------------------------ */
 
-@keyframes lv-leaving {
-	0%,
-	80% {
-		opacity: 1;
+@keyframes lv-leaving-fade {
+	to {
+		opacity: 0;
+	}
+}
+
+/*
+ * The collapse, over its own window.
+ *
+ * `from` names max-height because there is nothing to interpolate towards zero
+ * from otherwise — a row's own max-height is `none`. The rest take their base
+ * values implicitly, which is the point of giving this its own animation: over
+ * 200ms that is the collapse, where across the whole two seconds it was a squeeze
+ * that started the moment the task was ticked.
+ *
+ * `min-height` has to go as well. It beats `max-height`, so a collapse that
+ * lowers only the ceiling stops dead at the row's floor — a third of it on a
+ * desktop and half on a phone, left to snap shut when the row is removed.
+ */
+@keyframes lv-leaving-collapse {
+	from {
 		max-height: var(--lv-leave-h, 6rem);
 	}
-	90% {
-		opacity: 0;
-		max-height: var(--lv-leave-h, 6rem);
-	}
-	100% {
-		opacity: 0;
+	to {
 		max-height: 0;
+		min-height: 0;
 		padding-block: 0;
 		margin-block: 0;
 	}
@@ -2131,9 +2144,9 @@ body.lv-is-dragging .lv-step:hover {
 
 .lv-task.is-leaving,
 .lv-card-task.is-leaving {
-	animation-name: lv-leaving;
-	animation-timing-function: linear;
-	animation-fill-mode: forwards;
+	animation-name: lv-leaving-fade, lv-leaving-collapse;
+	animation-timing-function: linear, linear;
+	animation-fill-mode: forwards, forwards;
 	/* So the row's own content is clipped as the box closes rather than
 	   spilling past it for the last frames. */
 	overflow: hidden;
