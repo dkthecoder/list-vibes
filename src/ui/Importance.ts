@@ -39,7 +39,7 @@ function renderStar(
 	opts: { size?: "sm" | "md" }
 ): HTMLElement {
 	const on = isStarred(task);
-	const el = parent.createDiv({ cls: "lv-star lv-no-drag" });
+	const el = parent.createDiv({ cls: "lv-star" });
 	if (opts.size === "sm") el.addClass("is-sm");
 	el.toggleClass("is-on", on);
 	el.setAttribute("role", "button");

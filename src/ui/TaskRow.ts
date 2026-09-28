@@ -1,4 +1,5 @@
 import { renderCheckbox } from "./checkbox";
+import { renderGrip } from "./grip";
 import { confettiBurst } from "./burst";
 import { Task, isComplete } from "../model/types";
 import { formatDate, formatStamp, isOverdue, isToday } from "../model/store";
@@ -111,6 +112,17 @@ export function renderTaskRow(
 
 	/* --- importance --- */
 	renderImportance(row, task, ctx);
+
+	/*
+	 * The grip, at the trailing edge.
+	 *
+	 * Leading would be the more common place for a handle, and it cannot go there:
+	 * the checkbox column is shared with the detail panel's rows, the add box's +
+	 * and the cards on the wall, and anything inserted ahead of it indents every
+	 * row against all three. Trailing is also where the platform puts a reorder
+	 * handle on a phone, which is the device that needs it.
+	 */
+	renderGrip(row);
 
 	/* --- selection --- */
 	row.addEventListener("click", () => {

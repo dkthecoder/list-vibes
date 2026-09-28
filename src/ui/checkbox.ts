@@ -42,7 +42,7 @@ export function renderCheckbox(
 
 	const box = row.createEl("input", {
 		type: "checkbox",
-		cls: "task-list-item-checkbox lv-check lv-no-drag",
+		cls: "task-list-item-checkbox lv-check",
 	});
 	if (opts.small) box.addClass("lv-check-sm");
 	box.dataset.task = status;

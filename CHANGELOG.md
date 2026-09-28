@@ -15,6 +15,26 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.14.0
+
+**Dragging to reorder now works on a phone and a tablet.** It never really did. A
+drag and a scroll are the same gesture on a touchscreen, and the browser chooses
+between them on the first movement — long before a long press can expire. So the
+press armed, the row lifted as though a drag had begun, and the drop did nothing.
+Three pixels of finger drift were enough to lose it.
+
+Every row, card, heading, picker entry and step now carries a grip at its trailing
+edge, and a drag starts from there. The grip declares up front that it will not
+scroll, which is the only thing the browser will listen to, so the gesture is
+never in question. Swiping anywhere else on a row still scrolls the list.
+
+**On a desktop this means dragging by the grip rather than by the row.** One way
+to start a drag for a mouse, a trackpad, a pen and a finger — which is what let
+the long press, its timer, its movement threshold, a touch-only early return and
+a scroll guard that could never work all be deleted rather than added to.
+
+Clicking a row still opens the task. Clicking a grip does not.
+
 ## 0.13.1
 
 **A ticked row now leaves the same way on a phone as on a desktop.** The collapse

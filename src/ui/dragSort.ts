@@ -5,24 +5,33 @@
  * mobile webviews, gives no usable drag image on touch, and cannot be started
  * from a long press. Pointer Events are one code path for mouse, pen and touch.
  *
- * The two input kinds need genuinely different rules for *starting* a drag:
+ * And one code path is all there is, because a drag starts from the grip and
+ * from nothing else. That is what removes the hard part. A drag and a scroll are
+ * the same gesture on a touchscreen, and the browser chooses between them on the
+ * first `touchmove` — the only one that is cancelable — so the choice cannot wait
+ * until intent is known. `touch-action` is read when the touch begins, so the
+ * surface under the finger has to declare up front whether it might scroll: a row
+ * must say it might, or lists stop scrolling, and a grip says it will not.
  *
- * - **Mouse** — a small movement threshold. There is nothing else a vertical
- *   drag on a row could mean, and requiring a wait would feel broken.
- * - **Touch** — a long press. A vertical swipe on a list is a scroll, and it has
- *   to stay one; and inside Obsidian's mobile drawer a horizontal swipe closes
- *   the drawer. Both would be stolen by a threshold-based drag.
+ * Long-pressing the row was the previous arrangement. It is the standard recipe —
+ * and it cannot be made reliable, because the browser has chosen before the press
+ * expires, so it comes down to whether the finger happened to stay still. A
+ * three-pixel wander lost it, with the row lifted so it read as a drag that had
+ * started. Every suite passed throughout, because a synthesised pointer event
+ * never engages real scrolling.
  *
  * Once a drag is live the pointer is captured, so the gesture keeps working past
- * the edge of the row and cannot be interrupted by another element.
+ * the edge of the grip and cannot be interrupted by another element.
  */
 
-/** How far the pointer may wander before a long press is treated as a scroll. */
-const TOUCH_SLOP = 10;
-/** How far a mouse must move before it counts as a drag rather than a click. */
-const MOUSE_THRESHOLD = 5;
-/** How long to hold on touch before the row becomes draggable. */
-const LONG_PRESS_MS = 450;
+/**
+ * How far the pointer must travel before it counts as a drag rather than a press.
+ *
+ * The same number for every input. A finger needs no more slack than a mouse
+ * here: the grip has already settled that this gesture is not a scroll, so the
+ * only thing left to tell apart is a drag from a tap.
+ */
+const DRAG_THRESHOLD = 5;
 
 /**
  * How near the edge of the scroller a live drag starts pulling the list along.
@@ -44,7 +53,8 @@ export interface DragSortOptions {
 	/** Called once, on a drop that actually changes the order. */
 	onDrop: (from: number, to: number) => void;
 	/** Optional grab area. Without one the whole row starts the drag. */
-	handle?: HTMLElement;
+	/** The only surface a drag starts from. See ui/grip.ts. */
+	grip: HTMLElement;
 	/**
 	 * Every run the row may be dropped into, this row's own among them, in the
 	 * order the view lays them out. Omit it and the drag stays one-dimensional,
@@ -265,19 +275,13 @@ function suppressNextClick(el: HTMLElement): void {
 
 /** Make one row draggable among its siblings. */
 export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void {
-	const grab = opts.handle ?? row;
-
-	// The browser must not claim the gesture for scrolling before we decide
-	// whether it is a drag. On the handle we can say so up front; on a whole row
-	// we cannot, or the list would stop scrolling entirely.
-	if (opts.handle) grab.addClass("lv-grip");
+	const grab = opts.grip;
 
 
 
 	let startX = 0;
 	let startY = 0;
 	let pointerId: number | null = null;
-	let longPress: number | null = null;
 	let live = false;
 	let siblings: HTMLElement[] = [];
 	let centres: number[] = [];
@@ -294,13 +298,6 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	let edgeFrame = 0;
 	let lastY = 0;
 
-	const cancelLongPress = () => {
-		if (longPress !== null) {
-			window.clearTimeout(longPress);
-			longPress = null;
-		}
-	};
-
 	/* Kept as rects rather than centres: the pointer has to be placed in the
 	   same flow as the rows, and that needs their columns as well as their
 	   heights. */
@@ -316,19 +313,6 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		// The list the row sits in, if it is in one that scrolls.
 		scroller = row.closest<HTMLElement>(".lv-scroll");
 		startScroll = scroller?.scrollTop ?? 0;
-
-		/*
-		 * The pointer is claimed here rather than on pointerdown.
-		 *
-		 * Capturing it early retargets every later pointer event to this row,
-		 * which is exactly what a live drag wants and exactly what a row that is
-		 * not being dragged must not do: a name that is renamed by double-click
-		 * never sees the second press, because the row swallowed it. Capture is
-		 * for a gesture we have decided to take.
-		 */
-		if (pointerId !== null && !grab.hasPointerCapture(pointerId)) {
-			grab.setPointerCapture(pointerId);
-		}
 
 		siblings = opts.siblings();
 
@@ -448,7 +432,6 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	};
 
 	const finish = (commit: boolean) => {
-		cancelLongPress();
 		if (pointerId !== null && grab.hasPointerCapture(pointerId)) {
 			grab.releasePointerCapture(pointerId);
 		}
@@ -485,38 +468,33 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	};
 
 	grab.addEventListener("pointerdown", (e: PointerEvent) => {
-		// Left button only, and never on a control inside the row.
+		// Left button only. Nothing else lives inside a grip, so there is no
+		// control to avoid starting a drag from.
 		if (e.button !== 0) return;
-		if (!opts.handle && (e.target as HTMLElement).closest(".lv-no-drag")) return;
-
 		startX = e.clientX;
 		startY = e.clientY;
 		pointerId = e.pointerId;
 
-		if (e.pointerType === "touch" && !opts.handle) {
-			longPress = window.setTimeout(() => {
-				longPress = null;
-				begin();
-			}, LONG_PRESS_MS);
-		}
+		/*
+		 * The pointer is claimed here, on the press.
+		 *
+		 * A finger leaves the grip within a few pixels of starting to drag, and
+		 * without capture the moves that follow are delivered to whatever is under
+		 * it instead — so the drag received two events and then nothing. Claiming
+		 * it late was right when the whole row was the grab surface, because a row
+		 * that swallows its own second press can never be renamed by double-click.
+		 * A grip has nothing to double-click, so there is nothing to wait for.
+		 */
+		grab.setPointerCapture(e.pointerId);
 	});
 
 	grab.addEventListener("pointermove", (e: PointerEvent) => {
 		if (pointerId !== e.pointerId) return;
 
 		if (!live) {
-			// Distance in both axes. A board is dragged sideways as well as up
-			// and down, and a horizontal wander during the long press is the
-			// mobile drawer being swiped — which must stay the drawer's gesture.
-			const moved = Math.hypot(e.clientX - startX, e.clientY - startY);
-			if (longPress !== null) {
-				// Still waiting out the long press: any real movement means the
-				// user is scrolling, so give the gesture back to the browser.
-				if (moved > TOUCH_SLOP) finish(false);
-				return;
-			}
-			if (e.pointerType === "touch") return;
-			if (moved < MOUSE_THRESHOLD) return;
+			// Distance in both axes, because a board is dragged sideways as well
+			// as up and down.
+			if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_THRESHOLD) return;
 			begin();
 		}
 
@@ -525,33 +503,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		preview(e.clientX, e.clientY);
 	});
 
-	/*
-	 * Take the gesture back once the drag is live.
-	 *
-	 * `touch-action` cannot do this. It is read when the touch sequence starts,
-	 * so a row that says `auto` at the moment a finger lands has already given
-	 * the gesture to the browser — and adding `touch-action: none` 450ms later,
-	 * when the long press arms, changes nothing about a gesture already under
-	 * way. That is why dragging worked on a mouse and never on a phone: the drag
-	 * armed, the first move scrolled the list instead, and the pointer was
-	 * cancelled out from under it.
-	 *
-	 * `preventDefault` on a non-passive `touchmove` does work mid-gesture, and
-	 * the long press has already ruled out a scroll by cancelling on any wander
-	 * over `TOUCH_SLOP` — so by the time this fires, the finger has stayed put
-	 * and the browser has not started scrolling anything.
-	 *
-	 * Nothing here can be seen by the unit tests or the harness: a synthesised
-	 * pointer event never engages real scrolling, which is precisely why this
-	 * looked fine in every suite for as long as it was broken.
-	 */
-	grab.addEventListener(
-		"touchmove",
-		(e: TouchEvent) => {
-			if (live) e.preventDefault();
-		},
-		{ passive: false }
-	);
+
 
 	grab.addEventListener("pointerup", () => finish(true));
 	grab.addEventListener("pointercancel", () => finish(false));

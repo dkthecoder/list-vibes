@@ -538,8 +538,11 @@ function renderTasks(
       if (run.tasks.length < 2 && runs.length < 2) continue;
 
       run.rows.forEach((row, index) => {
+        const grip = row.querySelector<HTMLElement>(".lv-grip");
+        if (!grip) return;
         row.addClass("lv-sortable");
         makeDragSortable(row, {
+          grip,
           index,
           siblings: () => run.rows,
           containers,
@@ -724,8 +727,11 @@ function renderTasks(
    */
   if (opts.groupSort === "custom" && heads.length > 1) {
     heads.forEach((head, index) => {
+      const grip = head.querySelector<HTMLElement>(".lv-grip");
+      if (!grip) return;
       head.addClass("lv-sortable");
       makeDragSortable(head, {
+        grip,
         index,
         siblings: () => heads,
         onDrop: (from, to) =>
