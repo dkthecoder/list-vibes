@@ -3,6 +3,7 @@ import { SMART_VIEWS, Selection, ViewContext, sameSelection } from "../context";
 import { ListColor, TaskList, isComplete } from "../../model/types";
 import { makeEditableName } from "../../ui/editableName";
 import { makeDragSortable } from "../../ui/dragSort";
+import { renderGrip } from "../../ui/grip";
 import { selectionKey } from "../viewState";
 
 /** Left pane: smart views, then one row per list file in the folder. */
@@ -79,8 +80,11 @@ export function renderListsPane(parent: HTMLElement, ctx: ViewContext): void {
 
 	if (rows.length > 1) {
 		rows.forEach((el, index) => {
+			const grip = el.querySelector<HTMLElement>(".lv-grip");
+			if (!grip) return;
 			el.addClass("lv-sortable");
 			makeDragSortable(el, {
+				grip,
 				index,
 				siblings: () => rows,
 				onDrop: (from, to) => {
@@ -251,6 +255,10 @@ function row(parent: HTMLElement, o: RowOpts): HTMLElement {
 		}
 	});
 	if (o.onContext) el.addEventListener("contextmenu", o.onContext);
+
+	// Trailing, as everywhere else. A list in the picker and a task in a list are
+	// the same object in two places, and they are dragged the same way.
+	renderGrip(el);
 
 	return item;
 }

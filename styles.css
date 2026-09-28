@@ -2036,8 +2036,57 @@ body.is-mobile .lv-section-more {
  * a dragged row — that it is lifted, that it must not be scrolled by the
  * browser mid-gesture — is a rule, not a computation.
  */
+/* ------------------------------------------------------------------
+   The grip
+
+   The only surface a drag starts from, on every input. `touch-action:
+   none` is the whole reason it exists: a drag and a scroll are the same
+   gesture on a touchscreen, the browser chooses between them when the
+   touch begins, and this is the only way to tell it not to scroll from
+   here. The row deliberately says nothing, so swiping a list scrolls it.
+   ------------------------------------------------------------------ */
+
 .lv-grip {
 	touch-action: none;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	align-self: stretch;
+	/* Wide enough for a finger without taking room from the title. */
+	width: var(--size-4-4);
+	margin-inline-end: calc(var(--size-4-1) * -1);
+	color: var(--text-faint);
+	cursor: grab;
+	/* The icon carries the whole affordance, so it is sized rather than
+	   inheriting a text size that has nothing to do with it. */
+	--icon-size: var(--icon-s);
+	opacity: 0.55;
+}
+
+.lv-grip:hover {
+	color: var(--text-muted);
+	opacity: 1;
+}
+
+.lv-dragging .lv-grip,
+.lv-grip:active {
+	cursor: grabbing;
+	opacity: 1;
+}
+
+/* A finger needs more than a pointer does, and a phone has the width to spare
+   once the row is a single column. */
+.is-mobile .lv-grip {
+	width: var(--size-4-6);
+	opacity: 0.7;
+}
+
+/* In the picker and on a heading the grip sits against a shorter row, so it
+   aligns to the line rather than stretching. */
+.lv-section > .lv-grip,
+.lv-nav-item > .lv-grip {
+	align-self: center;
 }
 
 .lv-sortable,

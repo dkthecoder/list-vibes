@@ -114,16 +114,26 @@ const box = async (i) =>
 		return { x: r.left + r.width / 2, y: r.top + r.height / 2, h: r.height };
 	});
 
+/* The press point is the grip now: it is the only surface a drag starts from,
+   on every input. The row's own box is still what a drop target is measured
+   against. */
+const gripAt = async (i) =>
+	page.$eval(`${PANE} ${GROUP} > .lv-task:nth-child(${i + 1}) .lv-grip`, (el) => {
+		const r = el.getBoundingClientRect();
+		return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+	});
+
 const first = await box(0);
 const second = await box(1);
+const grip = await gripAt(0);
 
-await page.mouse.move(first.x, first.y);
+await page.mouse.move(grip.x, first.y);
 await page.mouse.down();
 // Past the mouse threshold in small steps, the way a real pointer arrives, and
 // clearly beyond the second row's centre — a drop exactly on a midpoint is a
 // deliberate no-move, so a test that stops there proves nothing.
 for (let y = first.y; y <= second.y + 12; y += 6) {
-	await page.mouse.move(first.x, y);
+	await page.mouse.move(grip.x, y);
 }
 const lifted = await page.$$eval(`${PANE} .lv-task.lv-dragging`, (e) => e.length);
 check("the row lifts once the threshold is passed", lifted === 1, `${lifted} lifted`);
@@ -164,29 +174,45 @@ check(
 
 /* ---- a click must not be read as a drag ---- */
 await page.evaluate(() => (window.lvCalls.length = 0));
-await page.mouse.move(first.x, first.y);
+await page.mouse.move(grip.x, first.y);
 await page.mouse.down();
-await page.mouse.move(first.x, first.y + 2); // inside the threshold
+await page.mouse.move(grip.x, first.y + 2); // inside the threshold
 await page.mouse.up();
 await page.waitForTimeout(50);
 calls = await page.evaluate(() => window.lvCalls);
 check(
-	"a click with a tiny wobble is not a drag",
+	"a press on the grip with a tiny wobble is not a drag",
 	!calls.some((c) => c[0] === "reorder"),
 	JSON.stringify(calls.map((c) => c[0]))
 );
+/*
+ * Nor does it open the task. The grip is a control of the row's rather than part
+ * of it, and a handle that opens what it is meant to move would be a trap on a
+ * phone, where the handle is what a thumb lands on.
+ */
 check(
-	"and still opens the task, because suppressing every click would be worse",
+	"and does not open the task either — the grip is not part of the row's body",
+	!calls.some((c) => c[0] === "selectTask"),
+	JSON.stringify(calls.map((c) => c[0]))
+);
+
+/* ---- but the row's body still opens it ---- */
+await page.evaluate(() => (window.lvCalls.length = 0));
+await page.mouse.click(first.x, first.y);
+await page.waitForTimeout(50);
+calls = await page.evaluate(() => window.lvCalls);
+check(
+	"clicking the row itself still opens the task",
 	calls.some((c) => c[0] === "selectTask"),
 	JSON.stringify(calls.map((c) => c[0]))
 );
 
 /* ---- dropping a row back where it started writes nothing ---- */
 await page.evaluate(() => (window.lvCalls.length = 0));
-await page.mouse.move(first.x, first.y);
+await page.mouse.move(grip.x, first.y);
 await page.mouse.down();
-for (let y = first.y; y <= first.y + 20; y += 5) await page.mouse.move(first.x, y);
-for (let y = first.y + 20; y >= first.y; y -= 5) await page.mouse.move(first.x, y);
+for (let y = first.y; y <= first.y + 20; y += 5) await page.mouse.move(grip.x, y);
+for (let y = first.y + 20; y >= first.y; y -= 5) await page.mouse.move(grip.x, y);
 await page.mouse.up();
 await page.waitForTimeout(50);
 calls = await page.evaluate(() => window.lvCalls);
@@ -237,48 +263,12 @@ check(
 	JSON.stringify(calls.map((c) => c[0]))
 );
 
-/* ---- touch: a long press does start a drag ---- */
-await page.evaluate(() => (window.lvCalls.length = 0));
-await page.evaluate(
-	({ pane, x, y }) => {
-		const row = document.querySelector(`${pane} .lv-group:not(.lv-starred-run) > .lv-task`);
-		row.setPointerCapture = () => {};
-		row.releasePointerCapture = () => {};
-		row.hasPointerCapture = () => false;
-		window.__lvRow = row;
-		window.__lvEv = (type, cy) =>
-			row.dispatchEvent(
-				new PointerEvent(type, {
-					pointerId: 2,
-					pointerType: "touch",
-					clientX: x,
-					clientY: cy,
-					bubbles: true,
-					button: 0,
-				})
-			);
-		window.__lvEv("pointerdown", y);
-	},
-	{ pane: PANE, x: first.x, y: first.y }
-);
-await page.waitForTimeout(600); // outlast the long press
-const held = await page.$$eval(`${PANE} .lv-task.lv-dragging`, (e) => e.length);
-check("a long press arms the drag", held === 1, `${held} lifted`);
+/* ---- touch on the row body is covered in touchdrag.mjs ----
 
-await page.evaluate(
-	(sy) => {
-		for (let d = 10; d <= 60; d += 10) window.__lvEv("pointermove", sy + d);
-		window.__lvEv("pointerup", sy + 60);
-	},
-	first.y
-);
-await page.waitForTimeout(50);
-calls = await page.evaluate(() => window.lvCalls);
-check(
-	"and dragging after it reorders",
-	calls.some((c) => c[0] === "reorder"),
-	JSON.stringify(calls.map((c) => c[0]))
-);
+   Synthesised pointer events cannot show what the browser decides about
+   scrolling, which is the whole question on touch. That suite drives a real
+   touchscreen through CDP instead. What stays here is the check above: the row
+   body must never become a drag surface, or lists stop scrolling. */
 
 /* ---- and a card on the wall actually moves ----
 
@@ -295,8 +285,10 @@ const wall = await page.evaluate(() => {
 	const c = [...document.querySelectorAll("#cards .lv-card-task")];
 	if (c.length < 3) return null;
 	const r = (e) => e.getBoundingClientRect();
+	const grip = c[0].querySelector(".lv-grip");
+	if (!grip) return null;
 	return {
-		from: { x: r(c[0]).left + 40, y: r(c[0]).top + 20 },
+		from: { x: r(grip).left + r(grip).width / 2, y: r(grip).top + r(grip).height / 2 },
 		to: { x: r(c[2]).left + 40, y: r(c[2]).top + 30 },
 	};
 });

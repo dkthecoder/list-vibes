@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { renderGrip } from "./grip";
 import { makeEditableName } from "./editableName";
 
 /**
@@ -67,6 +68,9 @@ export function renderHeading(parent: HTMLElement, spec: HeadingSpec): HTMLEleme
 	}
 
 	const fold = spec.fold;
+	// Trailing, like a row's: a heading and a row are dragged the same way.
+	renderGrip(head);
+
 	if (fold) {
 		head.addEventListener("click", () => fold.onToggle());
 		head.addEventListener("keydown", (e) => {

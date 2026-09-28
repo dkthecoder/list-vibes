@@ -7,6 +7,7 @@ import { formatDate, formatTime, isOverdue, todayISO } from "../../model/store";
 import { renderInline } from "../../ui/inline";
 import { caretOffset, renderNote, rendersVerbatim } from "../../ui/noteView";
 import { makeDragSortable } from "../../ui/dragSort";
+import { renderGrip } from "../../ui/grip";
 import { renderCheckbox } from "../../ui/checkbox";
 import { autoGrow, boundsOf, sizeToContent } from "../../ui/autoGrow";
 import { renderAddButton, submitOnEnter } from "../../ui/addButton";
@@ -228,7 +229,10 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 			const label = row.createDiv({ cls: "lv-step-label" });
 			renderInline(label, child.title, ctx);
 
-			const del = row.createDiv({ cls: "lv-step-remove lv-no-drag" });
+			// Trailing, past the delete control, matching a task row.
+			renderGrip(row);
+
+			const del = row.createDiv({ cls: "lv-step-remove" });
 			setIcon(del, "x");
 			del.setAttribute("aria-label", "Remove step");
 			del.addEventListener("click", () => void ctx.mutator.remove(child));
@@ -242,8 +246,11 @@ export function renderDetailPane(parent: HTMLElement, ctx: DetailContext): void 
 		if (stepRows.length > 1) {
 			const siblings = task.children;
 			stepRows.forEach((row, index) => {
+				const grip = row.querySelector<HTMLElement>(".lv-grip");
+				if (!grip) return;
 				row.addClass("lv-sortable");
 				makeDragSortable(row, {
+					grip,
 					index,
 					siblings: () => stepRows,
 					onDrop: (from, to) =>

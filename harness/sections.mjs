@@ -205,9 +205,12 @@ const boxes = await page.evaluate((sel) => {
 	const groups = [...document.querySelectorAll(`${sel} .lv-group`)];
 	const card = groups[2]?.querySelector(".lv-task, .lv-card-task");
 	if (!card || !groups[1]) return null;
-	const c = card.getBoundingClientRect();
+	const handle = card.querySelector(".lv-grip");
+	if (!handle) return null;
+	const c = handle.getBoundingClientRect();
 	const g = groups[1].getBoundingClientRect();
 	return {
+		// The grip: the only surface a drag starts from, on every input.
 		from: { x: c.left + c.width / 2, y: c.top + c.height / 2 },
 		to: { x: g.left + g.width / 2, y: g.top + 12 },
 		groups: groups.length,
@@ -285,11 +288,14 @@ await page.waitForTimeout(120);
 const hs = await page.evaluate((sel) => {
 	const list = [...document.querySelectorAll(`${sel} .lv-section:not(.lv-section-starred)`)];
 	if (list.length < 2) return null;
-	const a = list[0].getBoundingClientRect();
+	const handle = list[0].querySelector(".lv-grip");
+	if (!handle) return null;
+	const a = handle.getBoundingClientRect();
 	const b = list[1].getBoundingClientRect();
 	return {
-		from: { x: a.left + 60, y: a.top + a.height / 2 },
-		to: { x: a.left + 60, y: b.top + b.height },
+		// A heading is dragged by its grip too — one mechanism everywhere.
+		from: { x: a.left + a.width / 2, y: a.top + a.height / 2 },
+		to: { x: a.left + a.width / 2, y: b.top + b.height },
 	};
 }, PANE);
 
@@ -328,16 +334,20 @@ const edge = await page.evaluate(
 		if (sc.scrollHeight <= sc.clientHeight) return { why: "nothing to scroll" };
 
 		const row = sc.querySelector(".lv-task, .lv-card-task");
-		// Synthetic pointer events have no pointer the browser will capture, and
-		// capture is not what is under test here.
-		row.setPointerCapture = () => {};
-		row.releasePointerCapture = () => {};
-		row.hasPointerCapture = () => false;
+		const grip = row.querySelector(".lv-grip");
+		if (!grip) return { why: "no grip to drag by" };
+		// A drag starts from the grip, so that is where the events go. Synthetic
+		// pointer events have no pointer the browser will capture — and capture is
+		// not what is under test here — so the calls are stubbed out rather than
+		// left to throw.
+		grip.setPointerCapture = () => {};
+		grip.releasePointerCapture = () => {};
+		grip.hasPointerCapture = () => false;
 
-		const r = row.getBoundingClientRect();
+		const r = grip.getBoundingClientRect();
 		const box = sc.getBoundingClientRect();
 		const send = (type, y) =>
-			row.dispatchEvent(
+			grip.dispatchEvent(
 				new PointerEvent(type, {
 					pointerId: 9,
 					pointerType: "touch",
@@ -350,7 +360,9 @@ const edge = await page.evaluate(
 			);
 
 		send("pointerdown", r.top + r.height / 2);
-		await new Promise((res) => setTimeout(res, 600)); // outlast the long press
+		// Past the threshold, which is all a drag needs now — there is no press to
+		// outlast, because the grip already settled that this is not a scroll.
+		send("pointermove", r.top + r.height / 2 + 8);
 		const armed = !!sc.querySelector(".lv-dragging");
 
 		// Held just inside the bottom edge and then kept still: the finger stops
@@ -367,7 +379,7 @@ const edge = await page.evaluate(
 );
 
 check("the phone-height list has somewhere to scroll", !edge.why, edge.why ?? "");
-check("a long press arms the drag on touch", edge.armed === true);
+check("a touch on the grip arms the drag without a press to outlast", edge.armed === true);
 check(
 	"holding at the edge keeps pulling the list after the finger stops",
 	edge.after > edge.before,

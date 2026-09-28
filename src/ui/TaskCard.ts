@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import { renderCheckbox } from "./checkbox";
+import { renderGrip } from "./grip";
 import { renderSectionBadge } from "./sectionBadge";
 import { confettiBurst } from "./burst";
 import { applyLeaving, markLeaving, clearLeaving, leavingKey } from "../views/leaving";
@@ -59,6 +60,8 @@ export function renderTaskCard(
 	if (opts.showSection) renderSectionBadge(head, task);
 
 	renderImportance(head, task, ctx, { size: "sm" });
+	// Trailing, so the card's tickbox stays on the same column as a row's.
+	renderGrip(head);
 
 	/* --- note, shown rather than hidden --- */
 	if (task.note) {
