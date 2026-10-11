@@ -332,6 +332,7 @@ const edge = await page.evaluate(
 		sc.style.overflowY = "auto";
 		sc.scrollTop = 0;
 		if (sc.scrollHeight <= sc.clientHeight) return { why: "nothing to scroll" };
+		const end = sc.scrollHeight - sc.clientHeight;
 
 		const row = sc.querySelector(".lv-task, .lv-card-task");
 		const grip = row.querySelector(".lv-grip");
@@ -371,9 +372,13 @@ const edge = await page.evaluate(
 		const before = sc.scrollTop;
 		await new Promise((res) => setTimeout(res, 400));
 		const after = sc.scrollTop;
+		// The row is carried by the scroller as well as by the finger, so it
+		// stays under the finger only if the scroll is taken back out of it.
+		const g = grip.getBoundingClientRect();
+		const drift = Math.round(g.top + g.height / 2 - (box.bottom - 10));
 
 		send("pointerup", box.bottom - 10);
-		return { armed, before, after };
+		return { armed, before, after, drift, end };
 	},
 	PANE
 );
@@ -384,6 +389,16 @@ check(
 	"holding at the edge keeps pulling the list after the finger stops",
 	edge.after > edge.before,
 	`scrollTop ${edge.before} → ${edge.after}`
+);
+check(
+	"but stops at the end of the list",
+	edge.after <= edge.end,
+	`scrollTop ${edge.after}, list ends at ${edge.end}`
+);
+check(
+	"and the dragged row stays under the finger while it does",
+	Math.abs(edge.drift) <= 2,
+	`${edge.drift}px from the finger`
 );
 
 /* ---------------- a sort does not take the headings away ---------------- */

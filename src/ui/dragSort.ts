@@ -295,6 +295,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 	let lastX = 0;
 	let scroller: HTMLElement | null = null;
 	let startScroll = 0;
+	let endScroll = 0;
 	let edgeFrame = 0;
 	let lastY = 0;
 
@@ -313,6 +314,7 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		// The list the row sits in, if it is in one that scrolls.
 		scroller = row.closest<HTMLElement>(".lv-scroll");
 		startScroll = scroller?.scrollTop ?? 0;
+		endScroll = scroller ? scroller.scrollHeight - scroller.clientHeight : 0;
 
 		siblings = opts.siblings();
 
@@ -371,7 +373,8 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 
 		if (step) {
 			const before = scroller.scrollTop;
-			scroller.scrollTop += step;
+			// The pre-drag end: the dragged row's transform stretches the live one.
+			scroller.scrollTop = Math.min(endScroll, before + step);
 			// Keep the preview honest as the list moves under a finger that is
 			// not itself moving, which is the whole point of holding at the edge.
 			if (scroller.scrollTop !== before) preview(lastX, lastY);
@@ -391,6 +394,8 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		// scrolling, so the pointer is moved into that frame rather than the
 		// measurements into this one.
 		y += scrolled();
+		// The scroller carries the row too, so the same correction keeps it under the pointer.
+		setOffset(row, y - startY);
 		if (groups.length) {
 			const next = dropContainer(boxes, x, y, over);
 			if (next !== over) {
@@ -499,7 +504,6 @@ export function makeDragSortable(row: HTMLElement, opts: DragSortOptions): void 
 		}
 
 		e.preventDefault();
-		setOffset(row, e.clientY - startY);
 		preview(e.clientX, e.clientY);
 	});
 
