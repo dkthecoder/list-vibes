@@ -15,6 +15,14 @@ tags **after** the squash merge: `npm version`'s own tag would point at the
 branch commit that the squash replaces, leaving a release whose commit is not in
 main's history.
 
+## 0.14.1
+
+**A dragged row stays under the pointer while the list scrolls.** Holding a drag
+near the top or bottom edge pulls the list along, and the row being dragged was
+carried with it — off screen, while the drop still landed where the pointer was.
+The list also stops at its real end now, rather than scrolling into empty space
+behind the row.
+
 ## 0.14.0
 
 **Dragging to reorder now works on a phone and a tablet.** It never really did. A
